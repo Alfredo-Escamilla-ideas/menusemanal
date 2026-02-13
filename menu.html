@@ -528,6 +528,7 @@
         // Variables globales
         let draggedFood = null;
         const MENU_DOC_ID = 'weekly-menu';
+        const CUSTOM_FOODS_DOC_ID = 'custom-foods';
 
         // Toggle categoría colapsable
         function toggleCategory(header) {
@@ -592,7 +593,7 @@
             });
         }
 
-        // Sincronización en tiempo real (solo con Firebase)
+        // Sincronización en tiempo real del menú (solo con Firebase)
         if (isFirebaseConfigured) {
             db.collection('menus').doc(MENU_DOC_ID).onSnapshot((doc) => {
                 if (doc.exists) {
@@ -604,6 +605,16 @@
                             updateSlot(slot, data[key]);
                         }
                     });
+                }
+            });
+
+            // Sincronización en tiempo real de platos personalizados
+            db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.customFoods) {
+                        loadCustomFoods(data.customFoods);
+                    }
                 }
             });
         }
@@ -631,10 +642,16 @@
         });
 
         // Eliminar plato del sidebar
-        function deleteFoodItem(event, btn) {
+        async function deleteFoodItem(event, btn) {
             event.stopPropagation();
             const foodItem = btn.closest('.food-item');
+            const foodName = foodItem.querySelector('.food-item-text').textContent;
+            
+            // Eliminar del DOM
             foodItem.remove();
+            
+            // Eliminar de la base de datos
+            await removeCustomFood(foodName);
         }
 
         // Eventos de arrastre para slots
@@ -678,30 +695,154 @@
             localStorage.removeItem(`${slot.dataset.day}-${slot.dataset.meal}`);
         }
 
+        // Guardar plato personalizado en la base de datos
+        async function saveCustomFood(foodName) {
+            if (isFirebaseConfigured) {
+                try {
+                    const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
+                    const customFoods = doc.exists && doc.data().customFoods ? doc.data().customFoods : [];
+                    
+                    if (!customFoods.includes(foodName)) {
+                        customFoods.push(foodName);
+                        await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
+                    }
+                } catch (error) {
+                    console.error("Error guardando plato en Firebase:", error);
+                    saveCustomFoodLocal(foodName);
+                }
+            } else {
+                saveCustomFoodLocal(foodName);
+            }
+        }
+
+        // Guardar plato personalizado en localStorage
+        function saveCustomFoodLocal(foodName) {
+            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '[]');
+            if (!customFoods.includes(foodName)) {
+                customFoods.push(foodName);
+                localStorage.setItem('customFoods', JSON.stringify(customFoods));
+            }
+        }
+
+        // Eliminar plato personalizado de la base de datos
+        async function removeCustomFood(foodName) {
+            if (isFirebaseConfigured) {
+                try {
+                    const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
+                    if (doc.exists && doc.data().customFoods) {
+                        const customFoods = doc.data().customFoods.filter(f => f !== foodName);
+                        await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
+                    }
+                } catch (error) {
+                    console.error("Error eliminando plato de Firebase:", error);
+                    removeCustomFoodLocal(foodName);
+                }
+            } else {
+                removeCustomFoodLocal(foodName);
+            }
+        }
+
+        // Eliminar plato personalizado de localStorage
+        function removeCustomFoodLocal(foodName) {
+            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '[]');
+            const filtered = customFoods.filter(f => f !== foodName);
+            localStorage.setItem('customFoods', JSON.stringify(filtered));
+        }
+
+        // Crear elemento de plato en el DOM
+        function createFoodItemElement(foodName) {
+            const newItem = document.createElement('div');
+            newItem.className = 'food-item';
+            newItem.draggable = true;
+            newItem.innerHTML = `<span class="food-item-text">${foodName}</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button>`;
+            
+            // Añadir eventos de arrastre
+            newItem.addEventListener('dragstart', (e) => {
+                draggedFood = newItem.querySelector('.food-item-text').textContent;
+                e.target.style.opacity = '0.5';
+            });
+            
+            newItem.addEventListener('dragend', (e) => {
+                e.target.style.opacity = '1';
+            });
+            
+            return newItem;
+        }
+
+        // Cargar platos personalizados en el DOM
+        function loadCustomFoods(customFoods) {
+            const lastCategory = document.querySelectorAll('.category-items')[2];
+            
+            // Eliminar platos personalizados existentes (no los predefinidos)
+            const existingCustomFoods = lastCategory.querySelectorAll('.food-item');
+            existingCustomFoods.forEach(item => {
+                const foodName = item.querySelector('.food-item-text').textContent;
+                const predefinedFoods = ['Ensalada César', 'Crema de verduras', 'Tortilla francesa', 'Yogur con fruta', 'Sandwich vegetal'];
+                if (!predefinedFoods.includes(foodName)) {
+                    item.remove();
+                }
+            });
+            
+            // Añadir platos personalizados desde la base de datos
+            customFoods.forEach(foodName => {
+                const predefinedFoods = ['Ensalada César', 'Crema de verduras', 'Tortilla francesa', 'Yogur con fruta', 'Sandwich vegetal'];
+                if (!predefinedFoods.includes(foodName)) {
+                    const existingItem = Array.from(lastCategory.querySelectorAll('.food-item-text'))
+                        .find(item => item.textContent === foodName);
+                    
+                    if (!existingItem) {
+                        lastCategory.appendChild(createFoodItemElement(foodName));
+                    }
+                }
+            });
+        }
+
+        // Cargar platos personalizados desde Firebase o localStorage
+        async function loadCustomFoodsFromDB() {
+            if (isFirebaseConfigured) {
+                try {
+                    const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
+                    if (doc.exists && doc.data().customFoods) {
+                        loadCustomFoods(doc.data().customFoods);
+                    }
+                } catch (error) {
+                    console.error("Error cargando platos de Firebase:", error);
+                    loadCustomFoodsFromLocal();
+                }
+            } else {
+                loadCustomFoodsFromLocal();
+            }
+        }
+
+        // Cargar platos personalizados desde localStorage
+        function loadCustomFoodsFromLocal() {
+            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '[]');
+            loadCustomFoods(customFoods);
+        }
+
         // Añadir comida personalizada
-        function addCustomFood() {
+        async function addCustomFood() {
             const input = document.getElementById('customFood');
             const foodName = input.value.trim();
             
             if (foodName) {
-                const newItem = document.createElement('div');
-                newItem.className = 'food-item';
-                newItem.draggable = true;
-                newItem.innerHTML = `<span class="food-item-text">${foodName}</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button>`;
-                
-                // Añadir eventos de arrastre
-                newItem.addEventListener('dragstart', (e) => {
-                    draggedFood = newItem.querySelector('.food-item-text').textContent;
-                    e.target.style.opacity = '0.5';
-                });
-                
-                newItem.addEventListener('dragend', (e) => {
-                    e.target.style.opacity = '1';
-                });
-                
-                // Añadir al final de la última categoría
+                // Verificar si ya existe
                 const lastCategory = document.querySelectorAll('.category-items')[2];
+                const existingItem = Array.from(lastCategory.querySelectorAll('.food-item-text'))
+                    .find(item => item.textContent === foodName);
+                
+                if (existingItem) {
+                    alert('Este plato ya existe en la lista');
+                    input.value = '';
+                    return;
+                }
+                
+                // Añadir al DOM
+                const newItem = createFoodItemElement(foodName);
                 lastCategory.appendChild(newItem);
+                
+                // Guardar en la base de datos
+                await saveCustomFood(foodName);
                 
                 input.value = '';
             }
@@ -716,17 +857,30 @@
 
         // Reiniciar todos los platos
         async function resetAllMeals() {
-            if (confirm('¿Estás seguro de que quieres borrar todos los platos del menú semanal?')) {
-                // Limpiar todas las casillas
+            if (confirm('¿Estás seguro de que quieres borrar todos los platos del menú semanal y los platos personalizados?')) {
+                // Limpiar todas las casillas del menú
                 const slots = document.querySelectorAll('.meal-slot');
                 slots.forEach(slot => {
                     slot.innerHTML = '';
+                });
+                
+                // Limpiar platos personalizados del DOM
+                const lastCategory = document.querySelectorAll('.category-items')[2];
+                const customItems = lastCategory.querySelectorAll('.food-item');
+                const predefinedFoods = ['Ensalada César', 'Crema de verduras', 'Tortilla francesa', 'Yogur con fruta', 'Sandwich vegetal'];
+                
+                customItems.forEach(item => {
+                    const foodName = item.querySelector('.food-item-text').textContent;
+                    if (!predefinedFoods.includes(foodName)) {
+                        item.remove();
+                    }
                 });
                 
                 // Limpiar Firebase
                 if (isFirebaseConfigured) {
                     try {
                         await db.collection('menus').doc(MENU_DOC_ID).delete();
+                        await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).delete();
                     } catch (error) {
                         console.error("Error limpiando Firebase:", error);
                     }
@@ -736,12 +890,13 @@
                 localStorage.clear();
                 
                 // Mensaje de confirmación
-                alert('✅ Menú reiniciado correctamente');
+                alert('✅ Menú y platos personalizados reiniciados correctamente');
             }
         }
 
         // Cargar datos al iniciar
         loadMenu();
+        loadCustomFoodsFromDB();
     </script>
 
     <!--
