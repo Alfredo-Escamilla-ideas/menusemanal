@@ -1200,33 +1200,27 @@
 
         // Reiniciar todos los platos
         async function resetAllMeals() {
-            if (confirm('¿Estás seguro de que quieres borrar todos los platos del menú semanal y los platos personalizados?')) {
+            if (confirm('¿Estás seguro de que quieres borrar el menú semanal? (Los platos no se borrarán)')) {
                 // Limpiar todas las casillas del menú
                 const slots = document.querySelectorAll('.meal-slot');
                 slots.forEach(slot => {
                     slot.innerHTML = '';
+                    // Limpiar localStorage de cada casilla
+                    const key = `${slot.dataset.day}-${slot.dataset.meal}`;
+                    localStorage.removeItem(key);
                 });
                 
-                // Limpiar todos los platos del banco de comidas
-                document.querySelectorAll('.category-items').forEach(cat => {
-                    cat.innerHTML = '';
-                });
-                
-                // Limpiar Firebase
+                // Limpiar Firebase (solo el menú, no los platos)
                 if (isFirebaseConfigured) {
                     try {
                         await db.collection('menus').doc(MENU_DOC_ID).delete();
-                        await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).delete();
                     } catch (error) {
-                        console.error("Error limpiando Firebase:", error);
+                        console.error("Error limpiando menú de Firebase:", error);
                     }
                 }
                 
-                // Limpiar localStorage
-                localStorage.clear();
-                
                 // Mensaje de confirmación
-                alert('✅ Menú y platos personalizados reiniciados correctamente');
+                alert('✅ Menú semanal reiniciado correctamente');
             }
         }
 
