@@ -1213,7 +1213,8 @@
                 // Limpiar Firebase (solo el menú, no los platos)
                 if (isFirebaseConfigured) {
                     try {
-                        await db.collection('menus').doc(MENU_DOC_ID).delete();
+                        // En lugar de eliminar, establecer un documento vacío
+                        await db.collection('menus').doc(MENU_DOC_ID).set({});
                     } catch (error) {
                         console.error("Error limpiando menú de Firebase:", error);
                     }
