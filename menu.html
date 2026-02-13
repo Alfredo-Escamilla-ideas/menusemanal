@@ -257,6 +257,10 @@
             transition: all 0.3s;
             cursor: pointer;
             position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-content: flex-start;
         }
 
         .meal-slot:hover {
@@ -269,40 +273,42 @@
         }
 
         .meal-content {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            justify-content: space-between;
             gap: 5px;
+            background: #333;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            max-width: 100%;
         }
 
         .meal-text {
             flex: 1;
             word-wrap: break-word;
-            font-size: 0.9em;
-            color: #333;
+            font-size: 1em;
         }
 
         .remove-btn {
-            background: #ff4444;
+            background: transparent;
             color: white;
             border: none;
             border-radius: 50%;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             cursor: pointer;
-            font-size: 0.8em;
-            display: none;
+            font-size: 0.9em;
+            display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-        }
-
-        .meal-slot:hover .remove-btn {
-            display: flex;
+            transition: all 0.2s;
         }
 
         .remove-btn:hover {
-            background: #cc0000;
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
         }
 
         .add-custom {
@@ -402,7 +408,16 @@
 
             <div class="food-category">
                 <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🌙 Cenas Ligeras</div>
+                    <div class="category-title">� Postres</div>
+                    <span class="category-arrow">▼</span>
+                </div>
+                <div class="category-items collapsed" data-category="postres">
+                </div>
+            </div>
+
+            <div class="food-category">
+                <div class="category-header collapsed" onclick="toggleCategory(this)">
+                    <div class="category-title">�🌙 Cenas Ligeras</div>
                     <span class="category-arrow">▼</span>
                 </div>
                 <div class="category-items collapsed" data-category="cenas">
@@ -414,6 +429,7 @@
                 <select id="categorySelect" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; font-size: 0.9em;">
                     <option value="primeros">🥗 Primeros Platos</option>
                     <option value="segundos">🍗 Segundos Platos</option>
+                    <option value="postres">🍮 Postres</option>
                     <option value="cenas">🌙 Cenas Ligeras</option>
                 </select>
                 <input type="text" id="customFood" placeholder="Escribe el nombre del plato...">
@@ -457,7 +473,17 @@
                         <td><div class="meal-slot" data-day="domingo" data-meal="comida2"></div></td>
                     </tr>
                     <tr>
-                        <td class="day-header">🌙 Cena 1º</td>
+                        <td class="day-header">� Postre</td>
+                        <td><div class="meal-slot" data-day="lunes" data-meal="postre"></div></td>
+                        <td><div class="meal-slot" data-day="martes" data-meal="postre"></div></td>
+                        <td><div class="meal-slot" data-day="miercoles" data-meal="postre"></div></td>
+                        <td><div class="meal-slot" data-day="jueves" data-meal="postre"></div></td>
+                        <td><div class="meal-slot" data-day="viernes" data-meal="postre"></div></td>
+                        <td><div class="meal-slot" data-day="sabado" data-meal="postre"></div></td>
+                        <td><div class="meal-slot" data-day="domingo" data-meal="postre"></div></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">�🌙 Cena 1º</td>
                         <td><div class="meal-slot" data-day="lunes" data-meal="cena1"></div></td>
                         <td><div class="meal-slot" data-day="martes" data-meal="cena1"></div></td>
                         <td><div class="meal-slot" data-day="miercoles" data-meal="cena1"></div></td>
@@ -519,7 +545,8 @@
         const CATEGORY_MAP = {
             'primeros': 0,
             'segundos': 1,
-            'cenas': 2
+            'postres': 2,
+            'cenas': 3
         };
 
         // Toggle categoría colapsable
@@ -534,18 +561,18 @@
         // ====================================
         
         // Guardar menú en Firebase o localStorage
-        async function saveMenu(day, meal, text) {
+        async function saveMenu(day, meal, foodsArray) {
             if (isFirebaseConfigured) {
                 try {
                     await db.collection('menus').doc(MENU_DOC_ID).set({
-                        [`${day}-${meal}`]: text
+                        [`${day}-${meal}`]: foodsArray
                     }, { merge: true });
                 } catch (error) {
                     console.error("Error guardando en Firebase:", error);
-                    localStorage.setItem(`${day}-${meal}`, text);
+                    localStorage.setItem(`${day}-${meal}`, JSON.stringify(foodsArray));
                 }
             } else {
-                localStorage.setItem(`${day}-${meal}`, text);
+                localStorage.setItem(`${day}-${meal}`, JSON.stringify(foodsArray));
             }
         }
 
@@ -560,7 +587,7 @@
                         slots.forEach(slot => {
                             const key = `${slot.dataset.day}-${slot.dataset.meal}`;
                             if (data[key]) {
-                                updateSlot(slot, data[key]);
+                                updateSlotWithArray(slot, data[key]);
                             }
                         });
                     }
@@ -580,7 +607,13 @@
                 const key = `${slot.dataset.day}-${slot.dataset.meal}`;
                 const saved = localStorage.getItem(key);
                 if (saved) {
-                    updateSlot(slot, saved);
+                    try {
+                        const foodsArray = JSON.parse(saved);
+                        updateSlotWithArray(slot, foodsArray);
+                    } catch (e) {
+                        // Compatibilidad con formato antiguo (string simple)
+                        updateSlotWithArray(slot, [saved]);
+                    }
                 }
             });
         }
@@ -594,7 +627,7 @@
                     slots.forEach(slot => {
                         const key = `${slot.dataset.day}-${slot.dataset.meal}`;
                         if (data[key]) {
-                            updateSlot(slot, data[key]);
+                            updateSlotWithArray(slot, data[key]);
                         }
                     });
                 }
@@ -611,14 +644,60 @@
             });
         }
 
-        // Actualizar contenido de slot
+        // Actualizar slot con array de comidas
+        function updateSlotWithArray(slot, foodsArray) {
+            if (!Array.isArray(foodsArray)) {
+                foodsArray = [foodsArray];
+            }
+            
+            slot.innerHTML = '';
+            foodsArray.forEach(food => {
+                const tag = document.createElement('div');
+                tag.className = 'meal-content';
+                tag.innerHTML = `
+                    <span class="meal-text">${food}</span>
+                    <button class="remove-btn" onclick="removeFoodTag(this)">×</button>
+                `;
+                slot.appendChild(tag);
+            });
+        }
+
+        // Actualizar contenido de slot (compatibilidad)
         function updateSlot(slot, text) {
-            slot.innerHTML = `
-                <div class="meal-content">
-                    <span class="meal-text">${text}</span>
-                    <button class="remove-btn" onclick="removeFood(this)">×</button>
-                </div>
-            `;
+            updateSlotWithArray(slot, [text]);
+        }
+
+        // Obtener array de comidas de un slot
+        function getSlotFoods(slot) {
+            const tags = slot.querySelectorAll('.meal-text');
+            return Array.from(tags).map(tag => tag.textContent);
+        }
+
+        // Eliminar etiqueta individual de comida
+        async function removeFoodTag(btn) {
+            const slot = btn.closest('.meal-slot');
+            const tag = btn.closest('.meal-content');
+            tag.remove();
+            
+            // Actualizar en la base de datos
+            const foodsArray = getSlotFoods(slot);
+            await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray);
+            
+            if (isFirebaseConfigured) {
+                try {
+                    if (foodsArray.length === 0) {
+                        await db.collection('menus').doc(MENU_DOC_ID).update({
+                            [`${slot.dataset.day}-${slot.dataset.meal}`]: firebase.firestore.FieldValue.delete()
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error eliminando de Firebase:", error);
+                }
+            }
+            
+            if (foodsArray.length === 0) {
+                localStorage.removeItem(`${slot.dataset.day}-${slot.dataset.meal}`);
+            }
         }
 
         // Eventos de arrastre para items de comida
@@ -664,29 +743,20 @@
                 slot.classList.remove('drag-over');
                 
                 if (draggedFood) {
-                    updateSlot(slot, draggedFood);
-                    await saveMenu(slot.dataset.day, slot.dataset.meal, draggedFood);
+                    // Añadir nueva comida al slot
+                    const foodsArray = getSlotFoods(slot);
+                    foodsArray.push(draggedFood);
+                    
+                    updateSlotWithArray(slot, foodsArray);
+                    await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray);
                     draggedFood = null;
                 }
             });
         });
 
-        // Eliminar comida del menú
+        // Eliminar comida del menú (función legacy, redirige a removeFoodTag)
         async function removeFood(btn) {
-            const slot = btn.closest('.meal-slot');
-            slot.innerHTML = '';
-            
-            if (isFirebaseConfigured) {
-                try {
-                    await db.collection('menus').doc(MENU_DOC_ID).update({
-                        [`${slot.dataset.day}-${slot.dataset.meal}`]: firebase.firestore.FieldValue.delete()
-                    });
-                } catch (error) {
-                    console.error("Error eliminando de Firebase:", error);
-                }
-            }
-            
-            localStorage.removeItem(`${slot.dataset.day}-${slot.dataset.meal}`);
+            await removeFoodTag(btn);
         }
 
         // Guardar plato personalizado en la base de datos
