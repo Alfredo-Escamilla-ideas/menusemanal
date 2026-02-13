@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menú Semanal</title>
+    <title>🍽️ Menú Semanal | Planificador de Comidas</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -32,12 +35,24 @@
 
         .header h1 {
             font-size: 2.5em;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .header p {
             color: #666;
+            font-size: 1em;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            color: #999;
+            font-size: 0.85em;
+            font-style: italic;
         }
 
         .reset-btn {
@@ -88,6 +103,9 @@
             font-weight: 600;
             border-bottom: 2px solid #333;
             padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .food-category {
@@ -370,14 +388,15 @@
 </head>
 <body>
     <div class="header">
-        <h1>🍴 Menú Semanal 🍴</h1>
-        <p>Arrastra las comidas a cada día de la semana</p>
+        <h1>�️ Menú Semanal 🍽️</h1>
+        <p>Planifica tus comidas de forma sencilla</p>
+        <p class="subtitle">Arrastra las comidas a cada día de la semana • Los cambios se guardan automáticamente</p>
         <button class="reset-btn" onclick="resetAllMeals()">🔄 Reiniciar Todo</button>
     </div>
 
     <div class="main-container">
         <div class="sidebar">
-            <h2>📋 Banco de Comidas</h2>
+            <h2>🏋️ Banco de Comidas</h2>
             
             <div class="food-category">
                 <div class="category-header collapsed" onclick="toggleCategory(this)">
