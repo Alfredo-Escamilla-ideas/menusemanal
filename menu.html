@@ -820,6 +820,7 @@
             'postres': 2,
             'cenas': 3
         };
+        let isResetting = false; // Flag para evitar conflictos durante el reset
 
         // Toggle categoría colapsable
         function toggleCategory(header) {
@@ -893,20 +894,37 @@
         // Sincronización en tiempo real del menú (solo con Firebase)
         if (isFirebaseConfigured) {
             db.collection('menus').doc(MENU_DOC_ID).onSnapshot((doc) => {
+                // Ignorar cambios durante el reset para evitar race conditions
+                if (isResetting) {
+                    console.log('Ignorando cambios de Firebase durante el reset');
+                    return;
+                }
+                
                 const slots = document.querySelectorAll('.meal-slot');
                 if (doc.exists) {
                     const data = doc.data();
-                    slots.forEach(slot => {
-                        const key = `${slot.dataset.day}-${slot.dataset.meal}`;
-                        if (data[key]) {
-                            updateSlotWithArray(slot, data[key]);
-                        } else {
-                            // Limpiar slot si no hay datos en Firebase
+                    // Si el documento está vacío (sin keys), limpiar todo
+                    const hasData = Object.keys(data).length > 0;
+                    
+                    if (!hasData) {
+                        console.log('Documento vacío detectado, limpiando casillas');
+                        slots.forEach(slot => {
                             slot.innerHTML = '';
-                        }
-                    });
+                        });
+                    } else {
+                        slots.forEach(slot => {
+                            const key = `${slot.dataset.day}-${slot.dataset.meal}`;
+                            if (data[key]) {
+                                updateSlotWithArray(slot, data[key]);
+                            } else {
+                                // Limpiar slot si no hay datos en Firebase
+                                slot.innerHTML = '';
+                            }
+                        });
+                    }
                 } else {
                     // Si el documento no existe, limpiar todas las casillas
+                    console.log('Documento no existe, limpiando casillas');
                     slots.forEach(slot => {
                         slot.innerHTML = '';
                     });
@@ -1212,33 +1230,43 @@
             if (confirm('¿Estás seguro de que quieres borrar el menú semanal? (Los platos no se borrarán)')) {
                 console.log('Usuario confirmó el reset');
                 
-                // Limpiar todas las casillas del menú
-                const slots = document.querySelectorAll('.meal-slot');
-                console.log('Slots encontrados:', slots.length);
+                // Activar flag para evitar que la sincronización interfiera
+                isResetting = true;
                 
-                slots.forEach(slot => {
-                    slot.innerHTML = '';
-                    // Limpiar localStorage de cada casilla
-                    const key = `${slot.dataset.day}-${slot.dataset.meal}`;
-                    localStorage.removeItem(key);
-                });
-                
-                // Limpiar Firebase (solo el menú, no los platos)
-                if (isFirebaseConfigured) {
-                    try {
+                try {
+                    // Limpiar todas las casillas del menú
+                    const slots = document.querySelectorAll('.meal-slot');
+                    console.log('Slots encontrados:', slots.length);
+                    
+                    slots.forEach(slot => {
+                        slot.innerHTML = '';
+                        // Limpiar localStorage de cada casilla
+                        const key = `${slot.dataset.day}-${slot.dataset.meal}`;
+                        localStorage.removeItem(key);
+                    });
+                    
+                    // Limpiar Firebase (solo el menú, no los platos)
+                    if (isFirebaseConfigured) {
                         console.log('Limpiando Firebase...');
-                        // En lugar de eliminar, establecer un documento vacío
+                        // Establecer un documento vacío
                         await db.collection('menus').doc(MENU_DOC_ID).set({});
                         console.log('Firebase limpiado correctamente');
-                    } catch (error) {
-                        console.error("Error limpiando menú de Firebase:", error);
+                    } else {
+                        console.log('Firebase no configurado, solo localStorage limpiado');
                     }
-                } else {
-                    console.log('Firebase no configurado, solo localStorage limpiado');
+                    
+                    // Mensaje de confirmación
+                    alert('✅ Menú semanal reiniciado correctamente');
+                } catch (error) {
+                    console.error("Error durante el reset:", error);
+                    alert('❌ Error al reiniciar el menú');
+                } finally {
+                    // Desactivar flag después de un breve delay
+                    setTimeout(() => {
+                        isResetting = false;
+                        console.log('Flag de reset desactivado');
+                    }, 500);
                 }
-                
-                // Mensaje de confirmación
-                alert('✅ Menú semanal reiniciado correctamente');
             }
         }
 
