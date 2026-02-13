@@ -384,14 +384,7 @@
                     <div class="category-title">🥗 Primeros Platos</div>
                     <span class="category-arrow">▼</span>
                 </div>
-                <div class="category-items collapsed">
-                    <div class="food-item" draggable="true"><span class="food-item-text">Ensalada mixta</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Lentejas</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Pasta carbonara</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Sopa de verduras</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Arroz caldoso</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Gazpacho</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Crema de calabaza</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                <div class="category-items collapsed" data-category="primeros">
                 </div>
             </div>
 
@@ -400,14 +393,7 @@
                     <div class="category-title">🍗 Segundos Platos</div>
                     <span class="category-arrow">▼</span>
                 </div>
-                <div class="category-items collapsed">
-                    <div class="food-item" draggable="true"><span class="food-item-text">Pollo asado</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Salmón a la plancha</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Tortilla española</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Merluza al horno</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Pechuga a la plancha</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Lomo de cerdo</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Revuelto de setas</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                <div class="category-items collapsed" data-category="segundos">
                 </div>
             </div>
 
@@ -416,17 +402,17 @@
                     <div class="category-title">🌙 Cenas Ligeras</div>
                     <span class="category-arrow">▼</span>
                 </div>
-                <div class="category-items collapsed">
-                    <div class="food-item" draggable="true"><span class="food-item-text">Ensalada César</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Crema de verduras</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Tortilla francesa</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Yogur con fruta</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
-                    <div class="food-item" draggable="true"><span class="food-item-text">Sandwich vegetal</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                <div class="category-items collapsed" data-category="cenas">
                 </div>
             </div>
 
             <div class="add-custom">
                 <h3>➕ Añadir Nuevo Plato</h3>
+                <select id="categorySelect" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; font-size: 0.9em;">
+                    <option value="primeros">🥗 Primeros Platos</option>
+                    <option value="segundos">🍗 Segundos Platos</option>
+                    <option value="cenas">🌙 Cenas Ligeras</option>
+                </select>
                 <input type="text" id="customFood" placeholder="Escribe el nombre del plato...">
                 <button onclick="addCustomFood()">Añadir Plato</button>
             </div>
@@ -529,6 +515,11 @@
         let draggedFood = null;
         const MENU_DOC_ID = 'weekly-menu';
         const CUSTOM_FOODS_DOC_ID = 'custom-foods';
+        const CATEGORY_MAP = {
+            'primeros': 0,
+            'segundos': 1,
+            'cenas': 2
+        };
 
         // Toggle categoría colapsable
         function toggleCategory(header) {
@@ -646,12 +637,14 @@
             event.stopPropagation();
             const foodItem = btn.closest('.food-item');
             const foodName = foodItem.querySelector('.food-item-text').textContent;
+            const categoryContainer = foodItem.closest('.category-items');
+            const category = categoryContainer.dataset.category;
             
             // Eliminar del DOM
             foodItem.remove();
             
             // Eliminar de la base de datos
-            await removeCustomFood(foodName);
+            await removeCustomFood(foodName, category);
         }
 
         // Eventos de arrastre para slots
@@ -696,57 +689,70 @@
         }
 
         // Guardar plato personalizado en la base de datos
-        async function saveCustomFood(foodName) {
+        async function saveCustomFood(foodName, category) {
             if (isFirebaseConfigured) {
                 try {
                     const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
-                    const customFoods = doc.exists && doc.data().customFoods ? doc.data().customFoods : [];
+                    const data = doc.exists ? doc.data() : {};
+                    const customFoods = data.customFoods || {};
                     
-                    if (!customFoods.includes(foodName)) {
-                        customFoods.push(foodName);
+                    if (!customFoods[category]) {
+                        customFoods[category] = [];
+                    }
+                    
+                    if (!customFoods[category].includes(foodName)) {
+                        customFoods[category].push(foodName);
                         await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
                     }
                 } catch (error) {
                     console.error("Error guardando plato en Firebase:", error);
-                    saveCustomFoodLocal(foodName);
+                    saveCustomFoodLocal(foodName, category);
                 }
             } else {
-                saveCustomFoodLocal(foodName);
+                saveCustomFoodLocal(foodName, category);
             }
         }
 
         // Guardar plato personalizado en localStorage
-        function saveCustomFoodLocal(foodName) {
-            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '[]');
-            if (!customFoods.includes(foodName)) {
-                customFoods.push(foodName);
+        function saveCustomFoodLocal(foodName, category) {
+            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '{}');
+            if (!customFoods[category]) {
+                customFoods[category] = [];
+            }
+            if (!customFoods[category].includes(foodName)) {
+                customFoods[category].push(foodName);
                 localStorage.setItem('customFoods', JSON.stringify(customFoods));
             }
         }
 
         // Eliminar plato personalizado de la base de datos
-        async function removeCustomFood(foodName) {
+        async function removeCustomFood(foodName, category) {
             if (isFirebaseConfigured) {
                 try {
                     const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
                     if (doc.exists && doc.data().customFoods) {
-                        const customFoods = doc.data().customFoods.filter(f => f !== foodName);
-                        await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
+                        const customFoods = doc.data().customFoods;
+                        if (customFoods[category]) {
+                            customFoods[category] = customFoods[category].filter(f => f !== foodName);
+                            await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
+                        }
                     }
                 } catch (error) {
                     console.error("Error eliminando plato de Firebase:", error);
-                    removeCustomFoodLocal(foodName);
+                    removeCustomFoodLocal(foodName, category);
                 }
             } else {
-                removeCustomFoodLocal(foodName);
+                removeCustomFoodLocal(foodName, category);
             }
         }
 
         // Eliminar plato personalizado de localStorage
-        function removeCustomFoodLocal(foodName) {
-            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '[]');
-            const filtered = customFoods.filter(f => f !== foodName);
-            localStorage.setItem('customFoods', JSON.stringify(filtered));
+        function removeCustomFoodLocal(foodName, category) {
+            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '{}');
+            if (customFoods[category]) {
+                customFoods[category] = customFoods[category].filter(f => f !== foodName);
+                localStorage.setItem('customFoods', JSON.stringify(customFoods));
+            }
         }
 
         // Crear elemento de plato en el DOM
@@ -771,28 +777,19 @@
 
         // Cargar platos personalizados en el DOM
         function loadCustomFoods(customFoods) {
-            const lastCategory = document.querySelectorAll('.category-items')[2];
-            
-            // Eliminar platos personalizados existentes (no los predefinidos)
-            const existingCustomFoods = lastCategory.querySelectorAll('.food-item');
-            existingCustomFoods.forEach(item => {
-                const foodName = item.querySelector('.food-item-text').textContent;
-                const predefinedFoods = ['Ensalada César', 'Crema de verduras', 'Tortilla francesa', 'Yogur con fruta', 'Sandwich vegetal'];
-                if (!predefinedFoods.includes(foodName)) {
-                    item.remove();
-                }
+            // Limpiar todas las categorías primero
+            document.querySelectorAll('.category-items').forEach(cat => {
+                cat.innerHTML = '';
             });
             
-            // Añadir platos personalizados desde la base de datos
-            customFoods.forEach(foodName => {
-                const predefinedFoods = ['Ensalada César', 'Crema de verduras', 'Tortilla francesa', 'Yogur con fruta', 'Sandwich vegetal'];
-                if (!predefinedFoods.includes(foodName)) {
-                    const existingItem = Array.from(lastCategory.querySelectorAll('.food-item-text'))
-                        .find(item => item.textContent === foodName);
-                    
-                    if (!existingItem) {
-                        lastCategory.appendChild(createFoodItemElement(foodName));
-                    }
+            // Cargar platos en sus respectivas categorías
+            Object.keys(customFoods).forEach(category => {
+                const categoryIndex = CATEGORY_MAP[category];
+                if (categoryIndex !== undefined) {
+                    const categoryContainer = document.querySelectorAll('.category-items')[categoryIndex];
+                    customFoods[category].forEach(foodName => {
+                        categoryContainer.appendChild(createFoodItemElement(foodName));
+                    });
                 }
             });
         }
@@ -816,33 +813,36 @@
 
         // Cargar platos personalizados desde localStorage
         function loadCustomFoodsFromLocal() {
-            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '[]');
+            const customFoods = JSON.parse(localStorage.getItem('customFoods') || '{}');
             loadCustomFoods(customFoods);
         }
 
         // Añadir comida personalizada
         async function addCustomFood() {
             const input = document.getElementById('customFood');
+            const categorySelect = document.getElementById('categorySelect');
             const foodName = input.value.trim();
+            const category = categorySelect.value;
             
             if (foodName) {
-                // Verificar si ya existe
-                const lastCategory = document.querySelectorAll('.category-items')[2];
-                const existingItem = Array.from(lastCategory.querySelectorAll('.food-item-text'))
+                // Verificar si ya existe en esta categoría
+                const categoryIndex = CATEGORY_MAP[category];
+                const categoryContainer = document.querySelectorAll('.category-items')[categoryIndex];
+                const existingItem = Array.from(categoryContainer.querySelectorAll('.food-item-text'))
                     .find(item => item.textContent === foodName);
                 
                 if (existingItem) {
-                    alert('Este plato ya existe en la lista');
+                    alert('Este plato ya existe en esta categoría');
                     input.value = '';
                     return;
                 }
                 
                 // Añadir al DOM
                 const newItem = createFoodItemElement(foodName);
-                lastCategory.appendChild(newItem);
+                categoryContainer.appendChild(newItem);
                 
                 // Guardar en la base de datos
-                await saveCustomFood(foodName);
+                await saveCustomFood(foodName, category);
                 
                 input.value = '';
             }
@@ -864,16 +864,9 @@
                     slot.innerHTML = '';
                 });
                 
-                // Limpiar platos personalizados del DOM
-                const lastCategory = document.querySelectorAll('.category-items')[2];
-                const customItems = lastCategory.querySelectorAll('.food-item');
-                const predefinedFoods = ['Ensalada César', 'Crema de verduras', 'Tortilla francesa', 'Yogur con fruta', 'Sandwich vegetal'];
-                
-                customItems.forEach(item => {
-                    const foodName = item.querySelector('.food-item-text').textContent;
-                    if (!predefinedFoods.includes(foodName)) {
-                        item.remove();
-                    }
+                // Limpiar todos los platos del banco de comidas
+                document.querySelectorAll('.category-items').forEach(cat => {
+                    cat.innerHTML = '';
                 });
                 
                 // Limpiar Firebase
