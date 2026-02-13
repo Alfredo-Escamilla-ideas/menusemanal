@@ -893,14 +893,22 @@
         // Sincronización en tiempo real del menú (solo con Firebase)
         if (isFirebaseConfigured) {
             db.collection('menus').doc(MENU_DOC_ID).onSnapshot((doc) => {
+                const slots = document.querySelectorAll('.meal-slot');
                 if (doc.exists) {
                     const data = doc.data();
-                    const slots = document.querySelectorAll('.meal-slot');
                     slots.forEach(slot => {
                         const key = `${slot.dataset.day}-${slot.dataset.meal}`;
                         if (data[key]) {
                             updateSlotWithArray(slot, data[key]);
+                        } else {
+                            // Limpiar slot si no hay datos en Firebase
+                            slot.innerHTML = '';
                         }
+                    });
+                } else {
+                    // Si el documento no existe, limpiar todas las casillas
+                    slots.forEach(slot => {
+                        slot.innerHTML = '';
                     });
                 }
             });
@@ -1200,9 +1208,14 @@
 
         // Reiniciar todos los platos
         async function resetAllMeals() {
+            console.log('Función resetAllMeals llamada');
             if (confirm('¿Estás seguro de que quieres borrar el menú semanal? (Los platos no se borrarán)')) {
+                console.log('Usuario confirmó el reset');
+                
                 // Limpiar todas las casillas del menú
                 const slots = document.querySelectorAll('.meal-slot');
+                console.log('Slots encontrados:', slots.length);
+                
                 slots.forEach(slot => {
                     slot.innerHTML = '';
                     // Limpiar localStorage de cada casilla
@@ -1213,11 +1226,15 @@
                 // Limpiar Firebase (solo el menú, no los platos)
                 if (isFirebaseConfigured) {
                     try {
+                        console.log('Limpiando Firebase...');
                         // En lugar de eliminar, establecer un documento vacío
                         await db.collection('menus').doc(MENU_DOC_ID).set({});
+                        console.log('Firebase limpiado correctamente');
                     } catch (error) {
                         console.error("Error limpiando menú de Firebase:", error);
                     }
+                } else {
+                    console.log('Firebase no configurado, solo localStorage limpiado');
                 }
                 
                 // Mensaje de confirmación
