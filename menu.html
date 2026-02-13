@@ -35,24 +35,12 @@
 
         .header h1 {
             font-size: 2.5em;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
             font-weight: 600;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
         .header p {
             color: #666;
-            font-size: 1em;
-            margin-bottom: 5px;
-        }
-
-        .header .subtitle {
-            color: #999;
-            font-size: 0.85em;
-            font-style: italic;
         }
 
         .reset-btn {
@@ -103,9 +91,6 @@
             font-weight: 600;
             border-bottom: 2px solid #333;
             padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
         .food-category {
@@ -388,15 +373,14 @@
 </head>
 <body>
     <div class="header">
-        <h1>�️ Menú Semanal 🍽️</h1>
-        <p>Planifica tus comidas de forma sencilla</p>
-        <p class="subtitle">Arrastra las comidas a cada día de la semana • Los cambios se guardan automáticamente</p>
+        <h1>🍴 Menú Semanal 🍴</h1>
+        <p>Arrastra las comidas a cada día de la semana</p>
         <button class="reset-btn" onclick="resetAllMeals()">🔄 Reiniciar Todo</button>
     </div>
 
     <div class="main-container">
         <div class="sidebar">
-            <h2>🏋️ Banco de Comidas</h2>
+            <h2>📋 Banco de Comidas</h2>
             
             <div class="food-category">
                 <div class="category-header collapsed" onclick="toggleCategory(this)">
