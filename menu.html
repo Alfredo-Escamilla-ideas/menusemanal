@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menú Semanal</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: #666;
+        }
+
+        .reset-btn {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #fff;
+            color: #666;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .reset-btn:hover {
+            background: #ff4444;
+            color: white;
+            border-color: #ff4444;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            flex: 0 0 300px;
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            font-weight: 600;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .food-category {
+            margin-bottom: 20px;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        .category-header:hover {
+            background: #e9ecef;
+        }
+
+        .category-title {
+            font-weight: 600;
+            color: #555;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+
+        .category-arrow {
+            font-size: 0.8em;
+            color: #666;
+            transition: transform 0.3s;
+        }
+
+        .category-header.collapsed .category-arrow {
+            transform: rotate(-90deg);
+        }
+
+        .category-items {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .category-items.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .food-item {
+            background: #333;
+            color: white;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: grab;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .food-item-text {
+            flex: 1;
+        }
+
+        .delete-food-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+            opacity: 0;
+        }
+
+        .food-item:hover .delete-food-btn {
+            opacity: 1;
+        }
+
+        .delete-food-btn:hover {
+            background: #cc0000;
+            transform: scale(1.1);
+        }
+
+        .food-item:hover {
+            transform: translateY(-2px);
+            background: #000;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .food-item:active {
+            cursor: grabbing;
+        }
+
+        .table-container {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #333;
+            color: white;
+            padding: 15px 10px;
+            text-align: center;
+            font-size: 1em;
+            font-weight: 600;
+            border: 2px solid white;
+            min-width: 120px;
+        }
+
+        th:first-child {
+            background: #f8f9fa;
+            color: #333;
+            min-width: 140px;
+        }
+
+        td {
+            padding: 0;
+            border: 2px solid #e0e0e0;
+            min-width: 120px;
+        }
+
+        .day-header {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+            padding: 15px 10px;
+            text-align: center;
+            min-width: 140px;
+            white-space: nowrap;
+        }
+
+        .meal-slot {
+            min-height: 80px;
+            padding: 10px;
+            background: #fafafa;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .meal-slot:hover {
+            background: #f0f0f0;
+        }
+
+        .meal-slot.drag-over {
+            background: #f0f0f0;
+            border: 2px dashed #333 !important;
+        }
+
+        .meal-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+        }
+
+        .meal-text {
+            flex: 1;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            color: #333;
+        }
+
+        .remove-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 0.8em;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .meal-slot:hover .remove-btn {
+            display: flex;
+        }
+
+        .remove-btn:hover {
+            background: #cc0000;
+        }
+
+        .add-custom {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .add-custom h3 {
+            font-size: 1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .add-custom input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            transition: border 0.3s;
+        }
+
+        .add-custom input:focus {
+            outline: none;
+            border-color: #333;
+        }
+
+        .add-custom button {
+            width: 100%;
+            padding: 12px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .add-custom button:hover {
+            background: #000;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                flex: 0 0 auto;
+                max-height: none;
+            }
+        }
+
+        .scroll-hint {
+            text-align: center;
+            color: #999;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🍴 Menú Semanal 🍴</h1>
+        <p>Arrastra las comidas a cada día de la semana</p>
+        <button class="reset-btn" onclick="resetAllMeals()">🔄 Reiniciar Todo</button>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <h2>📋 Banco de Comidas</h2>
+            
+            <div class="food-category">
+                <div class="category-header" onclick="toggleCategory(this)">
+                    <div class="category-title">🥗 Primeros Platos</div>
+                    <span class="category-arrow">▼</span>
+                </div>
+                <div class="category-items">
+                    <div class="food-item" draggable="true"><span class="food-item-text">Ensalada mixta</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Lentejas</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Pasta carbonara</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Sopa de verduras</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Arroz caldoso</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Gazpacho</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Crema de calabaza</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                </div>
+            </div>
+
+            <div class="food-category">
+                <div class="category-header" onclick="toggleCategory(this)">
+                    <div class="category-title">🍗 Segundos Platos</div>
+                    <span class="category-arrow">▼</span>
+                </div>
+                <div class="category-items">
+                    <div class="food-item" draggable="true"><span class="food-item-text">Pollo asado</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Salmón a la plancha</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Tortilla española</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Merluza al horno</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Pechuga a la plancha</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Lomo de cerdo</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Revuelto de setas</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                </div>
+            </div>
+
+            <div class="food-category">
+                <div class="category-header" onclick="toggleCategory(this)">
+                    <div class="category-title">🌙 Cenas Ligeras</div>
+                    <span class="category-arrow">▼</span>
+                </div>
+                <div class="category-items">
+                    <div class="food-item" draggable="true"><span class="food-item-text">Ensalada César</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Crema de verduras</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Tortilla francesa</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Yogur con fruta</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                    <div class="food-item" draggable="true"><span class="food-item-text">Sandwich vegetal</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button></div>
+                </div>
+            </div>
+
+            <div class="add-custom">
+                <h3>➕ Añadir Nuevo Plato</h3>
+                <input type="text" id="customFood" placeholder="Escribe el nombre del plato...">
+                <button onclick="addCustomFood()">Añadir Plato</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="weekTable">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Lunes</th>
+                        <th>Martes</th>
+                        <th>Miércoles</th>
+                        <th>Jueves</th>
+                        <th>Viernes</th>
+                        <th>Sábado</th>
+                        <th>Domingo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="day-header">🍽️ Comida 1º</td>
+                        <td><div class="meal-slot" data-day="lunes" data-meal="comida1"></div></td>
+                        <td><div class="meal-slot" data-day="martes" data-meal="comida1"></div></td>
+                        <td><div class="meal-slot" data-day="miercoles" data-meal="comida1"></div></td>
+                        <td><div class="meal-slot" data-day="jueves" data-meal="comida1"></div></td>
+                        <td><div class="meal-slot" data-day="viernes" data-meal="comida1"></div></td>
+                        <td><div class="meal-slot" data-day="sabado" data-meal="comida1"></div></td>
+                        <td><div class="meal-slot" data-day="domingo" data-meal="comida1"></div></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">🍽️ Comida 2º</td>
+                        <td><div class="meal-slot" data-day="lunes" data-meal="comida2"></div></td>
+                        <td><div class="meal-slot" data-day="martes" data-meal="comida2"></div></td>
+                        <td><div class="meal-slot" data-day="miercoles" data-meal="comida2"></div></td>
+                        <td><div class="meal-slot" data-day="jueves" data-meal="comida2"></div></td>
+                        <td><div class="meal-slot" data-day="viernes" data-meal="comida2"></div></td>
+                        <td><div class="meal-slot" data-day="sabado" data-meal="comida2"></div></td>
+                        <td><div class="meal-slot" data-day="domingo" data-meal="comida2"></div></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">🌙 Cena 1º</td>
+                        <td><div class="meal-slot" data-day="lunes" data-meal="cena1"></div></td>
+                        <td><div class="meal-slot" data-day="martes" data-meal="cena1"></div></td>
+                        <td><div class="meal-slot" data-day="miercoles" data-meal="cena1"></div></td>
+                        <td><div class="meal-slot" data-day="jueves" data-meal="cena1"></div></td>
+                        <td><div class="meal-slot" data-day="viernes" data-meal="cena1"></div></td>
+                        <td><div class="meal-slot" data-day="sabado" data-meal="cena1"></div></td>
+                        <td><div class="meal-slot" data-day="domingo" data-meal="cena1"></div></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">🌙 Cena 2º</td>
+                        <td><div class="meal-slot" data-day="lunes" data-meal="cena2"></div></td>
+                        <td><div class="meal-slot" data-day="martes" data-meal="cena2"></div></td>
+                        <td><div class="meal-slot" data-day="miercoles" data-meal="cena2"></div></td>
+                        <td><div class="meal-slot" data-day="jueves" data-meal="cena2"></div></td>
+                        <td><div class="meal-slot" data-day="viernes" data-meal="cena2"></div></td>
+                        <td><div class="meal-slot" data-day="sabado" data-meal="cena2"></div></td>
+                        <td><div class="meal-slot" data-day="domingo" data-meal="cena2"></div></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="scroll-hint">💡 Desliza horizontalmente para ver toda la tabla</p>
+        </div>
+    </div>
+
+    <script>
+        // ====================================
+        // CONFIGURACIÓN DE FIREBASE
+        // ====================================
+        // ⚠️ IMPORTANTE: Reemplaza esta configuración con la tuya propia
+        // Instrucciones al final del archivo
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROJECT_ID.firebaseapp.com",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_PROJECT_ID.appspot.com",
+            messagingSenderId: "TU_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        // Inicializar Firebase
+        let db;
+        let isFirebaseConfigured = false;
+        
+        try {
+            if (firebaseConfig.apiKey !== "TU_API_KEY") {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                isFirebaseConfigured = true;
+                console.log("✅ Firebase conectado - Sincronización multi-dispositivo activada");
+            } else {
+                console.log("⚠️ Firebase no configurado - Usando localStorage (solo este dispositivo)");
+            }
+        } catch (error) {
+            console.log("⚠️ Error al conectar Firebase - Usando localStorage", error);
+        }
+
+        // Variables globales
+        let draggedFood = null;
+        const MENU_DOC_ID = 'weekly-menu';
+
+        // Toggle categoría colapsable
+        function toggleCategory(header) {
+            header.classList.toggle('collapsed');
+            const items = header.nextElementSibling;
+            items.classList.toggle('collapsed');
+        }
+
+        // ====================================
+        // FUNCIONES DE BASE DE DATOS
+        // ====================================
+        
+        // Guardar menú en Firebase o localStorage
+        async function saveMenu(day, meal, text) {
+            if (isFirebaseConfigured) {
+                try {
+                    await db.collection('menus').doc(MENU_DOC_ID).set({
+                        [`${day}-${meal}`]: text
+                    }, { merge: true });
+                } catch (error) {
+                    console.error("Error guardando en Firebase:", error);
+                    localStorage.setItem(`${day}-${meal}`, text);
+                }
+            } else {
+                localStorage.setItem(`${day}-${meal}`, text);
+            }
+        }
+
+        // Cargar menú desde Firebase o localStorage
+        async function loadMenu() {
+            if (isFirebaseConfigured) {
+                try {
+                    const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        const slots = document.querySelectorAll('.meal-slot');
+                        slots.forEach(slot => {
+                            const key = `${slot.dataset.day}-${slot.dataset.meal}`;
+                            if (data[key]) {
+                                updateSlot(slot, data[key]);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error cargando de Firebase:", error);
+                    loadFromLocalStorage();
+                }
+            } else {
+                loadFromLocalStorage();
+            }
+        }
+
+        // Cargar desde localStorage (fallback)
+        function loadFromLocalStorage() {
+            const slots = document.querySelectorAll('.meal-slot');
+            slots.forEach(slot => {
+                const key = `${slot.dataset.day}-${slot.dataset.meal}`;
+                const saved = localStorage.getItem(key);
+                if (saved) {
+                    updateSlot(slot, saved);
+                }
+            });
+        }
+
+        // Sincronización en tiempo real (solo con Firebase)
+        if (isFirebaseConfigured) {
+            db.collection('menus').doc(MENU_DOC_ID).onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const slots = document.querySelectorAll('.meal-slot');
+                    slots.forEach(slot => {
+                        const key = `${slot.dataset.day}-${slot.dataset.meal}`;
+                        if (data[key]) {
+                            updateSlot(slot, data[key]);
+                        }
+                    });
+                }
+            });
+        }
+
+        // Actualizar contenido de slot
+        function updateSlot(slot, text) {
+            slot.innerHTML = `
+                <div class="meal-content">
+                    <span class="meal-text">${text}</span>
+                    <button class="remove-btn" onclick="removeFood(this)">×</button>
+                </div>
+            `;
+        }
+
+        // Eventos de arrastre para items de comida
+        document.querySelectorAll('.food-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedFood = item.querySelector('.food-item-text').textContent;
+                e.target.style.opacity = '0.5';
+            });
+
+            item.addEventListener('dragend', (e) => {
+                e.target.style.opacity = '1';
+            });
+        });
+
+        // Eliminar plato del sidebar
+        function deleteFoodItem(event, btn) {
+            event.stopPropagation();
+            const foodItem = btn.closest('.food-item');
+            foodItem.remove();
+        }
+
+        // Eventos de arrastre para slots
+        document.querySelectorAll('.meal-slot').forEach(slot => {
+            slot.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                slot.classList.add('drag-over');
+            });
+
+            slot.addEventListener('dragleave', () => {
+                slot.classList.remove('drag-over');
+            });
+
+            slot.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                
+                if (draggedFood) {
+                    updateSlot(slot, draggedFood);
+                    await saveMenu(slot.dataset.day, slot.dataset.meal, draggedFood);
+                    draggedFood = null;
+                }
+            });
+        });
+
+        // Eliminar comida del menú
+        async function removeFood(btn) {
+            const slot = btn.closest('.meal-slot');
+            slot.innerHTML = '';
+            
+            if (isFirebaseConfigured) {
+                try {
+                    await db.collection('menus').doc(MENU_DOC_ID).update({
+                        [`${slot.dataset.day}-${slot.dataset.meal}`]: firebase.firestore.FieldValue.delete()
+                    });
+                } catch (error) {
+                    console.error("Error eliminando de Firebase:", error);
+                }
+            }
+            
+            localStorage.removeItem(`${slot.dataset.day}-${slot.dataset.meal}`);
+        }
+
+        // Añadir comida personalizada
+        function addCustomFood() {
+            const input = document.getElementById('customFood');
+            const foodName = input.value.trim();
+            
+            if (foodName) {
+                const newItem = document.createElement('div');
+                newItem.className = 'food-item';
+                newItem.draggable = true;
+                newItem.innerHTML = `<span class="food-item-text">${foodName}</span><button class="delete-food-btn" onclick="deleteFoodItem(event, this)">×</button>`;
+                
+                // Añadir eventos de arrastre
+                newItem.addEventListener('dragstart', (e) => {
+                    draggedFood = newItem.querySelector('.food-item-text').textContent;
+                    e.target.style.opacity = '0.5';
+                });
+                
+                newItem.addEventListener('dragend', (e) => {
+                    e.target.style.opacity = '1';
+                });
+                
+                // Añadir al final de la última categoría
+                const lastCategory = document.querySelectorAll('.category-items')[2];
+                lastCategory.appendChild(newItem);
+                
+                input.value = '';
+            }
+        }
+
+        // Permitir añadir con Enter
+        document.getElementById('customFood').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addCustomFood();
+            }
+        });
+
+        // Reiniciar todos los platos
+        async function resetAllMeals() {
+            if (confirm('¿Estás seguro de que quieres borrar todos los platos del menú semanal?')) {
+                // Limpiar todas las casillas
+                const slots = document.querySelectorAll('.meal-slot');
+                slots.forEach(slot => {
+                    slot.innerHTML = '';
+                });
+                
+                // Limpiar Firebase
+                if (isFirebaseConfigured) {
+                    try {
+                        await db.collection('menus').doc(MENU_DOC_ID).delete();
+                    } catch (error) {
+                        console.error("Error limpiando Firebase:", error);
+                    }
+                }
+                
+                // Limpiar localStorage
+                localStorage.clear();
+                
+                // Mensaje de confirmación
+                alert('✅ Menú reiniciado correctamente');
+            }
+        }
+
+        // Cargar datos al iniciar
+        loadMenu();
+    </script>
+
+    <!--
+    ====================================
+    📱 CÓMO CONFIGURAR FIREBASE PARA SINCRONIZACIÓN MULTI-DISPOSITIVO
+    ====================================
+    
+    PASO 1: Crear un proyecto Firebase
+    1. Ve a https://console.firebase.google.com/
+    2. Click en "Agregar proyecto"
+    3. Dale un nombre (ej: "menu-semanal")
+    4. Desactiva Google Analytics (opcional)
+    5. Click en "Crear proyecto"
+    
+    PASO 2: Registrar tu aplicación web
+    1. En la página principal, click en el ícono "</>" (Web)
+    2. Dale un nombre a tu app (ej: "Menu Web")
+    3. Click en "Registrar app"
+    4. Copia el objeto "firebaseConfig" que te muestra
+    
+    PASO 3: Configurar Firestore
+    1. En el menú izquierdo, click en "Firestore Database"
+    2. Click en "Crear base de datos"
+    3. Selecciona "Comenzar en modo de prueba" (para desarrollo)
+    4. Elige una ubicación cercana
+    5. Click en "Habilitar"
+    
+    PASO 4: Pegar tu configuración
+    1. Reemplaza el objeto firebaseConfig en este archivo (líneas 379-385)
+    2. Pega los valores que copiaste en el PASO 2
+    
+    ¡Listo! Ahora tus cambios se sincronizarán automáticamente entre todos tus dispositivos.
+    
+    NOTA: El modo de prueba expira en 30 días. Para producción, configura reglas de seguridad.
+    -->
+
+</body>
+</html>

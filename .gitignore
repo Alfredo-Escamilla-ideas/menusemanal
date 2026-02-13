@@ -1,0 +1,19 @@
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE y editores
+.vscode/
+.idea/
+*.sublime-*
+
+# Configuración local (si decides usar Firebase y no quieres compartir credenciales)
+# Descomenta la siguiente línea si prefieres no compartir tu config de Firebase
+# firebase-config.js
