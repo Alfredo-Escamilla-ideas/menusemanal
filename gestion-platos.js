@@ -25,6 +25,36 @@ try {
 const CUSTOM_FOODS_DOC_ID = 'custom-foods';
 
 // ====================================
+// SISTEMA DE NOTIFICACIONES
+// ====================================
+function showNotification(message, type = 'success') {
+    // Eliminar notificación anterior si existe
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+
+    // Crear nueva notificación
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    // Mostrar notificación
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+
+    // Ocultar y eliminar después de 3 segundos
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            notification.remove();
+        }, 400);
+    }, 3000);
+}
+
+// ====================================
 // FUNCIONES DE BASE DE DATOS
 // ====================================
 
@@ -136,7 +166,7 @@ async function addPlate() {
     const description = document.getElementById('plateDescription').value.trim();
 
     if (!name) {
-        alert('Por favor, introduce el nombre del plato');
+        showNotification('Por favor, introduce el nombre del plato', 'error');
         return;
     }
 
@@ -162,7 +192,7 @@ async function addPlate() {
     // Recargar lista
     renderPlates(customFoods);
 
-    alert(`✅ Plato "${name}" añadido correctamente`);
+    showNotification(`Plato "${name}" añadido correctamente`, 'success');
 }
 
 // Editar plato

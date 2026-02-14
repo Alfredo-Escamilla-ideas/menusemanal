@@ -45,6 +45,36 @@ let isResetting = false; // Flag para evitar conflictos durante el reset
 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
 // ====================================
+// SISTEMA DE NOTIFICACIONES
+// ====================================
+function showNotification(message, type = 'success') {
+    // Eliminar notificación anterior si existe
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+
+    // Crear nueva notificación
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    // Mostrar notificación
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+
+    // Ocultar y eliminar después de 3 segundos
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            notification.remove();
+        }, 400);
+    }, 3000);
+}
+
+// ====================================
 // SISTEMA DE FECHAS
 // ====================================
 
@@ -144,7 +174,6 @@ function checkAndAutoShift() {
         const todayStr = today.toISOString().split('T')[0];
 
         if (lastDate && lastDate !== todayStr) {
-            console.log('Nuevo día detectado en móvil, desplazando calendarios...');
             addNewCalendar(true); // true = auto-shift silencioso
         }
 
@@ -162,7 +191,6 @@ function checkAndAutoShift() {
 
         // Si ya pasó el domingo de esta semana, auto-desplazar
         if (now > sunday && currentCalendar === 1) {
-            console.log('Semana obsoleta detectada, desplazando calendarios...');
             addNewCalendar(true); // true = auto-shift silencioso
         }
     }
@@ -658,7 +686,6 @@ if (isFirebaseConfigured) {
     db.collection('menus').doc(MENU_DOC_ID).onSnapshot((doc) => {
         // Ignorar cambios durante el reset para evitar race conditions
         if (isResetting) {
-            console.log('Ignorando cambios de Firebase durante el reset');
             return;
         }
 
@@ -690,7 +717,6 @@ if (isFirebaseConfigured) {
             });
         } else {
             // Si el documento no existe, limpiar todas las casillas
-            console.log('Documento no existe, limpiando casillas');
             slots.forEach(slot => {
                 slot.innerHTML = '';
             });
@@ -1066,7 +1092,7 @@ async function addCustomFood() {
             .find(item => item.textContent === foodName);
 
         if (existingItem) {
-            alert('Este plato ya existe en esta categoría');
+            showNotification('Este plato ya existe en esta categoría', 'error');
             input.value = '';
             return;
         }
@@ -1279,21 +1305,13 @@ async function addNewCalendar(autoShift = false) {
         loadMenu();
 
         if (!autoShift) {
-            alert('✅ Nuevo calendario creado correctamente\n\n' +
-                  'Los calendarios se han desplazado:\n' +
-                  '• Calendario 1: Eliminado\n' +
-                  '• Calendario 2 → Calendario 1\n' +
-                  '• Calendario 3 → Calendario 2\n' +
-                  '• Calendario 4 → Calendario 3\n' +
-                  '• Nuevo Calendario 4: Vacío (actual)');
-        } else {
-            console.log('✅ Calendarios desplazados automáticamente por semana obsoleta');
+            showNotification('Nuevo calendario creado correctamente', 'success');
         }
 
     } catch (error) {
         console.error("Error creando nuevo calendario:", error);
         if (!autoShift) {
-            alert('❌ Error al crear nuevo calendario');
+            showNotification('Error al crear nuevo calendario', 'error');
         }
     } finally {
         setTimeout(() => {
@@ -1304,17 +1322,13 @@ async function addNewCalendar(autoShift = false) {
 
 // Reiniciar calendario actual
 async function resetAllMeals() {
-    console.log('Función resetAllMeals llamada');
     if (confirm(`¿Estás seguro de que quieres vaciar el Calendario ${currentCalendar}?\n\n✅ SOLO se limpiará el Calendario ${currentCalendar}\n❌ Los otros calendarios NO se modificarán\n❌ Los platos del banco NO se borrarán`)) {
-        console.log('Usuario confirmó el reset');
-
         // Activar flag para evitar que la sincronización interfiera
         isResetting = true;
 
         try {
             // Limpiar todas las casillas del menú actual
             const slots = document.querySelectorAll('.meal-slot');
-            console.log('Slots encontrados:', slots.length);
 
             slots.forEach(slot => {
                 slot.innerHTML = '';
@@ -1325,7 +1339,6 @@ async function resetAllMeals() {
 
             // Limpiar Firebase (solo el calendario actual)
             if (isFirebaseConfigured) {
-                console.log('Limpiando Firebase...');
                 const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
                 if (doc.exists) {
                     const data = doc.data();
@@ -1342,22 +1355,17 @@ async function resetAllMeals() {
                         await db.collection('menus').doc(MENU_DOC_ID).update(updates);
                     }
                 }
-                console.log('Firebase limpiado correctamente');
-            } else {
-                console.log('Firebase no configurado, solo localStorage limpiado');
             }
 
             // Mensaje de confirmación
-            alert(`✅ Calendario ${currentCalendar} limpiado correctamente\n\nLos otros 3 calendarios permanecen intactos.\nTus platos del banco de comidas se mantienen disponibles.`);
-            console.log('Reset completado exitosamente');
+            showNotification(`Calendario ${currentCalendar} limpiado correctamente`, 'success');
         } catch (error) {
             console.error("Error durante el reset:", error);
-            alert('❌ Error al reiniciar el menú');
+            showNotification('Error al reiniciar el menú', 'error');
         } finally {
             // Desactivar flag después de un breve delay
             setTimeout(() => {
                 isResetting = false;
-                console.log('Flag de reset desactivado');
             }, 500);
         }
     }
@@ -1664,7 +1672,7 @@ async function selectFood(foodName) {
         });
 
         if (alreadyExists) {
-            alert('Este plato ya está añadido en esta casilla');
+            showNotification('Este plato ya está añadido en esta casilla', 'error');
             return;
         }
 
