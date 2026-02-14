@@ -260,12 +260,22 @@ td {
 
 /* Columna tipo de plato más estrecha en vista diaria */
 body.daily-view .day-header {
-    min-width: 45px;
-    width: 45px;
-    max-width: 45px;
-    padding: 8px 2px;
-    font-size: 1.3em;
-    line-height: 1.2;
+    min-width: 38px;
+    width: 38px;
+    max-width: 38px;
+    padding: 8px 3px;
+    font-size: 1.4em;
+    line-height: 1.1;
+}
+
+/* Ocultar texto en vista diaria, solo mostrar emoji */
+body.daily-view .day-header .text {
+    display: none;
+}
+
+body.daily-view .day-header .emoji {
+    display: inline-block;
+    font-size: 1.4em;
 }
 
 .meal-slot {
@@ -399,41 +409,87 @@ body.daily-view .day-header {
     color: #fff !important;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     text-decoration: none !important;
-    font-size: 0.8em;
-    padding: 4px 10px;
-    border-radius: 12px;
-    transition: all 0.3s;
+    font-size: 0.75em;
+    padding: 5px 12px;
+    border-radius: 16px;
+    transition: all 0.3s ease;
     white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
 }
 
 .meal-description-link:hover {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
     text-decoration: none !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
 }
 
 /* Estilos mejorados para meal-content en vista diaria */
 body.daily-view .meal-content {
-    background: linear-gradient(to right, #fafafa 0%, #ffffff 100%);
-    border-left: 3px solid #667eea;
-    padding: 10px 12px !important;
-    margin: 4px 0;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    background: linear-gradient(to right, #ffffff 0%, #f8f9ff 100%);
+    border-left: 4px solid #667eea;
+    padding: 12px 14px !important;
+    margin: 5px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.1);
+    transition: all 0.3s ease;
 }
 
 body.daily-view .meal-content:hover {
     background: linear-gradient(to right, #f0f4ff 0%, #fafbff 100%);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.2);
+    transform: translateX(2px);
+    border-left-color: #764ba2;
 }
 
 body.daily-view .meal-text {
     color: #2d3748;
     font-weight: 600;
-    font-size: 0.95em;
+    font-size: 1.05em;
+}
+
+/* Ajustar botón de eliminar en vista diaria */
+body.daily-view .remove-btn {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin-left: 8px;
+    opacity: 0.6;
+}
+
+body.daily-view .remove-btn:hover {
+    opacity: 1;
+}
+
+/* Estilos para la imagen del plato en vista diaria */
+.meal-image {
+    width: 55px;
+    height: 55px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-right: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+    border: 2px solid #fff;
+    transition: all 0.3s ease;
+}
+
+.meal-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+/* Ajustes para meal-content con imagen */
+body.daily-view .meal-content {
+    display: flex;
+    align-items: center;
+}
+
+body.daily-view .meal-content .meal-text {
+    margin-left: 0;
 }
 
 .add-custom {
@@ -657,7 +713,6 @@ body.daily-view .meal-text {
         width: 14px;
         height: 14px;
         font-size: 0.75em;
-    }
     }
 
     .remove-btn {

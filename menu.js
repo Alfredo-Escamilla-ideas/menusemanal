@@ -731,12 +731,12 @@ function updateSlotWithArray(slot, foodsArray) {
             tag.style.flexDirection = 'row';
             tag.style.justifyContent = 'space-between';
             tag.style.alignItems = 'center';
-            tag.style.textAlign = 'left';
-            tag.style.gap = '8px';
-            tag.style.paddingRight = '20px'; // Espacio para el botón de eliminar
+            tag.style.gap = '12px';
+            tag.style.position = 'relative';
+            
             tag.innerHTML = `
-                <span class="meal-text" style="flex: 1; text-align: left; font-weight: 600;">${foodName}</span>
-                <a href="${foodDescription}" target="_blank" class="meal-description-link" onclick="event.stopPropagation();">Receta</a>
+                <span class="meal-text" style="flex: 1; text-align: left;">${foodName}</span>
+                <a href="${foodDescription}" target="_blank" class="meal-description-link" onclick="event.stopPropagation();">🔗 Receta</a>
                 <button class="remove-btn" onclick="removeFoodTag(this); event.stopPropagation();">×</button>
             `;
         } else {
@@ -749,14 +749,8 @@ function updateSlotWithArray(slot, foodsArray) {
             `;
         }
         
-        // Permitir hacer click para editar
-        tag.addEventListener('click', (e) => {
-            if (!e.target.classList.contains('remove-btn') && 
-                !e.target.closest('.remove-btn') &&
-                !e.target.classList.contains('meal-description-link')) {
-                openFoodModal(slot);
-            }
-        });
+        // NO añadir listener aquí - ya hay listeners globales en setupSlotClickHandlers
+        // que manejan los clicks en .meal-slot
         
         slot.appendChild(tag);
     });
@@ -1370,19 +1364,93 @@ async function resetAllMeals() {
 }
 
 // ====================================
+// EXTRACCIÓN DE IMÁGENES DE RECETAS
+// ====================================
+
+// Extraer imagen de una URL de receta usando Open Graph
+async function extractImageFromRecipeUrl(url) {
+    if (!url || !url.startsWith('http')) {
+        return null;
+    }
+
+    try {
+        // Usar AllOrigins como proxy CORS gratuito
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+        
+        if (!data.contents) {
+            return null;
+        }
+
+        const html = data.contents;
+        
+        // Intentar extraer og:image
+        let ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+        if (!ogImageMatch) {
+            ogImageMatch = html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+        }
+        
+        if (ogImageMatch && ogImageMatch[1]) {
+            let imageUrl = ogImageMatch[1];
+            // Si la URL es relativa, convertirla a absoluta
+            if (imageUrl.startsWith('/')) {
+                const urlObj = new URL(url);
+                imageUrl = urlObj.origin + imageUrl;
+            } else if (!imageUrl.startsWith('http')) {
+                const urlObj = new URL(url);
+                imageUrl = urlObj.origin + '/' + imageUrl;
+            }
+            return imageUrl;
+        }
+
+        // Intentar extraer twitter:image como fallback
+        let twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
+        if (!twitterImageMatch) {
+            twitterImageMatch = html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+        }
+        
+        if (twitterImageMatch && twitterImageMatch[1]) {
+            let imageUrl = twitterImageMatch[1];
+            if (imageUrl.startsWith('/')) {
+                const urlObj = new URL(url);
+                imageUrl = urlObj.origin + imageUrl;
+            }
+            return imageUrl;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error extrayendo imagen:', error);
+        return null;
+    }
+}
+
+// ====================================
 // FUNCIONALIDAD DE MODAL PARA MÓVILES
 // ====================================
 
 let currentSlot = null;
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+let isModalOpening = false; // Flag para prevenir múltiples aperturas simultáneas
 
 // Las instrucciones ya están configuradas para click (funciona en todos los dispositivos)
 
 // Abrir modal de selección de comidas
 async function openFoodModal(slot) {
-    currentSlot = slot;
-    const modal = document.getElementById('foodModal');
-    const modalFoods = document.getElementById('modalFoods');
+    // Prevenir múltiples llamadas simultáneas
+    if (isModalOpening) {
+        console.log('Modal ya se está abriendo, ignorando llamada duplicada');
+        return;
+    }
+    
+    isModalOpening = true;
+    console.log('openFoodModal called for:', slot.dataset.day, slot.dataset.meal);
+    
+    try {
+        currentSlot = slot;
+        const modal = document.getElementById('foodModal');
+        const modalFoods = document.getElementById('modalFoods');
 
     // Obtener día y tipo de comida para el título
     const day = slot.dataset.day;
@@ -1407,8 +1475,11 @@ async function openFoodModal(slot) {
 
     document.getElementById('modalTitle').textContent = `${dayNames[day]} - ${mealNames[meal]}`;
 
-    // Limpiar contenido anterior
+    // Limpiar contenido anterior COMPLETAMENTE
     modalFoods.innerHTML = '';
+    
+    // Pequeño delay para asegurar que la limpieza se complete
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Verificar si hay platos disponibles
     if (!customFoodsGlobal || Object.keys(customFoodsGlobal).length === 0) {
@@ -1545,6 +1616,13 @@ async function openFoodModal(slot) {
 
     // Mostrar modal
     modal.style.display = 'block';
+    
+    } finally {
+        // Liberar el flag después de un pequeño delay
+        setTimeout(() => {
+            isModalOpening = false;
+        }, 300);
+    }
 }
 
 // Cerrar modal
@@ -1552,6 +1630,7 @@ function closeFoodModal() {
     const modal = document.getElementById('foodModal');
     modal.style.display = 'none';
     currentSlot = null;
+    isModalOpening = false; // Asegurar que el flag se resetea
 }
 
 // Seleccionar comida y añadirla al slot
@@ -1629,7 +1708,15 @@ window.addEventListener('click', function(event) {
 });
 
 // Agregar evento de click a las casillas (compatible con móvil y web)
+let slotHandlersInitialized = false;
+
 function setupSlotClickHandlers() {
+    // Prevenir múltiples inicializaciones
+    if (slotHandlersInitialized) {
+        return;
+    }
+    slotHandlersInitialized = true;
+    
     let touchHandled = false;
     
     // Para móviles - usar touchstart
@@ -1645,7 +1732,9 @@ function setupSlotClickHandlers() {
         
         if (slot) {
             if (!e.target.classList.contains('remove-btn') &&
-                !e.target.closest('.remove-btn')) {
+                !e.target.closest('.remove-btn') &&
+                !e.target.classList.contains('meal-description-link') &&
+                !e.target.closest('.meal-description-link')) {
                 touchHandled = true;
                 setTimeout(() => { touchHandled = false; }, 500);
                 openFoodModal(slot);
@@ -1670,33 +1759,13 @@ function setupSlotClickHandlers() {
         
         if (slot) {
             if (!e.target.classList.contains('remove-btn') &&
-                !e.target.closest('.remove-btn')) {
+                !e.target.closest('.remove-btn') &&
+                !e.target.classList.contains('meal-description-link') &&
+                !e.target.closest('.meal-description-link')) {
                 openFoodModal(slot);
             }
         }
     });
-}
-
-function handleSlotClick(e) {
-    const modal = document.getElementById('foodModal');
-    
-    // No procesar si el modal está abierto y el click es dentro del modal
-    if (modal.style.display === 'block' && modal.contains(e.target)) {
-        return;
-    }
-    
-    // Verificar si el click fue dentro de un meal-slot
-    const slot = e.target.closest('.meal-slot');
-    
-    if (slot) {
-        // Abrir modal si no se está haciendo click en el botón de eliminar
-        if (!e.target.classList.contains('remove-btn') &&
-            !e.target.closest('.remove-btn')) {
-            e.preventDefault();
-            e.stopPropagation();
-            openFoodModal(slot);
-        }
-    }
 }
 
 // Inicializar los event handlers
