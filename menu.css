@@ -241,6 +241,8 @@ td {
     padding: 0;
     border: 2px solid #e0e0e0;
     min-width: 100px;
+    width: 100px;
+    max-width: 100px;
 }
 
 .day-header {
@@ -258,15 +260,16 @@ td {
 
 .meal-slot {
     min-height: 75px;
-    padding: 10px;
+    padding: 8px 4px;
     background: #fafafa;
     transition: all 0.3s;
     cursor: pointer;
     position: relative;
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-content: flex-start;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }
 
 .meal-slot:empty::before {
@@ -299,38 +302,50 @@ td {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 2px;
     background: transparent;
     color: #333;
-    padding: 4px 8px;
+    padding: 0;
+    margin: 0;
     border-radius: 0;
     font-size: 0.85em;
     max-width: 100%;
-    margin-bottom: 5px;
+    width: 100%;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: color 0.2s;
     flex-direction: column;
     text-align: center;
+    position: relative;
 }
 
 .meal-content:hover {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 4px;
+    color: #000;
+}
+
+.meal-content:hover .remove-btn {
+    opacity: 1;
 }
 
 .meal-info {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     width: 100%;
     align-items: center;
+    justify-content: center;
+    padding: 2px;
 }
 
 .meal-text {
     font-weight: 600;
     word-wrap: break-word;
-    font-size: 1em;
+    word-break: break-word;
+    font-size: 0.9em;
+    line-height: 1.2;
+    text-align: center;
+    width: 100%;
+    hyphens: auto;
 }
 
 .meal-description {
@@ -346,22 +361,27 @@ td {
     color: #999;
     border: none;
     border-radius: 50%;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    font-size: 0.9em;
+    font-size: 0.85em;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     transition: all 0.2s;
     padding: 0;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    opacity: 0.5;
 }
 
 .remove-btn:hover {
     background: rgba(0, 0, 0, 0.1);
     color: #333;
     transform: scale(1.2);
+    opacity: 1;
 }
 
 .add-custom {
@@ -562,8 +582,8 @@ td {
 
     .meal-slot {
         min-height: 50px;
-        padding: 4px;
-        gap: 3px;
+        padding: 6px 3px;
+        gap: 2px;
     }
 
     .meal-slot:empty::before {
@@ -571,13 +591,21 @@ td {
     }
 
     .meal-content {
-        padding: 4px 6px;
-        font-size: 0.72em;
-        width: auto;
+        padding: 0;
+        font-size: 0.75em;
+        width: 100%;
     }
 
     .meal-text {
-        font-size: 1em;
+        font-size: 0.85em;
+        line-height: 1.1;
+    }
+
+    .remove-btn {
+        width: 14px;
+        height: 14px;
+        font-size: 0.75em;
+    }
     }
 
     .remove-btn {
@@ -710,7 +738,7 @@ td {
 
     .meal-slot {
         min-height: 45px;
-        padding: 3px;
+        padding: 5px 2px;
     }
 
     .meal-slot:empty::before {
@@ -718,9 +746,22 @@ td {
     }
 
     .meal-content {
-        padding: 3px 5px;
+        padding: 0;
+        font-size: 0.68em;
+        width: 100%;
+    }
+
+    .meal-text {
+        font-size: 0.9em;
+        line-height: 1.1;
+    }
+
+    .remove-btn {
+        width: 12px;
+        height: 12px;
         font-size: 0.7em;
-        width: auto;
+        top: 1px;
+        right: 1px;
     }
 
     .view-controls {
