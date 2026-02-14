@@ -6,11 +6,11 @@ let db = null;
 try {
     const firebaseConfig = {
         apiKey: "AIzaSyDPxRwlqftP-RoeJILhw_PsM3fsqCFIfqo",
-        authDomain: "comidas-fef2a.firebaseapp.com",
-        projectId: "comidas-fef2a",
-        storageBucket: "comidas-fef2a.firebasestorage.app",
-        messagingSenderId: "926708903105",
-        appId: "1:926708903105:web:b09e5c6d2a1c8cfac5f32b"
+        authDomain: "comidas-33dba.firebaseapp.com",
+        projectId: "comidas-33dba",
+        storageBucket: "comidas-33dba.firebasestorage.app",
+        messagingSenderId: "627965464872",
+        appId: "1:627965464872:web:5a921a070a3f4d8afbc01d"
     };
 
     if (!firebase.apps.length) {
@@ -39,9 +39,9 @@ async function loadPlates() {
 
     if (db) {
         try {
-            const doc = await db.collection('menuData').doc(CUSTOM_FOODS_DOC_ID).get();
-            if (doc.exists) {
-                customFoods = doc.data();
+            const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
+            if (doc.exists && doc.data().customFoods) {
+                customFoods = doc.data().customFoods;
             }
         } catch (error) {
             console.log("Error cargando desde Firebase, usando localStorage", error);
@@ -62,10 +62,10 @@ async function savePlates(customFoods) {
     // Guardar en localStorage
     localStorage.setItem('customFoods', JSON.stringify(customFoods));
 
-    // Guardar en Firebase
+    // Guardar en Firebase con la estructura correcta
     if (db) {
         try {
-            await db.collection('menuData').doc(CUSTOM_FOODS_DOC_ID).set(customFoods);
+            await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods: customFoods });
             console.log("✅ Platos guardados en Firebase");
         } catch (error) {
             console.log("⚠️ Error guardando en Firebase", error);
