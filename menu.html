@@ -1227,14 +1227,14 @@
         // Reiniciar todos los platos
         async function resetAllMeals() {
             console.log('Función resetAllMeals llamada');
-            if (confirm('¿Estás seguro de que quieres borrar el menú semanal? (Los platos no se borrarán)')) {
+            if (confirm('¿Estás seguro de que quieres vaciar el calendario semanal?\n\nNOTA: Los platos del banco de comidas NO se borrarán, solo se limpiará el calendario.')) {
                 console.log('Usuario confirmó el reset');
                 
                 // Activar flag para evitar que la sincronización interfiera
                 isResetting = true;
                 
                 try {
-                    // Limpiar todas las casillas del menú
+                    // Limpiar todas las casillas del menú (SOLO el calendario, NO los platos del banco)
                     const slots = document.querySelectorAll('.meal-slot');
                     console.log('Slots encontrados:', slots.length);
                     
@@ -1245,10 +1245,10 @@
                         localStorage.removeItem(key);
                     });
                     
-                    // Limpiar Firebase (solo el menú, no los platos)
+                    // Limpiar Firebase (solo el menú, NO los platos personalizados)
                     if (isFirebaseConfigured) {
                         console.log('Limpiando Firebase...');
-                        // Establecer un documento vacío
+                        // Establecer un documento vacío solo en la colección de menús
                         await db.collection('menus').doc(MENU_DOC_ID).set({});
                         console.log('Firebase limpiado correctamente');
                     } else {
@@ -1256,7 +1256,8 @@
                     }
                     
                     // Mensaje de confirmación
-                    alert('✅ Menú semanal reiniciado correctamente');
+                    alert('✅ Calendario limpiado correctamente\n\nTus platos del banco de comidas se mantienen intactos.');
+                    console.log('Reset completado exitosamente');
                 } catch (error) {
                     console.error("Error durante el reset:", error);
                     alert('❌ Error al reiniciar el menú');
