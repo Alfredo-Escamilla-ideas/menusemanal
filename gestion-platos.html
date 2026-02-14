@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Platos | Planificador de Comidas</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <link rel="stylesheet" href="gestion-platos.css">
+</head>
+<body>
+    <button class="back-button" onclick="window.location.href='menu.html'">⬅ Volver al Menú</button>
+
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ Gestión de Platos</h1>
+            <p>Crea y gestiona tus platos personalizados</p>
+        </div>
+
+        <!-- Formulario para añadir platos -->
+        <div class="add-form">
+            <h2>➕ Añadir Nuevo Plato</h2>
+            <div class="form-group">
+                <label for="plateName">Nombre del Plato *</label>
+                <input type="text" id="plateName" placeholder="Ej: Paella valenciana">
+            </div>
+            <div class="form-group">
+                <label for="plateCategory">Categoría *</label>
+                <select id="plateCategory">
+                    <option value="primeros">🥗 Primeros Platos</option>
+                    <option value="segundos">🍗 Segundos Platos</option>
+                    <option value="postres">🍮 Postres</option>
+                    <option value="cenas">🌙 Cenas Ligeras</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="plateDescription">Descripción (opcional)</label>
+                <textarea id="plateDescription" placeholder="Añade ingredientes, instrucciones, notas..."></textarea>
+            </div>
+            <button class="add-button" onclick="addPlate()">Añadir Plato</button>
+        </div>
+
+        <!-- Lista de platos -->
+        <div class="plates-list">
+            <h2>📋 Mis Platos</h2>
+            <div id="platesList">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <script src="gestion-platos.js"></script>
+</body>
+</html>
