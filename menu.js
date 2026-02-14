@@ -541,13 +541,39 @@ function updateSlotWithArray(slot, foodsArray) {
         // Mostrar descripción solo en vista diaria
         const showDescription = (currentView === 'day' || currentView === 'daily') && foodDescription;
 
-        tag.innerHTML = `
-            <div class="meal-info">
-                <span class="meal-text">${foodName}</span>
-                ${showDescription ? `<span class="meal-description">${foodDescription}</span>` : ''}
-            </div>
-            <button class="remove-btn" onclick="removeFoodTag(this)">×</button>
-        `;
+        // Para vista diaria con descripción: layout horizontal (descripción izquierda, nombre derecha)
+        if (showDescription) {
+            tag.style.flexDirection = 'row';
+            tag.style.justifyContent = 'space-between';
+            tag.style.alignItems = 'flex-start';
+            tag.style.textAlign = 'left';
+            tag.innerHTML = `
+                <div class="meal-info" style="flex: 4/5; text-align: left;">
+                    <span class="meal-description" style="display: block;">${foodDescription}</span>
+                </div>
+                <div style="flex: 1/5; text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
+                    <span class="meal-text" style="text-align: right;">${foodName}</span>
+                    <button class="remove-btn" onclick="removeFoodTag(this)">×</button>
+                </div>
+            `;
+        } else {
+            // Para otras vistas: layout vertical centrado con solo nombre
+            tag.innerHTML = `
+                <div class="meal-info">
+                    <span class="meal-text">${foodName}</span>
+                </div>
+                <button class="remove-btn" onclick="removeFoodTag(this)">×</button>
+            `;
+        }
+        
+        // Permitir hacer click para editar
+        tag.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('remove-btn') && 
+                !e.target.closest('.remove-btn')) {
+                openFoodModal(slot);
+            }
+        });
+        
         slot.appendChild(tag);
     });
 }
@@ -1334,10 +1360,9 @@ window.onclick = function(event) {
 // Agregar evento de click a las casillas
 document.querySelectorAll('.meal-slot').forEach(slot => {
     slot.addEventListener('click', (e) => {
-        // Abrir modal si no se está haciendo click en el botón de eliminar o en un plato existente
+        // Abrir modal si no se está haciendo click en el botón de eliminar
         if (!e.target.classList.contains('remove-btn') &&
-            !e.target.closest('.meal-content') &&
-            e.target.closest('.meal-slot')) {
+            !e.target.closest('.remove-btn')) {
             openFoodModal(slot);
         }
     });
