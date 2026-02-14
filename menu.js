@@ -1412,8 +1412,51 @@ window.addEventListener('click', function(event) {
 
 // Agregar evento de click a las casillas (compatible con móvil y web)
 function setupSlotClickHandlers() {
-    document.addEventListener('click', handleSlotClick);
-    document.addEventListener('touchend', handleSlotClick);
+    let touchHandled = false;
+    
+    // Para móviles - usar touchstart
+    document.addEventListener('touchstart', (e) => {
+        const modal = document.getElementById('foodModal');
+        
+        // No procesar si el modal está abierto y el click es dentro del modal
+        if (modal.style.display === 'block' && modal.contains(e.target)) {
+            return;
+        }
+        
+        const slot = e.target.closest('.meal-slot');
+        
+        if (slot) {
+            if (!e.target.classList.contains('remove-btn') &&
+                !e.target.closest('.remove-btn')) {
+                touchHandled = true;
+                setTimeout(() => { touchHandled = false; }, 500);
+                openFoodModal(slot);
+            }
+        }
+    }, { passive: true });
+    
+    // Para escritorio - usar click
+    document.addEventListener('click', (e) => {
+        // Evitar doble activación en dispositivos táctiles
+        if (touchHandled) {
+            return;
+        }
+        
+        const modal = document.getElementById('foodModal');
+        
+        if (modal.style.display === 'block' && modal.contains(e.target)) {
+            return;
+        }
+        
+        const slot = e.target.closest('.meal-slot');
+        
+        if (slot) {
+            if (!e.target.classList.contains('remove-btn') &&
+                !e.target.closest('.remove-btn')) {
+                openFoodModal(slot);
+            }
+        }
+    });
 }
 
 function handleSlotClick(e) {
