@@ -258,6 +258,16 @@ td {
     font-size: 1.05em;
 }
 
+/* Columna tipo de plato más estrecha en vista diaria */
+body.daily-view .day-header {
+    min-width: 45px;
+    width: 45px;
+    max-width: 45px;
+    padding: 8px 2px;
+    font-size: 1.3em;
+    line-height: 1.2;
+}
+
 .meal-slot {
     min-height: 75px;
     padding: 8px 4px;
@@ -382,6 +392,48 @@ td {
     color: #333;
     transform: scale(1.2);
     opacity: 1;
+}
+
+/* Estilos para el link de receta */
+.meal-description-link {
+    color: #fff !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    text-decoration: none !important;
+    font-size: 0.8em;
+    padding: 4px 10px;
+    border-radius: 12px;
+    transition: all 0.3s;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    font-weight: 500;
+}
+
+.meal-description-link:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    text-decoration: none !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Estilos mejorados para meal-content en vista diaria */
+body.daily-view .meal-content {
+    background: linear-gradient(to right, #fafafa 0%, #ffffff 100%);
+    border-left: 3px solid #667eea;
+    padding: 10px 12px !important;
+    margin: 4px 0;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+body.daily-view .meal-content:hover {
+    background: linear-gradient(to right, #f0f4ff 0%, #fafbff 100%);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+body.daily-view .meal-text {
+    color: #2d3748;
+    font-weight: 600;
+    font-size: 0.95em;
 }
 
 .add-custom {

@@ -184,6 +184,13 @@ function changeView(view) {
         }
     });
 
+    // Agregar/quitar clase al body para estilos específicos de vista diaria
+    if (view === 'daily') {
+        document.body.classList.add('daily-view');
+    } else {
+        document.body.classList.remove('daily-view');
+    }
+
     if (isMobileDevice) {
         applyMobileView(view);
         updateCalendarNavigation(); // Actualizar el label con el rango correcto
@@ -239,16 +246,106 @@ function applyDesktopView(view) {
     cols.forEach(col => col.classList.remove('hide-column'));
 
     if (view === 'daily') {
-        // Vista diaria en desktop: mostrar solo el día actual
-        const todayIndex = getTodayColumnIndex();
+        // Vista diaria: mostrar solo el día correspondiente al calendario actual
+        // Calendario 1 = hoy, 2 = mañana, 3 = pasado mañana, 4 = 3 días después
+        const dayIndex = getDailyColumnIndex();
         cols.forEach((col, index) => {
             const colIndex = index % 8; // 8 columnas por fila
-            if (colIndex !== 0 && colIndex !== todayIndex) {
+            if (colIndex !== 0 && colIndex !== dayIndex) {
                 col.classList.add('hide-column');
             }
         });
     }
     // 'single-week' muestra toda la semana (sin ocultar columnas)
+}
+
+function getDailyColumnIndex() {
+    // Calcular qué columna mostrar según el calendario actual
+    // Calendario 1 = hoy, 2 = mañana, 3 = pasado mañana, 4 = 3 días después
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Calcular la fecha objetivo según el calendario
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + (currentCalendar - 1));
+    
+    // Obtener las fechas de la tabla actual
+    const headers = document.querySelectorAll('#weekTable thead th');
+    
+    // Recorrer los headers (empezando desde el índice 1, porque 0 es el header vacío)
+    for (let i = 1; i < headers.length; i++) {
+        const headerText = headers[i].textContent;
+        // Extraer día y mes del header (formato: "Lunes\n10/2")
+        const match = headerText.match(/(\d+)\/(\d+)/);
+        if (match) {
+            const day = parseInt(match[1]);
+            const month = parseInt(match[2]) - 1; // mes en JS es 0-indexed
+            const year = targetDate.getFullYear();
+            
+            const headerDate = new Date(year, month, day);
+            headerDate.setHours(0, 0, 0, 0);
+            
+            if (headerDate.getTime() === targetDate.getTime()) {
+                return i; // Retornar el índice de la columna
+            }
+        }
+    }
+    
+    // Si no se encuentra, actualizar la tabla
+    updateTableForDailyView();
+    return 1;
+}
+
+function updateTableForDailyView() {
+    // Actualizar los headers de la tabla para mostrar la semana que contiene el día objetivo
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + (currentCalendar - 1));
+    
+    // Encontrar el lunes de la semana que contiene targetDate
+    const targetMonday = new Date(targetDate);
+    const dayOfWeek = targetDate.getDay();
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Lunes = 0
+    targetMonday.setDate(targetDate.getDate() - diff);
+    
+    // Generar las fechas de esa semana
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(targetMonday);
+        date.setDate(targetMonday.getDate() + i);
+        dates.push(date);
+    }
+    
+    // Actualizar los headers
+    updateTableHeadersWithDates(dates);
+}
+
+function updateTableHeadersWithDates(dates) {
+    const headers = document.querySelectorAll('#weekTable thead th');
+    const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    
+    for (let i = 0; i < 7 && i + 1 < headers.length; i++) {
+        const date = dates[i];
+        headers[i + 1].innerHTML = `${dayNames[i]}<br>${date.getDate()}/${date.getMonth() + 1}`;
+    }
+    
+    // También actualizar los data-day de los slots para que coincidan con las fechas
+    const rows = document.querySelectorAll('#weekTable tbody tr');
+    rows.forEach(row => {
+        const slots = row.querySelectorAll('.meal-slot');
+        slots.forEach((slot, index) => {
+            if (index < dates.length) {
+                const date = dates[index];
+                const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, etc.
+                // Convertir a nuestro sistema (0=lunes, 6=domingo)
+                const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                slot.dataset.day = dayKeys[adjustedDay];
+            }
+        });
+    });
 }
 
 function getTodayColumnIndex() {
@@ -424,8 +521,24 @@ function toggleCategory(header) {
 // ====================================
 
 // Guardar menú en Firebase o localStorage
-async function saveMenu(day, meal, foodsArray) {
-    const key = `cal${currentCalendar}-${day}-${meal}`;
+async function saveMenu(day, meal, foodsArray, calendarOverride = null) {
+    // En vista daily, calcular el calendario real basado en la fecha
+    let calToUse = calendarOverride !== null ? calendarOverride : currentCalendar;
+    
+    if (!isMobileDevice && currentView === 'daily' && calendarOverride === null) {
+        // Calcular qué calendario corresponde al día basándose en la fecha objetivo
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + (currentCalendar - 1));
+        
+        const {calendar, dayKey} = getCalendarAndDayFromDate(targetDate);
+        calToUse = calendar;
+        // Nota: el 'day' que recibimos como parámetro ya debería ser correcto (dayKey)
+    }
+    
+    const key = `cal${calToUse}-${day}-${meal}`;
     if (isFirebaseConfigured) {
         try {
             await db.collection('menus').doc(MENU_DOC_ID).set({
@@ -449,7 +562,21 @@ async function loadMenu() {
                 const data = doc.data();
                 const slots = document.querySelectorAll('.meal-slot');
                 slots.forEach(slot => {
-                    const key = `cal${currentCalendar}-${slot.dataset.day}-${slot.dataset.meal}`;
+                    let calToUse = currentCalendar;
+                    
+                    // En vista daily, calcular el calendario real
+                    if (!isMobileDevice && currentView === 'daily') {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        const targetDate = new Date(today);
+                        targetDate.setDate(today.getDate() + (currentCalendar - 1));
+                        
+                        const {calendar} = getCalendarAndDayFromDate(targetDate);
+                        calToUse = calendar;
+                    }
+                    
+                    const key = `cal${calToUse}-${slot.dataset.day}-${slot.dataset.meal}`;
                     if (data[key]) {
                         updateSlotWithArray(slot, data[key]);
                     } else {
@@ -466,11 +593,51 @@ async function loadMenu() {
     }
 }
 
+// Función auxiliar para determinar calendario y día desde una fecha
+function getCalendarAndDayFromDate(date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Encontrar el lunes de la semana del calendario 1
+    const cal1Monday = getMondayOfWeek(0);
+    
+    // Calcular cuántas semanas de diferencia hay desde el lunes del calendario 1
+    const diffTime = date - cal1Monday;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const weekOffset = Math.floor(diffDays / 7);
+    
+    // Determinar el calendario (1-4)
+    const calendar = weekOffset + 1;
+    
+    // Determinar el día de la semana
+    const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, 2=martes, ..., 6=sábado
+    
+    // Mapear a las keys que usamos (lunes, martes, ..., domingo)
+    const dayKeys = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    const dayKey = dayKeys[dayOfWeek];
+    
+    return {calendar, dayKey};
+}
+
 // Cargar desde localStorage (fallback)
 function loadFromLocalStorage() {
     const slots = document.querySelectorAll('.meal-slot');
     slots.forEach(slot => {
-        const key = `cal${currentCalendar}-${slot.dataset.day}-${slot.dataset.meal}`;
+        let calToUse = currentCalendar;
+        
+        // En vista daily, calcular el calendario real
+        if (!isMobileDevice && currentView === 'daily') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + (currentCalendar - 1));
+            
+            const {calendar} = getCalendarAndDayFromDate(targetDate);
+            calToUse = calendar;
+        }
+        
+        const key = `cal${calToUse}-${slot.dataset.day}-${slot.dataset.meal}`;
         const saved = localStorage.getItem(key);
         if (saved) {
             try {
@@ -499,7 +666,21 @@ if (isFirebaseConfigured) {
         if (doc.exists) {
             const data = doc.data();
             slots.forEach(slot => {
-                const key = `cal${currentCalendar}-${slot.dataset.day}-${slot.dataset.meal}`;
+                let calToUse = currentCalendar;
+                
+                // En vista daily, calcular el calendario real
+                if (!isMobileDevice && currentView === 'daily') {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    const targetDate = new Date(today);
+                    targetDate.setDate(today.getDate() + (currentCalendar - 1));
+                    
+                    const {calendar} = getCalendarAndDayFromDate(targetDate);
+                    calToUse = calendar;
+                }
+                
+                const key = `cal${calToUse}-${slot.dataset.day}-${slot.dataset.meal}`;
                 if (data[key]) {
                     updateSlotWithArray(slot, data[key]);
                 } else {
@@ -545,20 +726,18 @@ function updateSlotWithArray(slot, foodsArray) {
         // Mostrar descripción solo en vista diaria
         const showDescription = (currentView === 'day' || currentView === 'daily') && foodDescription;
 
-        // Para vista diaria con descripción: layout horizontal (descripción izquierda, nombre derecha)
+        // Para vista diaria con descripción: nombre izquierda, descripción como link derecha
         if (showDescription) {
             tag.style.flexDirection = 'row';
             tag.style.justifyContent = 'space-between';
-            tag.style.alignItems = 'flex-start';
+            tag.style.alignItems = 'center';
             tag.style.textAlign = 'left';
+            tag.style.gap = '8px';
+            tag.style.paddingRight = '20px'; // Espacio para el botón de eliminar
             tag.innerHTML = `
-                <div class="meal-info" style="flex: 4/5; text-align: left;">
-                    <span class="meal-description" style="display: block;">${foodDescription}</span>
-                </div>
-                <div style="flex: 1/5; text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
-                    <span class="meal-text" style="text-align: right;">${foodName}</span>
-                    <button class="remove-btn" onclick="removeFoodTag(this)">×</button>
-                </div>
+                <span class="meal-text" style="flex: 1; text-align: left; font-weight: 600;">${foodName}</span>
+                <a href="${foodDescription}" target="_blank" class="meal-description-link" onclick="event.stopPropagation();">Receta</a>
+                <button class="remove-btn" onclick="removeFoodTag(this); event.stopPropagation();">×</button>
             `;
         } else {
             // Para otras vistas: layout vertical centrado con solo nombre
@@ -573,7 +752,8 @@ function updateSlotWithArray(slot, foodsArray) {
         // Permitir hacer click para editar
         tag.addEventListener('click', (e) => {
             if (!e.target.classList.contains('remove-btn') && 
-                !e.target.closest('.remove-btn')) {
+                !e.target.closest('.remove-btn') &&
+                !e.target.classList.contains('meal-description-link')) {
                 openFoodModal(slot);
             }
         });
@@ -799,8 +979,26 @@ function createFoodItemElement(food) {
 
 // Cargar platos personalizados en el DOM
 function loadCustomFoods(customFoods) {
-    // Guardar en variable global
-    customFoodsGlobal = customFoods;
+    // Limpiar duplicados en cada categoría
+    const cleanedFoods = {};
+    Object.keys(customFoods).forEach(category => {
+        const foods = customFoods[category] || [];
+        const uniqueFoods = [];
+        const seenNames = new Set();
+        
+        foods.forEach(food => {
+            const foodName = typeof food === 'string' ? food : food.name;
+            if (!seenNames.has(foodName)) {
+                seenNames.add(foodName);
+                uniqueFoods.push(food);
+            }
+        });
+        
+        cleanedFoods[category] = uniqueFoods;
+    });
+    
+    // Guardar en variable global (ya limpio)
+    customFoodsGlobal = cleanedFoods;
 
     // Limpiar todas las categorías primero
     document.querySelectorAll('.category-items').forEach(cat => {
@@ -808,11 +1006,11 @@ function loadCustomFoods(customFoods) {
     });
 
     // Cargar platos en sus respectivas categorías
-    Object.keys(customFoods).forEach(category => {
+    Object.keys(cleanedFoods).forEach(category => {
         const categoryIndex = CATEGORY_MAP[category];
         if (categoryIndex !== undefined) {
             const categoryContainer = document.querySelectorAll('.category-items')[categoryIndex];
-            customFoods[category].forEach(food => {
+            cleanedFoods[category].forEach(food => {
                 const foodName = typeof food === 'string' ? food : food.name;
                 categoryContainer.appendChild(createFoodItemElement(food));
             });
@@ -949,7 +1147,13 @@ function prevCalendar() {
         if (isMobileDevice && currentView) {
             changeView(currentView);
         } else {
-            updateTableHeaders();
+            if (currentView === 'daily') {
+                updateTableForDailyView();
+                applyDesktopView('daily');
+                loadMenu();
+            } else {
+                updateTableHeaders();
+            }
         }
     }
 }
@@ -963,7 +1167,13 @@ function nextCalendar() {
         if (isMobileDevice && currentView) {
             changeView(currentView);
         } else {
-            updateTableHeaders();
+            if (currentView === 'daily') {
+                updateTableForDailyView();
+                applyDesktopView('daily');
+                loadMenu();
+            } else {
+                updateTableHeaders();
+            }
         }
     }
 }
@@ -977,7 +1187,15 @@ function goToCalendar(calNumber) {
         if (isMobileDevice && currentView) {
             changeView(currentView);
         } else {
-            updateTableHeaders();
+            // En desktop
+            if (currentView === 'daily') {
+                // En vista daily, actualizar la tabla y aplicar la vista
+                updateTableForDailyView();
+                applyDesktopView('daily');
+                loadMenu();
+            } else {
+                updateTableHeaders();
+            }
         }
     }
 }
