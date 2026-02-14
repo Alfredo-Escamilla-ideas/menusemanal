@@ -307,6 +307,10 @@ function renderFourWeeksView() {
                         <td class="day-header">🌙 2º</td>
                         ${dates.map((d, idx) => `<td><div class="meal-slot" data-calendar="${i}" data-day="${['lunes','martes','miercoles','jueves','viernes','sabado','domingo'][idx]}" data-meal="cena2"></div></td>`).join('')}
                     </tr>
+                    <tr>
+                        <td class="day-header">🌙🍮 Postre</td>
+                        ${dates.map((d, idx) => `<td><div class="meal-slot" data-calendar="${i}" data-day="${['lunes','martes','miercoles','jueves','viernes','sabado','domingo'][idx]}" data-meal="cenaPostre"></div></td>`).join('')}
+                    </tr>
                 </tbody>
             </table>
         `;
@@ -1157,7 +1161,7 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
 // Las instrucciones ya están configuradas para click (funciona en todos los dispositivos)
 
 // Abrir modal de selección de comidas
-function openFoodModal(slot) {
+async function openFoodModal(slot) {
     currentSlot = slot;
     const modal = document.getElementById('foodModal');
     const modalFoods = document.getElementById('modalFoods');
@@ -1179,7 +1183,8 @@ function openFoodModal(slot) {
         'comida2': 'Segundo',
         'postre': 'Postre',
         'cena1': 'Primero',
-        'cena2': 'Segundo'
+        'cena2': 'Segundo',
+        'cenaPostre': 'Postre'
     };
 
     document.getElementById('modalTitle').textContent = `${dayNames[day]} - ${mealNames[meal]}`;
@@ -1197,7 +1202,20 @@ function openFoodModal(slot) {
     // Obtener platos ya añadidos en este slot
     const existingPlates = [];
     const key = `cal${currentCalendar}-${day}-${meal}`;
-    const menuData = menuDb[key] || localStorage.getItem(key);
+    let menuData = localStorage.getItem(key);
+    
+    // Intentar cargar desde Firebase si está configurado
+    if (isFirebaseConfigured) {
+        try {
+            const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+            if (doc.exists && doc.data()[key]) {
+                menuData = JSON.stringify(doc.data()[key]);
+            }
+        } catch (error) {
+            console.log('Error cargando desde Firebase, usando localStorage', error);
+        }
+    }
+    
     if (menuData) {
         try {
             const foodsArray = JSON.parse(menuData);
@@ -1221,12 +1239,15 @@ function openFoodModal(slot) {
     } else if (meal === 'comida2') {
         // Solo segundos platos para el segundo plato de la comida
         categoriesToShow = ['segundos'];
-    } else if (meal === 'postre') {
+    } else if (meal === 'postre' || meal === 'cenaPostre') {
         // Solo postres
         categoriesToShow = ['postres'];
-    } else if (meal === 'cena1' || meal === 'cena2') {
-        // Solo cenas ligeras para las cenas
-        categoriesToShow = ['cenas'];
+    } else if (meal === 'cena1') {
+        // Primeros platos + cenas ligeras para el primer plato de cena
+        categoriesToShow = ['primeros', 'cenas'];
+    } else if (meal === 'cena2') {
+        // Segundos platos + cenas ligeras para el segundo plato de cena
+        categoriesToShow = ['segundos', 'cenas'];
     }
 
     const categoryTitles = {
@@ -1237,8 +1258,9 @@ function openFoodModal(slot) {
     };
 
     let hasPlates = false;
+    const hasMultipleCategories = categoriesToShow.length > 1;
 
-    categoriesToShow.forEach(category => {
+    categoriesToShow.forEach((category, index) => {
         const plates = customFoodsGlobal[category] || [];
 
         // Filtrar platos ya añadidos
@@ -1255,7 +1277,35 @@ function openFoodModal(slot) {
 
             const categoryTitle = document.createElement('div');
             categoryTitle.className = 'modal-category-title';
-            categoryTitle.textContent = categoryTitles[category];
+            
+            // Si hay múltiples categorías, añadir flecha y funcionalidad de colapso
+            if (hasMultipleCategories) {
+                categoryTitle.innerHTML = `
+                    <span class="category-title-text">${categoryTitles[category]}</span>
+                    <span class="category-arrow">▼</span>
+                `;
+                categoryTitle.style.cursor = 'pointer';
+                categoryTitle.style.display = 'flex';
+                categoryTitle.style.justifyContent = 'space-between';
+                categoryTitle.style.alignItems = 'center';
+                categoryTitle.style.padding = '12px 15px';
+                categoryTitle.style.background = '#f5f5f5';
+                categoryTitle.style.borderRadius = '6px';
+                categoryTitle.style.marginBottom = '8px';
+                categoryTitle.style.fontWeight = '600';
+                
+                // Empezar colapsado
+                categoryDiv.classList.add('collapsed');
+                
+                categoryTitle.onclick = function() {
+                    const isCollapsed = categoryDiv.classList.toggle('collapsed');
+                    const arrow = categoryTitle.querySelector('.category-arrow');
+                    arrow.textContent = isCollapsed ? '▼' : '▲';
+                };
+            } else {
+                categoryTitle.textContent = categoryTitles[category];
+            }
+            
             categoryDiv.appendChild(categoryTitle);
 
             availablePlates.forEach(plate => {
@@ -1389,7 +1439,7 @@ function handleSlotClick(e) {
 }
 
 // Inicializar los event handlers
-setupSlotClickHandlers();
+// Se llama después de cargar el DOM
 
 // ====================================
 // INICIALIZACIÓN
@@ -1423,6 +1473,9 @@ checkAndAutoShift();
 loadMenu();
 loadCustomFoodsFromDB();
 updateCalendarNavigation();
+
+// Inicializar eventos de click DESPUÉS de que todo esté cargado
+setupSlotClickHandlers();
 
 // Verificar cada hora si hay que auto-desplazar
 setInterval(checkAndAutoShift, 3600000); // 1 hora

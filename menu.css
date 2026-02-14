@@ -1038,6 +1038,10 @@ td {
     margin-bottom: 20px;
 }
 
+.modal-category.collapsed .modal-food-item {
+    display: none;
+}
+
 .modal-category-title {
     font-weight: 600;
     color: #555;
@@ -1046,6 +1050,11 @@ td {
     border-bottom: 2px solid #e0e0e0;
     font-size: 0.9em;
     text-transform: uppercase;
+}
+
+.modal-category-title .category-arrow {
+    transition: transform 0.3s;
+    font-size: 0.8em;
 }
 
 .modal-food-item {
