@@ -1215,15 +1215,18 @@ function openFoodModal(slot) {
     // Determinar qué categorías mostrar según el tipo de comida
     let categoriesToShow = [];
 
-    if (meal === 'postre') {
-        // Solo postres para el postre
+    if (meal === 'comida1') {
+        // Solo primeros platos para el primer plato de la comida
+        categoriesToShow = ['primeros'];
+    } else if (meal === 'comida2') {
+        // Solo segundos platos para el segundo plato de la comida
+        categoriesToShow = ['segundos'];
+    } else if (meal === 'postre') {
+        // Solo postres
         categoriesToShow = ['postres'];
     } else if (meal === 'cena1' || meal === 'cena2') {
-        // Para cenas: primeros, segundos y cenas ligeras
-        categoriesToShow = ['primeros', 'segundos', 'cenas'];
-    } else {
-        // Para comida1 y comida2: primeros y segundos
-        categoriesToShow = ['primeros', 'segundos'];
+        // Solo cenas ligeras para las cenas
+        categoriesToShow = ['cenas'];
     }
 
     const categoryTitles = {
@@ -1350,23 +1353,43 @@ async function selectFood(foodName) {
 }
 
 // Cerrar modal al hacer click fuera
-window.onclick = function(event) {
+window.addEventListener('click', function(event) {
     const modal = document.getElementById('foodModal');
     if (event.target == modal) {
         closeFoodModal();
     }
-};
+});
 
-// Agregar evento de click a las casillas
-document.querySelectorAll('.meal-slot').forEach(slot => {
-    slot.addEventListener('click', (e) => {
+// Agregar evento de click a las casillas (compatible con móvil y web)
+function setupSlotClickHandlers() {
+    document.addEventListener('click', handleSlotClick);
+    document.addEventListener('touchend', handleSlotClick);
+}
+
+function handleSlotClick(e) {
+    const modal = document.getElementById('foodModal');
+    
+    // No procesar si el modal está abierto y el click es dentro del modal
+    if (modal.style.display === 'block' && modal.contains(e.target)) {
+        return;
+    }
+    
+    // Verificar si el click fue dentro de un meal-slot
+    const slot = e.target.closest('.meal-slot');
+    
+    if (slot) {
         // Abrir modal si no se está haciendo click en el botón de eliminar
         if (!e.target.classList.contains('remove-btn') &&
             !e.target.closest('.remove-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
             openFoodModal(slot);
         }
-    });
-});
+    }
+}
+
+// Inicializar los event handlers
+setupSlotClickHandlers();
 
 // ====================================
 // INICIALIZACIÓN
