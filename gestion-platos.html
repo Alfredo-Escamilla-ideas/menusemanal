@@ -15,6 +15,11 @@
     <link rel="stylesheet" href="gestion-platos.css">
 </head>
 <body>
+    <div class="theme-switcher" aria-label="Selector de tema">
+        <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
+        <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+    </div>
+
     <button class="back-button" onclick="window.location.href='menu.html'">⬅ Volver al Menú</button>
 
     <div class="container">
@@ -31,17 +36,33 @@
                 <input type="text" id="plateName" placeholder="Ej: Paella valenciana">
             </div>
             <div class="form-group">
-                <label for="plateCategory">Categoría *</label>
-                <select id="plateCategory">
-                    <option value="primeros">🥗 Primeros Platos</option>
-                    <option value="segundos">🍗 Segundos Platos</option>
-                    <option value="postres">🍮 Postres</option>
-                    <option value="cenas">🌙 Cenas Ligeras</option>
-                </select>
+                <label>Categorías * (Selecciona una o más)</label>
+                <div class="categories-selector">
+                    <div class="category-option" data-category="primeros">
+                        <input type="checkbox" id="cat-primeros" name="category" value="primeros">
+                        <label for="cat-primeros">🥗 Primeros Platos</label>
+                    </div>
+                    <div class="category-option" data-category="segundos">
+                        <input type="checkbox" id="cat-segundos" name="category" value="segundos">
+                        <label for="cat-segundos">🍗 Segundos Platos</label>
+                    </div>
+                    <div class="category-option" data-category="postres">
+                        <input type="checkbox" id="cat-postres" name="category" value="postres">
+                        <label for="cat-postres">🍮 Postres</label>
+                    </div>
+                    <div class="category-option" data-category="cenas">
+                        <input type="checkbox" id="cat-cenas" name="category" value="cenas">
+                        <label for="cat-cenas">🌙 Cenas Ligeras</label>
+                    </div>
+                </div>
             </div>
             <div class="form-group">
-                <label for="plateDescription">Descripción (opcional)</label>
-                <textarea id="plateDescription" placeholder="Añade ingredientes, instrucciones, notas..."></textarea>
+                <label for="plateComments">💬 Comentarios (opcional)</label>
+                <textarea id="plateComments" placeholder="Añade ingredientes, instrucciones, notas..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="plateLink">🔗 Link de Receta (opcional)</label>
+                <input type="url" id="plateLink" placeholder="https://ejemplo.com/receta">
             </div>
             <button class="add-button" onclick="addPlate()">Añadir Plato</button>
         </div>
@@ -51,6 +72,70 @@
             <h2>📋 Mis Platos</h2>
             <div id="platesList">
                 <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <div id="editPlateModal" class="custom-modal">
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <h3>✏️ Editar Plato</h3>
+                <button class="custom-modal-close" onclick="closeEditModal()">×</button>
+            </div>
+            <div class="custom-modal-body">
+                <div class="form-group">
+                    <label for="editPlateName">Nombre del Plato *</label>
+                    <input type="text" id="editPlateName" placeholder="Nombre del plato">
+                </div>
+                <div class="form-group">
+                    <label>Categorías *</label>
+                    <div class="categories-selector" id="editCategoriesSelector">
+                        <div class="category-option" data-category="primeros">
+                            <input type="checkbox" id="edit-cat-primeros" name="editCategory" value="primeros">
+                            <label for="edit-cat-primeros">🥗 Primeros Platos</label>
+                        </div>
+                        <div class="category-option" data-category="segundos">
+                            <input type="checkbox" id="edit-cat-segundos" name="editCategory" value="segundos">
+                            <label for="edit-cat-segundos">🍗 Segundos Platos</label>
+                        </div>
+                        <div class="category-option" data-category="postres">
+                            <input type="checkbox" id="edit-cat-postres" name="editCategory" value="postres">
+                            <label for="edit-cat-postres">🍮 Postres</label>
+                        </div>
+                        <div class="category-option" data-category="cenas">
+                            <input type="checkbox" id="edit-cat-cenas" name="editCategory" value="cenas">
+                            <label for="edit-cat-cenas">🌙 Cenas Ligeras</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editPlateComments">💬 Comentarios (opcional)</label>
+                    <textarea id="editPlateComments" placeholder="Añade ingredientes, instrucciones, notas..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editPlateLink">🔗 Link de Receta (opcional)</label>
+                    <input type="url" id="editPlateLink" placeholder="https://ejemplo.com/receta">
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+                <button class="btn-primary" onclick="savePlateEdit()">Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="custom-modal">
+        <div class="custom-modal-content confirm-content">
+            <div class="custom-modal-header">
+                <h3 id="confirmTitle">Confirmar acción</h3>
+                <button class="custom-modal-close" onclick="resolveConfirm(false)">×</button>
+            </div>
+            <div class="custom-modal-body">
+                <p id="confirmMessage"></p>
+            </div>
+            <div class="custom-modal-footer">
+                <button class="btn-secondary" onclick="resolveConfirm(false)">Cancelar</button>
+                <button class="btn-danger" onclick="resolveConfirm(true)">Confirmar</button>
             </div>
         </div>
     </div>

@@ -23,6 +23,54 @@ try {
 }
 
 const CUSTOM_FOODS_DOC_ID = 'custom-foods';
+let editingPlateContext = null;
+let confirmResolver = null;
+const THEME_STORAGE_KEY = 'gestion-platos-theme-mode';
+
+function applyThemeMode(mode) {
+    const normalizedMode = ['light', 'dark'].includes(mode) ? mode : 'light';
+
+    document.body.classList.remove('theme-light', 'theme-dark');
+    if (normalizedMode === 'dark') {
+        document.body.classList.add('theme-dark');
+    }
+
+    document.querySelectorAll('.theme-toggle-btn').forEach(button => {
+        button.classList.remove('active');
+    });
+
+    const activeButton = document.querySelector(`.mode-${normalizedMode}`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+}
+
+function setThemeMode(mode) {
+    applyThemeMode(mode);
+    localStorage.setItem(THEME_STORAGE_KEY, mode);
+}
+
+function initThemeMode() {
+    const savedMode = localStorage.getItem(THEME_STORAGE_KEY) || 'light';
+    applyThemeMode(savedMode);
+}
+
+function parsePlateMeta(description) {
+    let comments = '';
+    let link = '';
+
+    try {
+        if (description) {
+            const parsed = JSON.parse(description);
+            comments = parsed.comments || '';
+            link = parsed.link || '';
+        }
+    } catch (e) {
+        comments = description || '';
+    }
+
+    return { comments, link };
+}
 
 // ====================================
 // SISTEMA DE NOTIFICACIONES
@@ -122,8 +170,15 @@ function renderPlates(customFoods) {
     let hasPlates = false;
 
     for (const [category, title] of Object.entries(categories)) {
-        const plates = customFoods[category] || [];
-        if (plates.length === 0) continue;
+        const indexedPlates = (customFoods[category] || []).map((plate, originalIndex) => ({
+            plate,
+            originalIndex
+        })).sort((a, b) => {
+            const nameA = (typeof a.plate === 'string' ? a.plate : a.plate.name).toLowerCase();
+            const nameB = (typeof b.plate === 'string' ? b.plate : b.plate.name).toLowerCase();
+            return nameA.localeCompare(nameB, 'es');
+        });
+        if (indexedPlates.length === 0) continue;
 
         hasPlates = true;
 
@@ -131,21 +186,30 @@ function renderPlates(customFoods) {
         section.className = 'category-section';
         section.innerHTML = `<div class="category-title">${title}</div>`;
 
-        plates.forEach((plate, index) => {
+        indexedPlates.forEach(({ plate, originalIndex }) => {
             const plateDiv = document.createElement('div');
             plateDiv.className = 'plate-item';
 
             const name = typeof plate === 'string' ? plate : plate.name;
-            const description = typeof plate === 'object' ? plate.description : '';
+            let description = typeof plate === 'object' ? plate.description : '';
+            const { comments, link } = parsePlateMeta(description);
+
+            let descriptionHTML = '';
+            if (comments) {
+                descriptionHTML += `<div class="plate-description">💬 ${comments}</div>`;
+            }
+            if (link) {
+                descriptionHTML += `<div class="plate-link">🔗 <a href="${link}" target="_blank">${link}</a></div>`;
+            }
 
             plateDiv.innerHTML = `
                 <div class="plate-info">
                     <div class="plate-name">${name}</div>
-                    ${description ? `<div class="plate-description">${description}</div>` : ''}
+                    ${descriptionHTML}
                 </div>
                 <div class="plate-actions">
-                    <button class="btn-edit" onclick="editPlate('${category}', ${index})">✏️ Editar</button>
-                    <button class="btn-delete" onclick="deletePlate('${category}', ${index})">🗑️ Eliminar</button>
+                    <button class="btn-edit" onclick="editPlate('${category}', ${originalIndex})">✏️ Editar</button>
+                    <button class="btn-delete" onclick="deletePlate('${category}', ${originalIndex})">🗑️ Eliminar</button>
                 </div>
             `;
             section.appendChild(plateDiv);
@@ -162,37 +226,58 @@ function renderPlates(customFoods) {
 // Añadir nuevo plato
 async function addPlate() {
     const name = document.getElementById('plateName').value.trim();
-    const category = document.getElementById('plateCategory').value;
-    const description = document.getElementById('plateDescription').value.trim();
+    const comments = document.getElementById('plateComments').value.trim();
+    const link = document.getElementById('plateLink').value.trim();
+    
+    // Obtener todas las categorías seleccionadas
+    const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
+        .map(checkbox => checkbox.value);
 
     if (!name) {
         showNotification('Por favor, introduce el nombre del plato', 'error');
         return;
     }
 
-    const customFoods = await loadPlates();
-
-    if (!customFoods[category]) {
-        customFoods[category] = [];
+    if (selectedCategories.length === 0) {
+        showNotification('Por favor, selecciona al menos una categoría', 'error');
+        return;
     }
 
-    // Crear objeto de plato con nombre y descripción
+    const customFoods = await loadPlates();
+
+    // Crear objeto de plato con nombre y descripción estructurada
     const plate = {
         name: name,
-        description: description || ''
+        description: JSON.stringify({ comments: comments || '', link: link || '' })
     };
 
-    customFoods[category].push(plate);
+    // Añadir el plato a todas las categorías seleccionadas
+    selectedCategories.forEach(category => {
+        if (!customFoods[category]) {
+            customFoods[category] = [];
+        }
+        customFoods[category].push(plate);
+    });
+
     await savePlates(customFoods);
 
     // Limpiar formulario
     document.getElementById('plateName').value = '';
-    document.getElementById('plateDescription').value = '';
+    document.getElementById('plateComments').value = '';
+    document.getElementById('plateLink').value = '';
+    
+    // Desmarcar todos los checkboxes
+    document.querySelectorAll('input[name="category"]:checked').forEach(checkbox => {
+        checkbox.checked = false;
+    });
 
     // Recargar lista
     renderPlates(customFoods);
 
-    showNotification(`Plato "${name}" añadido correctamente`, 'success');
+    const categoriesText = selectedCategories.length > 1 
+        ? `${selectedCategories.length} categorías` 
+        : '1 categoría';
+    showNotification(`Plato "${name}" añadido en ${categoriesText}`, 'success');
 }
 
 // Editar plato
@@ -201,21 +286,34 @@ async function editPlate(category, index) {
     const plate = customFoods[category][index];
 
     const name = typeof plate === 'string' ? plate : plate.name;
-    const description = typeof plate === 'object' ? plate.description : '';
+    let description = typeof plate === 'object' ? plate.description : '';
+    const { comments, link } = parsePlateMeta(description);
 
-    const newName = prompt('Nuevo nombre del plato:', name);
-    if (newName === null) return; // Cancelado
+    const categories = ['primeros', 'segundos', 'postres', 'cenas'];
+    const existingCategories = categories.filter(cat => {
+        return (customFoods[cat] || []).some(item => {
+            const itemName = typeof item === 'string' ? item : item.name;
+            const itemDescription = typeof item === 'object' ? item.description : '';
+            return itemName === name && itemDescription === description;
+        });
+    });
 
-    const newDescription = prompt('Nueva descripción (opcional):', description);
-    if (newDescription === null) return; // Cancelado
-
-    customFoods[category][index] = {
-        name: newName.trim() || name,
-        description: newDescription.trim()
+    editingPlateContext = {
+        originalName: name,
+        originalDescription: description,
+        originalCategory: category,
+        originalIndex: index
     };
 
-    await savePlates(customFoods);
-    renderPlates(customFoods);
+    document.getElementById('editPlateName').value = name;
+    document.getElementById('editPlateComments').value = comments;
+    document.getElementById('editPlateLink').value = link;
+
+    document.querySelectorAll('input[name="editCategory"]').forEach(checkbox => {
+        checkbox.checked = existingCategories.includes(checkbox.value);
+    });
+
+    document.getElementById('editPlateModal').classList.add('show');
 }
 
 // Eliminar plato
@@ -224,15 +322,117 @@ async function deletePlate(category, index) {
     const plate = customFoods[category][index];
     const name = typeof plate === 'string' ? plate : plate.name;
 
-    if (!confirm(`¿Estás seguro de eliminar "${name}"?`)) return;
+    const confirmed = await showConfirmModal(`¿Estás seguro de eliminar "${name}"?`, 'Eliminar plato');
+    if (!confirmed) return;
 
     customFoods[category].splice(index, 1);
     await savePlates(customFoods);
     renderPlates(customFoods);
 }
 
+function closeEditModal() {
+    const modal = document.getElementById('editPlateModal');
+    modal.classList.remove('show');
+    editingPlateContext = null;
+}
+
+async function savePlateEdit() {
+    if (!editingPlateContext) {
+        return;
+    }
+
+    const newName = document.getElementById('editPlateName').value.trim();
+    const newComments = document.getElementById('editPlateComments').value.trim();
+    const newLink = document.getElementById('editPlateLink').value.trim();
+    const selectedCategories = Array.from(document.querySelectorAll('input[name="editCategory"]:checked'))
+        .map(checkbox => checkbox.value);
+
+    if (!newName) {
+        showNotification('El nombre del plato es obligatorio', 'error');
+        return;
+    }
+
+    if (selectedCategories.length === 0) {
+        showNotification('Selecciona al menos una categoría', 'error');
+        return;
+    }
+
+    const customFoods = await loadPlates();
+    const { originalName, originalDescription } = editingPlateContext;
+
+    ['primeros', 'segundos', 'postres', 'cenas'].forEach(category => {
+        const list = customFoods[category] || [];
+        const removeIndex = list.findIndex(item => {
+            const itemName = typeof item === 'string' ? item : item.name;
+            const itemDescription = typeof item === 'object' ? item.description : '';
+            return itemName === originalName && itemDescription === originalDescription;
+        });
+
+        if (removeIndex !== -1) {
+            list.splice(removeIndex, 1);
+        }
+
+        customFoods[category] = list;
+    });
+
+    const updatedPlate = {
+        name: newName,
+        description: JSON.stringify({
+            comments: newComments,
+            link: newLink
+        })
+    };
+
+    selectedCategories.forEach(category => {
+        if (!customFoods[category]) {
+            customFoods[category] = [];
+        }
+        customFoods[category].push(updatedPlate);
+    });
+
+    await savePlates(customFoods);
+    renderPlates(customFoods);
+    closeEditModal();
+    showNotification('Plato editado correctamente', 'success');
+}
+
+function showConfirmModal(message, title = 'Confirmar acción') {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    modal.classList.add('show');
+
+    return new Promise(resolve => {
+        confirmResolver = resolve;
+    });
+}
+
+function resolveConfirm(value) {
+    const modal = document.getElementById('confirmModal');
+    modal.classList.remove('show');
+
+    if (confirmResolver) {
+        confirmResolver(value);
+        confirmResolver = null;
+    }
+}
+
+window.addEventListener('click', function(event) {
+    const editModal = document.getElementById('editPlateModal');
+    const confirmModal = document.getElementById('confirmModal');
+
+    if (event.target === editModal) {
+        closeEditModal();
+    }
+
+    if (event.target === confirmModal) {
+        resolveConfirm(false);
+    }
+});
+
 // ====================================
 // INICIALIZACIÓN
 // ====================================
 
+initThemeMode();
 loadPlates();
