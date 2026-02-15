@@ -31,9 +31,14 @@
     <!-- Modal para seleccionar comidas en móvil -->
     <div id="foodModal" class="food-modal">
         <div class="food-modal-content">
-            <button class="modal-tab-close" onclick="closeFoodModal()">×</button>
-            <div class="modal-header" id="modalTitle">Selecciona una comida</div>
-            <div class="modal-body" id="modalFoods"></div>
+            <div class="modal-header">
+                <span id="modalTitle">Selecciona una comida</span>
+                <button class="modal-tab-close" onclick="closeFoodModal()" aria-label="Cerrar selector de platos">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="modalSearchInput" class="modal-search" placeholder="🔎 Buscar plato..." autocomplete="off" spellcheck="false">
+                <div id="modalFoods"></div>
+            </div>
         </div>
     </div>
 

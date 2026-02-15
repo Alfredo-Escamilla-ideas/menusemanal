@@ -1604,6 +1604,36 @@ async function openFoodModal(slot) {
         currentSlot = slot;
         const modal = document.getElementById('foodModal');
         const modalFoods = document.getElementById('modalFoods');
+        const searchInput = document.getElementById('modalSearchInput');
+
+    function normalizeText(text) {
+        return (text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function applyModalFoodFilter(searchValue) {
+        const normalizedQuery = normalizeText(searchValue.trim());
+        const categories = modalFoods.querySelectorAll('.modal-category');
+
+        categories.forEach(category => {
+            const foodItems = category.querySelectorAll('.modal-food-item');
+            let visibleCount = 0;
+
+            foodItems.forEach(item => {
+                const itemName = normalizeText(item.textContent);
+                const matches = normalizedQuery.length === 0 || itemName.includes(normalizedQuery);
+
+                item.classList.toggle('hidden-by-search', !matches);
+                if (matches) {
+                    visibleCount++;
+                }
+            });
+
+            category.classList.toggle('hidden-by-search', visibleCount === 0);
+        });
+    }
 
     // Obtener día y tipo de comida para el título
     const day = slot.dataset.day;
@@ -1630,13 +1660,22 @@ async function openFoodModal(slot) {
 
     // Limpiar contenido anterior COMPLETAMENTE
     modalFoods.innerHTML = '';
+    searchInput.value = '';
+    searchInput.oninput = (event) => {
+        applyModalFoodFilter(event.target.value);
+    };
     
     // Pequeño delay para asegurar que la limpieza se complete
     await new Promise(resolve => setTimeout(resolve, 10));
 
     // Verificar si hay platos disponibles
     if (!customFoodsGlobal || Object.keys(customFoodsGlobal).length === 0) {
-        modalFoods.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No hay platos disponibles. <a href="gestion-platos.html" style="color: #4CAF50;">Crea algunos platos primero</a>.</div>';
+        const emptyState = document.createElement('div');
+        emptyState.style.padding = '20px';
+        emptyState.style.textAlign = 'center';
+        emptyState.style.color = '#999';
+        emptyState.innerHTML = 'No hay platos disponibles. <a href="gestion-platos.html" style="color: #4CAF50;">Crea algunos platos primero</a>.';
+        modalFoods.appendChild(emptyState);
         modal.style.display = 'block';
         return;
     }
@@ -1768,11 +1807,17 @@ async function openFoodModal(slot) {
     });
 
     if (!hasPlates) {
-        modalFoods.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No hay más platos disponibles. <a href="gestion-platos.html" style="color: #4CAF50;">Crea más platos</a> o elimina algunos platos ya añadidos.</div>';
+        const emptyState = document.createElement('div');
+        emptyState.style.padding = '20px';
+        emptyState.style.textAlign = 'center';
+        emptyState.style.color = '#999';
+        emptyState.innerHTML = 'No hay más platos disponibles. <a href="gestion-platos.html" style="color: #4CAF50;">Crea más platos</a> o elimina algunos platos ya añadidos.';
+        modalFoods.appendChild(emptyState);
     }
 
     // Mostrar modal
     modal.style.display = 'block';
+    setTimeout(() => searchInput.focus(), 50);
     
     } finally {
         // Liberar el flag después de un pequeño delay
