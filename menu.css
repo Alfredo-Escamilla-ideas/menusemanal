@@ -1436,8 +1436,8 @@ body.daily-view .meal-content .meal-text {
     margin: 10% auto;
     padding: 0;
     border-radius: 12px;
-    width: min(96vw, 820px);
-    max-width: 820px;
+    width: min(96vw, 533px);
+    max-width: 533px;
     max-height: 70vh;
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
