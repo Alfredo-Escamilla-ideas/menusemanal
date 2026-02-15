@@ -903,11 +903,6 @@ function updateSlotWithArray(slot, foodsArray) {
     });
 }
 
-// Actualizar contenido de slot (compatibilidad)
-function updateSlot(slot, text) {
-    updateSlotWithArray(slot, [text]);
-}
-
 // Obtener array de comidas de un slot
 function getSlotFoods(slot) {
     const tags = slot.querySelectorAll('.meal-text');
@@ -1035,11 +1030,6 @@ document.querySelectorAll('.meal-slot').forEach(slot => {
         }
     });
 });
-
-// Eliminar comida del menú (función legacy, redirige a removeFoodTag)
-async function removeFood(btn) {
-    await removeFoodTag(btn);
-}
 
 // Guardar plato personalizado en la base de datos
 async function saveCustomFood(foodName, category) {
@@ -1517,74 +1507,10 @@ async function resetAllMeals() {
 }
 
 // ====================================
-// EXTRACCIÓN DE IMÁGENES DE RECETAS
-// ====================================
-
-// Extraer imagen de una URL de receta usando Open Graph
-async function extractImageFromRecipeUrl(url) {
-    if (!url || !url.startsWith('http')) {
-        return null;
-    }
-
-    try {
-        // Usar AllOrigins como proxy CORS gratuito
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
-        const data = await response.json();
-        
-        if (!data.contents) {
-            return null;
-        }
-
-        const html = data.contents;
-        
-        // Intentar extraer og:image
-        let ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
-        if (!ogImageMatch) {
-            ogImageMatch = html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-        }
-        
-        if (ogImageMatch && ogImageMatch[1]) {
-            let imageUrl = ogImageMatch[1];
-            // Si la URL es relativa, convertirla a absoluta
-            if (imageUrl.startsWith('/')) {
-                const urlObj = new URL(url);
-                imageUrl = urlObj.origin + imageUrl;
-            } else if (!imageUrl.startsWith('http')) {
-                const urlObj = new URL(url);
-                imageUrl = urlObj.origin + '/' + imageUrl;
-            }
-            return imageUrl;
-        }
-
-        // Intentar extraer twitter:image como fallback
-        let twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
-        if (!twitterImageMatch) {
-            twitterImageMatch = html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
-        }
-        
-        if (twitterImageMatch && twitterImageMatch[1]) {
-            let imageUrl = twitterImageMatch[1];
-            if (imageUrl.startsWith('/')) {
-                const urlObj = new URL(url);
-                imageUrl = urlObj.origin + imageUrl;
-            }
-            return imageUrl;
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Error extrayendo imagen:', error);
-        return null;
-    }
-}
-
-// ====================================
 // FUNCIONALIDAD DE MODAL PARA MÓVILES
 // ====================================
 
 let currentSlot = null;
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
 let isModalOpening = false; // Flag para prevenir múltiples aperturas simultáneas
 
 // Las instrucciones ya están configuradas para click (funciona en todos los dispositivos)
@@ -1605,12 +1531,35 @@ async function openFoodModal(slot) {
         const modal = document.getElementById('foodModal');
         const modalFoods = document.getElementById('modalFoods');
         const searchInput = document.getElementById('modalSearchInput');
+        const modalFixedCategoryTitle = document.getElementById('modalFixedCategoryTitle');
+        const categoryTitles = {
+            'primeros': '🥗 Primeros Platos',
+            'segundos': '🍗 Segundos Platos',
+            'postres': '🍮 Postres',
+            'cenas': '🌙 Cenas Ligeras'
+        };
 
     function normalizeText(text) {
         return (text || '')
             .toLowerCase()
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function updateFixedCategoryTitle() {
+        const visibleCategories = [...modalFoods.querySelectorAll('.modal-category:not(.hidden-by-search)')];
+
+        if (visibleCategories.length === 0) {
+            modalFixedCategoryTitle.textContent = 'Sin resultados';
+            return;
+        }
+
+        const labels = visibleCategories.map(category => {
+            const key = category.dataset.category;
+            return categoryTitles[key] || key;
+        });
+
+        modalFixedCategoryTitle.textContent = labels.join(' • ');
     }
 
     function applyModalFoodFilter(searchValue) {
@@ -1633,6 +1582,8 @@ async function openFoodModal(slot) {
 
             category.classList.toggle('hidden-by-search', visibleCount === 0);
         });
+
+        updateFixedCategoryTitle();
     }
 
     // Obtener día y tipo de comida para el título
@@ -1661,6 +1612,7 @@ async function openFoodModal(slot) {
     // Limpiar contenido anterior COMPLETAMENTE
     modalFoods.innerHTML = '';
     searchInput.value = '';
+    modalFixedCategoryTitle.textContent = '';
     searchInput.oninput = (event) => {
         applyModalFoodFilter(event.target.value);
     };
@@ -1731,14 +1683,8 @@ async function openFoodModal(slot) {
         categoriesToShow = ['segundos', 'cenas'];
     }
 
-    const categoryTitles = {
-        'primeros': '🥗 Primeros Platos',
-        'segundos': '🍗 Segundos Platos',
-        'postres': '🍮 Postres',
-        'cenas': '🌙 Cenas Ligeras'
-    };
-
     let hasPlates = false;
+    const availableCategoryKeys = [];
     const hasMultipleCategories = categoriesToShow.length > 1;
 
     categoriesToShow.forEach((category, index) => {
@@ -1756,15 +1702,15 @@ async function openFoodModal(slot) {
 
         if (availablePlates.length > 0) {
             hasPlates = true;
+            availableCategoryKeys.push(category);
             const categoryDiv = document.createElement('div');
             categoryDiv.className = 'modal-category';
             categoryDiv.dataset.category = category;
 
-            const categoryTitle = document.createElement('div');
-            categoryTitle.className = 'modal-category-title';
-            
             // Si hay múltiples categorías, añadir flecha y funcionalidad de colapso
             if (hasMultipleCategories) {
+                const categoryTitle = document.createElement('div');
+                categoryTitle.className = 'modal-category-title';
                 categoryTitle.innerHTML = `
                     <span class="category-title-text">${categoryTitles[category]}</span>
                     <span class="category-arrow">▼</span>
@@ -1787,11 +1733,9 @@ async function openFoodModal(slot) {
                     const arrow = categoryTitle.querySelector('.category-arrow');
                     arrow.textContent = isCollapsed ? '▼' : '▲';
                 };
-            } else {
-                categoryTitle.textContent = categoryTitles[category];
+
+                categoryDiv.appendChild(categoryTitle);
             }
-            
-            categoryDiv.appendChild(categoryTitle);
 
             availablePlates.forEach(plate => {
                 const foodName = typeof plate === 'string' ? plate : plate.name;
@@ -1806,6 +1750,10 @@ async function openFoodModal(slot) {
         }
     });
 
+    modalFixedCategoryTitle.textContent = availableCategoryKeys.length > 0
+        ? availableCategoryKeys.map(category => categoryTitles[category]).join(' • ')
+        : 'Sin categorías disponibles';
+
     if (!hasPlates) {
         const emptyState = document.createElement('div');
         emptyState.style.padding = '20px';
@@ -1814,6 +1762,8 @@ async function openFoodModal(slot) {
         emptyState.innerHTML = 'No hay más platos disponibles. <a href="gestion-platos.html" style="color: #4CAF50;">Crea más platos</a> o elimina algunos platos ya añadidos.';
         modalFoods.appendChild(emptyState);
     }
+
+    updateFixedCategoryTitle();
 
     // Mostrar modal
     modal.style.display = 'block';

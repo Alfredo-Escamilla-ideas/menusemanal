@@ -36,7 +36,10 @@
                 <button class="modal-tab-close" onclick="closeFoodModal()" aria-label="Cerrar selector de platos">×</button>
             </div>
             <div class="modal-body">
-                <input type="text" id="modalSearchInput" class="modal-search" placeholder="🔎 Buscar plato..." autocomplete="off" spellcheck="false">
+                <div class="modal-fixed-zone">
+                    <input type="text" id="modalSearchInput" class="modal-search" placeholder="🔎 Buscar plato..." autocomplete="off" spellcheck="false">
+                    <div id="modalFixedCategoryTitle" class="modal-fixed-category-title"></div>
+                </div>
                 <div id="modalFoods"></div>
             </div>
         </div>
