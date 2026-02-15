@@ -15,6 +15,11 @@
     <link rel="stylesheet" href="menu.css">
 </head>
 <body>
+    <div class="theme-switcher" aria-label="Selector de tema">
+        <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
+        <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+    </div>
+
     <!-- Botón para gestionar platos -->
     <button class="manage-plates-btn" onclick="window.location.href='gestion-platos.html'">🍽️ Gestionar Platos</button>
 
@@ -26,10 +31,21 @@
     <!-- Modal para seleccionar comidas en móvil -->
     <div id="foodModal" class="food-modal">
         <div class="food-modal-content">
+            <button class="modal-tab-close" onclick="closeFoodModal()">×</button>
             <div class="modal-header" id="modalTitle">Selecciona una comida</div>
             <div class="modal-body" id="modalFoods"></div>
-            <div style="padding: 0 20px 20px;">
-                <button class="modal-close" onclick="closeFoodModal()">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="customConfirmModal" class="food-modal">
+        <div class="food-modal-content confirm-modal-content">
+            <div class="modal-header" id="customConfirmTitle">Confirmar acción</div>
+            <div class="modal-body">
+                <p id="customConfirmMessage" class="confirm-message"></p>
+            </div>
+            <div class="confirm-actions">
+                <button class="modal-close secondary" onclick="resolveCustomConfirm(false)">Cancelar</button>
+                <button class="modal-close" onclick="resolveCustomConfirm(true)">Confirmar</button>
             </div>
         </div>
     </div>

@@ -4,11 +4,96 @@
     box-sizing: border-box;
 }
 
+:root {
+    --bg-main: #f5f5f5;
+    --surface-main: #ffffff;
+    --surface-soft: #f8f9fa;
+    --text-main: #2a2a2a;
+    --text-soft: #666666;
+    --border-main: #e0e0e0;
+    --table-header-bg: #2f3648;
+    --table-header-text: #f3f6ff;
+    --table-grid: #cfd6e6;
+    --slot-bg: #eef2f8;
+    --slot-hover: #e3e9f4;
+    --comment-bg: rgba(41, 56, 86, 0.08);
+    --daily-card-bg-start: #edf1f7;
+    --daily-card-bg-end: #e7edf6;
+    --daily-card-hover-start: #e5ecf9;
+    --daily-card-hover-end: #dde7f7;
+    --control-active-bg: #3f4f6f;
+    --control-active-hover: #364764;
+    --control-active-border: #4c5f84;
+    --control-active-text: #eef4ff;
+}
+
 body {
     font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-    background: #f5f5f5;
+    background: var(--bg-main);
+    color: var(--text-main);
     min-height: 100vh;
     padding: 15px;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+body.theme-dark {
+    --bg-main: #12151d;
+    --surface-main: #1a1f2a;
+    --surface-soft: #232a37;
+    --text-main: #e8edf7;
+    --text-soft: #adb8c8;
+    --border-main: #364154;
+    --table-header-bg: #253044;
+    --table-header-text: #dce6f8;
+    --table-grid: #2f3a4d;
+    --slot-bg: #1e2633;
+    --slot-hover: #273246;
+    --comment-bg: rgba(161, 176, 201, 0.12);
+    --daily-card-bg-start: #202a3a;
+    --daily-card-bg-end: #263244;
+    --daily-card-hover-start: #273548;
+    --daily-card-hover-end: #2d3d52;
+    --control-active-bg: #314260;
+    --control-active-hover: #385072;
+    --control-active-border: #496187;
+    --control-active-text: #e2ecff;
+}
+
+.theme-switcher {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1400;
+    display: flex;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 12px;
+    background: var(--surface-main);
+    border: 1px solid var(--border-main);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.theme-toggle-btn {
+    border: 1px solid var(--border-main);
+    border: 1px solid var(--border-main);
+    background: var(--surface-soft);
+    color: var(--text-main);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.82em;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-btn.active {
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+}
+
+.theme-toggle-btn:hover {
+    transform: translateY(-1px);
 }
 
 .header {
@@ -48,8 +133,60 @@ body {
 }
 
 .header p {
-    color: #666;
+    color: var(--text-soft);
     font-size: 0.95em;
+}
+
+body .header,
+body .sidebar h2,
+body .category-title,
+body .day-header,
+body .modal-category-title,
+body .view-controls-label,
+body th,
+body td,
+body .meal-text,
+body .confirm-message {
+    color: var(--text-main);
+}
+
+body .modal-header {
+    color: #ffffff;
+}
+
+body .table-container,
+body .calendar-navigation,
+body .view-controls,
+body .single-week-view,
+body .food-modal-content,
+body .modal-category-title,
+body .modal-food-item,
+body .meal-slot,
+body .meal-content,
+body .day-header {
+    background: var(--surface-main);
+    border-color: var(--border-main);
+}
+
+body .modal-food-item,
+body .category-header,
+body .meal-content,
+body .day-header {
+    background: var(--surface-soft);
+}
+
+body .meal-slot .meal-content {
+    background: transparent;
+    border-color: transparent;
+}
+
+body.theme-dark .modal-header {
+    background: #2a3342;
+    color: #e8edf7;
+}
+
+body.theme-dark .manage-plates-btn {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .calendar-action-buttons {
@@ -206,11 +343,11 @@ body {
 
 .table-container {
     flex: 1;
-    background: white;
+    background: var(--surface-main);
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-main);
     overflow-x: auto;
 }
 
@@ -221,34 +358,34 @@ table {
 }
 
 th {
-    background: #333;
-    color: white;
+    background: var(--table-header-bg);
+    color: var(--table-header-text);
     padding: 12px 8px;
     text-align: center;
     font-size: 0.95em;
     font-weight: 600;
-    border: 2px solid white;
+    border: 2px solid var(--table-grid);
     min-width: 100px;
 }
 
 th:first-child {
-    background: #f8f9fa;
-    color: #333;
+    background: var(--surface-soft);
+    color: var(--text-main);
     min-width: 120px;
 }
 
 td {
     padding: 0;
-    border: 2px solid #e0e0e0;
+    border: 2px solid var(--table-grid);
     min-width: 100px;
     width: 100px;
     max-width: 100px;
 }
 
 .day-header {
-    background: #f8f9fa;
+    background: var(--surface-soft);
     font-weight: bold;
-    color: #333;
+    color: var(--text-main);
     padding: 12px 8px;
     text-align: center;
     min-width: 90px;
@@ -260,12 +397,29 @@ td {
 
 /* Columna tipo de plato más estrecha en vista diaria */
 body.daily-view .day-header {
-    min-width: 38px;
-    width: 38px;
-    max-width: 38px;
+    min-width: 0;
+    width: 15%;
+    max-width: none;
     padding: 8px 3px;
     font-size: 1.4em;
     line-height: 1.1;
+}
+
+/* En vista diaria: primera columna fija y columna de platos expandida */
+body.daily-view #weekTable {
+    table-layout: fixed;
+}
+
+body.daily-view #weekTable th:first-child,
+body.daily-view #weekTable .day-header {
+    width: 15% !important;
+    min-width: 15% !important;
+    max-width: 15% !important;
+}
+
+body.daily-view #weekTable th:not(:first-child):not(.hide-column),
+body.daily-view #weekTable td:not(.day-header):not(.hide-column) {
+    width: 85% !important;
 }
 
 /* Ocultar texto en vista diaria, solo mostrar emoji */
@@ -281,7 +435,7 @@ body.daily-view .day-header .emoji {
 .meal-slot {
     min-height: 75px;
     padding: 8px 4px;
-    background: #fafafa;
+    background: var(--slot-bg);
     transition: all 0.3s;
     cursor: pointer;
     position: relative;
@@ -293,7 +447,7 @@ body.daily-view .day-header .emoji {
 }
 
 .meal-slot:empty::before {
-    content: '+ Añadir plato';
+    content: '';
     position: absolute;
     top: 50%;
     left: 50%;
@@ -305,17 +459,17 @@ body.daily-view .day-header .emoji {
 }
 
 .meal-slot:hover {
-    background: #f0f0f0;
+    background: var(--slot-hover);
 }
 
 .meal-slot:hover:empty::before {
     opacity: 1;
-    color: #333;
+    color: var(--text-main);
 }
 
 .meal-slot.drag-over {
-    background: #f0f0f0;
-    border: 2px dashed #333 !important;
+    background: var(--slot-hover);
+    border: 2px dashed var(--table-grid) !important;
 }
 
 .meal-content {
@@ -324,7 +478,7 @@ body.daily-view .day-header .emoji {
     justify-content: center;
     gap: 2px;
     background: transparent;
-    color: #333;
+    color: var(--text-main);
     padding: 0;
     margin: 0;
     border-radius: 0;
@@ -335,11 +489,11 @@ body.daily-view .day-header .emoji {
     transition: color 0.2s;
     flex-direction: column;
     text-align: center;
-    position: relative;
+    position: static;
 }
 
 .meal-content:hover {
-    color: #000;
+    color: var(--text-main);
 }
 
 .meal-content:hover .remove-btn {
@@ -364,6 +518,8 @@ body.daily-view .day-header .emoji {
     font-size: 0.9em;
     line-height: 1.2;
     text-align: center;
+    text-align-last: center;
+    text-wrap: balance;
     width: 100%;
     hyphens: auto;
 }
@@ -404,6 +560,32 @@ body.daily-view .day-header .emoji {
     opacity: 1;
 }
 
+.remove-btn.tab-close {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--surface-main) 86%, #8fa2c9 14%);
+    border: 1px solid var(--border-main);
+    color: #43507a;
+    font-weight: 700;
+    top: 6px;
+    right: 6px;
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(15, 22, 38, 0.2);
+}
+
+.remove-btn.tab-close:hover {
+    background: color-mix(in srgb, var(--surface-main) 72%, #768fbe 28%);
+    color: #2d3b63;
+    transform: scale(1.06);
+}
+
+body.theme-dark .remove-btn.tab-close {
+    background: color-mix(in srgb, var(--surface-main) 78%, #6f84af 22%);
+    color: #d8e4ff;
+    border-color: #4e6286;
+}
+
 /* Estilos para el link de receta */
 .meal-description-link {
     color: #fff !important;
@@ -427,28 +609,108 @@ body.daily-view .day-header .emoji {
     box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
 }
 
+/* Estilos para comentarios del plato */
+.meal-comments {
+    font-size: 0.85em;
+    color: var(--text-soft);
+    line-height: 1.4;
+    margin: 2px 0;
+    padding: 0;
+    background: transparent;
+    border-radius: 6px;
+    font-style: italic;
+}
+
 /* Estilos mejorados para meal-content en vista diaria */
 body.daily-view .meal-content {
-    background: linear-gradient(to right, #ffffff 0%, #f8f9ff 100%);
-    border-left: 4px solid #667eea;
-    padding: 12px 14px !important;
-    margin: 5px 0;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.1);
+    background: transparent;
+    border-left: none;
+    padding: 8px 10px !important;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
     transition: all 0.3s ease;
+    display: grid;
+    grid-template-columns: 2fr 3fr 1fr;
+    align-items: center;
+    column-gap: 10px;
+    position: static;
 }
 
 body.daily-view .meal-content:hover {
-    background: linear-gradient(to right, #f0f4ff 0%, #fafbff 100%);
-    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.2);
-    transform: translateX(2px);
-    border-left-color: #764ba2;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
 }
 
 body.daily-view .meal-text {
-    color: #2d3748;
+    color: var(--text-main);
     font-weight: 600;
     font-size: 1.05em;
+}
+
+body.daily-view .daily-name-block {
+    text-align: center;
+    min-width: 0;
+}
+
+body.daily-view .daily-name-text {
+    display: block;
+    text-align: center;
+    text-align-last: center;
+    text-wrap: balance;
+}
+
+.meal-slot.slot-disabled {
+    background: color-mix(in srgb, var(--surface-soft) 70%, var(--bg-main) 30%) !important;
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.meal-slot.slot-disabled .meal-content {
+    opacity: 0.85;
+}
+
+.meal-slot.slot-disabled .remove-btn,
+.meal-slot.slot-disabled .remove-btn.tab-close {
+    opacity: 0.35 !important;
+    pointer-events: none;
+}
+
+body.theme-dark .meal-slot.slot-disabled {
+    background: color-mix(in srgb, var(--surface-soft) 78%, #0f131a 22%) !important;
+}
+
+body.daily-view .daily-comments-block {
+    text-align: center;
+    min-width: 0;
+}
+
+body.daily-view .daily-comments-text {
+    display: block;
+    margin: 0;
+    text-align: justify;
+    text-align-last: center;
+    text-wrap: balance;
+}
+
+body.daily-view .daily-recipe-block {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-right: 18px;
+}
+
+body.daily-view .daily-recipe-link {
+    min-width: 32px;
+    text-align: center;
+    padding: 5px 8px;
+    margin-right: 4px;
+}
+
+body.daily-view .daily-recipe-placeholder {
+    color: var(--text-soft);
+    font-weight: 600;
 }
 
 /* Ajustar botón de eliminar en vista diaria */
@@ -464,6 +726,19 @@ body.daily-view .remove-btn:hover {
     opacity: 1;
 }
 
+body.daily-view .remove-btn.tab-close {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    margin-left: 0;
+    z-index: 20;
+}
+
+th.day-disabled {
+    opacity: 0.65;
+    filter: saturate(0.75);
+}
+
 /* Estilos para la imagen del plato en vista diaria */
 .meal-image {
     width: 55px;
@@ -473,19 +748,13 @@ body.daily-view .remove-btn:hover {
     margin-right: 10px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     flex-shrink: 0;
-    border: 2px solid #fff;
+    border: 2px solid var(--surface-main);
     transition: all 0.3s ease;
 }
 
 .meal-image:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
-}
-
-/* Ajustes para meal-content con imagen */
-body.daily-view .meal-content {
-    display: flex;
-    align-items: center;
 }
 
 body.daily-view .meal-content .meal-text {
@@ -589,11 +858,26 @@ body.daily-view .meal-content .meal-text {
     }
 
     .manage-plates-btn {
-        position: static;
-        width: calc(100% - 10px);
-        margin: 0 5px 10px 5px;
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: auto;
+        margin: 0;
         font-size: 0.9em;
-        padding: 10px 20px;
+        padding: 9px 14px;
+        z-index: 1300;
+    }
+
+    .theme-switcher {
+        top: 10px;
+        left: 10px;
+        padding: 5px;
+        gap: 5px;
+    }
+
+    .theme-toggle-btn {
+        padding: 5px 8px;
+        font-size: 0.75em;
     }
 
     .header h1 {
@@ -924,9 +1208,9 @@ body.daily-view .meal-content .meal-text {
     justify-content: space-between;
     margin-bottom: 15px;
     padding: 15px;
-    background: #f8f9fa;
+    background: var(--surface-main);
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-main);
 }
 
 /* Controles de vista */
@@ -936,24 +1220,24 @@ body.daily-view .meal-content .meal-text {
     align-items: center;
     margin-bottom: 15px;
     padding: 12px;
-    background: #fff;
+    background: var(--surface-main);
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-main);
     justify-content: center;
 }
 
 .view-controls-label {
     font-weight: 600;
-    color: #666;
+    color: var(--text-soft);
     font-size: 0.9em;
     margin-right: 8px;
 }
 
 .view-btn {
     padding: 8px 16px;
-    background: white;
-    color: #666;
-    border: 1px solid #ddd;
+    background: var(--surface-soft);
+    color: var(--text-soft);
+    border: 1px solid var(--border-main);
     border-radius: 6px;
     cursor: pointer;
     font-size: 0.85em;
@@ -962,14 +1246,14 @@ body.daily-view .meal-content .meal-text {
 }
 
 .view-btn:hover {
-    border-color: #333;
-    color: #333;
+    border-color: var(--table-grid);
+    color: var(--text-main);
 }
 
 .view-btn.active {
-    background: #333;
-    color: white;
-    border-color: #333;
+    background: var(--control-active-bg);
+    color: var(--control-active-text);
+    border-color: var(--control-active-border);
 }
 
 /* Ocultar columnas en modo día/3días */
@@ -989,19 +1273,19 @@ body.daily-view .meal-content .meal-text {
 }
 
 .week-calendar {
-    background: white;
+    background: var(--surface-main);
     border-radius: 8px;
     padding: 15px;
-    border: 2px solid #e0e0e0;
+    border: 2px solid var(--border-main);
 }
 
 .week-calendar-header {
     text-align: center;
     font-weight: 600;
-    color: #333;
+    color: var(--text-main);
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 2px solid #333;
+    border-bottom: 2px solid var(--table-grid);
     font-size: 1.05em;
 }
 
@@ -1041,9 +1325,9 @@ body.daily-view .meal-content .meal-text {
 }
 
 .nav-arrow {
-    background: #333;
-    color: white;
-    border: none;
+    background: var(--control-active-bg);
+    color: var(--control-active-text);
+    border: 1px solid var(--control-active-border);
     border-radius: 6px;
     width: 40px;
     height: 40px;
@@ -1057,12 +1341,14 @@ body.daily-view .meal-content .meal-text {
 }
 
 .nav-arrow:hover {
-    background: #000;
+    background: var(--control-active-hover);
     transform: scale(1.05);
 }
 
 .nav-arrow:disabled {
-    background: #ccc;
+    background: var(--surface-soft);
+    border-color: var(--border-main);
+    color: var(--text-soft);
     cursor: not-allowed;
     opacity: 0.5;
 }
@@ -1077,12 +1363,12 @@ body.daily-view .meal-content .meal-text {
     width: 40px;
     height: 40px;
     border-radius: 6px;
-    background: white;
-    border: 2px solid #ddd;
+    background: var(--surface-soft);
+    border: 2px solid var(--border-main);
     cursor: pointer;
     font-weight: 600;
     font-size: 1em;
-    color: #666;
+    color: var(--text-soft);
     transition: all 0.3s;
     display: flex;
     align-items: center;
@@ -1090,14 +1376,14 @@ body.daily-view .meal-content .meal-text {
 }
 
 .calendar-indicator:hover {
-    border-color: #333;
-    color: #333;
+    border-color: var(--table-grid);
+    color: var(--text-main);
 }
 
 .calendar-indicator.active {
-    background: #333;
-    color: white;
-    border-color: #333;
+    background: var(--control-active-bg);
+    color: var(--control-active-text);
+    border-color: var(--control-active-border);
 }
 
 .add-calendar-btn {
@@ -1122,7 +1408,7 @@ body.daily-view .meal-content .meal-text {
 .current-calendar-label {
     font-size: 0.95em;
     font-weight: 600;
-    color: #333;
+    color: var(--text-main);
     min-width: 200px;
     text-align: center;
 }
@@ -1158,6 +1444,25 @@ body.daily-view .meal-content .meal-text {
     animation: slideIn 0.3s;
 }
 
+.confirm-modal-content {
+    max-width: 460px;
+}
+
+.modal-tab-close {
+    position: absolute;
+    top: 0;
+    right: 16px;
+    width: 34px;
+    height: 26px;
+    border: none;
+    border-radius: 0 0 10px 10px;
+    background: #ecefff;
+    color: #424a7a;
+    font-size: 1.2em;
+    cursor: pointer;
+    z-index: 30;
+}
+
 @keyframes slideIn {
     from {
         transform: translateY(-50px);
@@ -1176,6 +1481,9 @@ body.daily-view .meal-content .meal-text {
     border-radius: 12px 12px 0 0;
     font-size: 1.1em;
     font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 20;
 }
 
 .modal-body {
@@ -1192,12 +1500,16 @@ body.daily-view .meal-content .meal-text {
 
 .modal-category-title {
     font-weight: 600;
-    color: #555;
+    color: var(--text-main);
     margin-bottom: 10px;
     padding-bottom: 8px;
-    border-bottom: 2px solid #e0e0e0;
+    border-bottom: 2px solid var(--border-main);
     font-size: 0.9em;
     text-transform: uppercase;
+    position: sticky;
+    top: 64px;
+    background: var(--surface-main);
+    z-index: 10;
 }
 
 .modal-category-title .category-arrow {
@@ -1237,6 +1549,26 @@ body.daily-view .meal-content .meal-text {
 
 .modal-close:hover {
     background: #cc0000;
+}
+
+.modal-close.secondary {
+    background: #777;
+}
+
+.modal-close.secondary:hover {
+    background: #5a5a5a;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px 20px;
+}
+
+.confirm-message {
+    color: #444;
+    line-height: 1.5;
+    white-space: pre-wrap;
 }
 
 /* Sistema de notificaciones */

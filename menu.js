@@ -43,6 +43,35 @@ const CATEGORY_MAP = {
 };
 let isResetting = false; // Flag para evitar conflictos durante el reset
 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+const THEME_STORAGE_KEY = 'menu-theme-mode';
+
+function applyThemeMode(mode) {
+    const normalizedMode = ['light', 'dark'].includes(mode) ? mode : 'light';
+
+    document.body.classList.remove('theme-light', 'theme-dark');
+    if (normalizedMode !== 'light') {
+        document.body.classList.add(`theme-${normalizedMode}`);
+    }
+
+    document.querySelectorAll('.theme-toggle-btn').forEach(button => {
+        button.classList.remove('active');
+    });
+
+    const activeButton = document.querySelector(`.mode-${normalizedMode}`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+}
+
+function setThemeMode(mode) {
+    applyThemeMode(mode);
+    localStorage.setItem(THEME_STORAGE_KEY, mode);
+}
+
+function initThemeMode() {
+    const savedMode = localStorage.getItem(THEME_STORAGE_KEY) || 'light';
+    applyThemeMode(savedMode);
+}
 
 // ====================================
 // SISTEMA DE NOTIFICACIONES
@@ -72,6 +101,29 @@ function showNotification(message, type = 'success') {
             notification.remove();
         }, 400);
     }, 3000);
+}
+
+let customConfirmResolver = null;
+
+function showCustomConfirm(message, title = 'Confirmar acción') {
+    const modal = document.getElementById('customConfirmModal');
+    document.getElementById('customConfirmTitle').textContent = title;
+    document.getElementById('customConfirmMessage').textContent = message;
+    modal.style.display = 'block';
+
+    return new Promise(resolve => {
+        customConfirmResolver = resolve;
+    });
+}
+
+function resolveCustomConfirm(confirmed) {
+    const modal = document.getElementById('customConfirmModal');
+    modal.style.display = 'none';
+
+    if (customConfirmResolver) {
+        customConfirmResolver(confirmed);
+        customConfirmResolver = null;
+    }
 }
 
 // ====================================
@@ -133,6 +185,30 @@ function formatDateHeader(date) {
     return `${day} ${dateNum}/${month}`;
 }
 
+function formatISODate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function updateSlotsAvailability(dates) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const rows = document.querySelectorAll('#weekTable tbody tr');
+    rows.forEach(row => {
+        const slots = row.querySelectorAll('.meal-slot');
+        slots.forEach((slot, index) => {
+            if (index >= dates.length) return;
+
+            const slotDate = new Date(dates[index]);
+            slotDate.setHours(0, 0, 0, 0);
+            slot.dataset.date = formatISODate(slotDate);
+
+            const isPast = slotDate < today;
+            slot.classList.toggle('slot-disabled', isPast);
+        });
+    });
+}
+
 // Actualizar encabezados de la tabla con fechas reales
 function updateTableHeaders() {
     let dates;
@@ -151,6 +227,14 @@ function updateTableHeaders() {
     // Actualizar cada día (empezando desde el índice 1, ya que el 0 es la columna vacía)
     for (let i = 1; i < headers.length; i++) {
         headers[i].textContent = formatDateHeader(dates[i - 1]);
+        headers[i].dataset.date = formatISODate(dates[i - 1]);
+
+        const headerDate = new Date(dates[i - 1]);
+        headerDate.setHours(0, 0, 0, 0);
+        const todayForHeader = new Date();
+        todayForHeader.setHours(0, 0, 0, 0);
+        headers[i].classList.toggle('day-disabled', headerDate < todayForHeader);
+
         // Resaltar el día actual
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -162,6 +246,8 @@ function updateTableHeaders() {
             headers[i].style.color = 'white';
         }
     }
+
+    updateSlotsAvailability(dates);
 }
 
 // Verificar si el calendario actual está obsoleto y auto-desplazar
@@ -358,6 +444,13 @@ function updateTableHeadersWithDates(dates) {
     for (let i = 0; i < 7 && i + 1 < headers.length; i++) {
         const date = dates[i];
         headers[i + 1].innerHTML = `${dayNames[i]}<br>${date.getDate()}/${date.getMonth() + 1}`;
+        headers[i + 1].dataset.date = formatISODate(date);
+
+        const headerDate = new Date(date);
+        headerDate.setHours(0, 0, 0, 0);
+        const todayForHeader = new Date();
+        todayForHeader.setHours(0, 0, 0, 0);
+        headers[i + 1].classList.toggle('day-disabled', headerDate < todayForHeader);
     }
     
     // También actualizar los data-day de los slots para que coincidan con las fechas
@@ -374,6 +467,8 @@ function updateTableHeadersWithDates(dates) {
             }
         });
     });
+
+    updateSlotsAvailability(dates);
 }
 
 function getTodayColumnIndex() {
@@ -482,6 +577,10 @@ async function loadAllWeeksData() {
 function setupDragAndDropForFourWeeks() {
     document.querySelectorAll('.four-week-view .meal-slot').forEach(slot => {
         slot.addEventListener('dragover', (e) => {
+            if (slot.classList.contains('slot-disabled')) {
+                return;
+            }
+
             e.preventDefault();
             slot.classList.add('drag-over');
         });
@@ -491,6 +590,10 @@ function setupDragAndDropForFourWeeks() {
         });
 
         slot.addEventListener('drop', async (e) => {
+            if (slot.classList.contains('slot-disabled')) {
+                return;
+            }
+
             e.preventDefault();
             slot.classList.remove('drag-over');
 
@@ -749,21 +852,39 @@ function updateSlotWithArray(slot, foodsArray) {
         const foodName = typeof food === 'string' ? food : food.name;
         const foodDescription = typeof food === 'object' ? food.description : '';
 
-        // Mostrar descripción solo en vista diaria
-        const showDescription = (currentView === 'day' || currentView === 'daily') && foodDescription;
+        // Intentar parsear la descripción como JSON
+        let comments = '';
+        let link = '';
+        try {
+            if (foodDescription) {
+                const parsed = JSON.parse(foodDescription);
+                comments = parsed.comments || '';
+                link = parsed.link || '';
+            }
+        } catch (e) {
+            // Si no es JSON, es una descripción antigua (tratarla como link)
+            link = foodDescription;
+        }
 
-        // Para vista diaria con descripción: nombre izquierda, descripción como link derecha
-        if (showDescription) {
-            tag.style.flexDirection = 'row';
-            tag.style.justifyContent = 'space-between';
-            tag.style.alignItems = 'center';
-            tag.style.gap = '12px';
-            tag.style.position = 'relative';
-            
+        const isDailyView = (currentView === 'day' || currentView === 'daily');
+
+        if (isDailyView) {
+            const commentsText = comments || 'Sin comentarios';
+            const recipeContent = link
+                ? `<a href="${link}" target="_blank" class="meal-description-link daily-recipe-link" title="Abrir receta" onclick="event.stopPropagation();">🔗</a>`
+                : `<span class="daily-recipe-placeholder">—</span>`;
+
             tag.innerHTML = `
-                <span class="meal-text" style="flex: 1; text-align: left;">${foodName}</span>
-                <a href="${foodDescription}" target="_blank" class="meal-description-link" onclick="event.stopPropagation();">🔗 Receta</a>
-                <button class="remove-btn" onclick="removeFoodTag(this); event.stopPropagation();">×</button>
+                <div class="daily-name-block">
+                    <span class="meal-text daily-name-text">${foodName}</span>
+                </div>
+                <div class="daily-comments-block">
+                    <span class="meal-comments daily-comments-text">${commentsText}</span>
+                </div>
+                <div class="daily-recipe-block">
+                    ${recipeContent}
+                </div>
+                <button class="remove-btn tab-close" onclick="removeFoodTag(this); event.stopPropagation();">×</button>
             `;
         } else {
             // Para otras vistas: layout vertical centrado con solo nombre
@@ -796,6 +917,10 @@ function getSlotFoods(slot) {
 // Eliminar etiqueta individual de comida
 async function removeFoodTag(btn) {
     const slot = btn.closest('.meal-slot');
+    if (slot.classList.contains('slot-disabled')) {
+        return;
+    }
+
     const tag = btn.closest('.meal-content');
     const foodName = tag.querySelector('.meal-text').textContent;
 
@@ -879,6 +1004,10 @@ async function deleteFoodItem(event, btn) {
 // Eventos de arrastre para slots
 document.querySelectorAll('.meal-slot').forEach(slot => {
     slot.addEventListener('dragover', (e) => {
+        if (slot.classList.contains('slot-disabled')) {
+            return;
+        }
+
         e.preventDefault();
         slot.classList.add('drag-over');
     });
@@ -888,6 +1017,10 @@ document.querySelectorAll('.meal-slot').forEach(slot => {
     });
 
     slot.addEventListener('drop', async (e) => {
+        if (slot.classList.contains('slot-disabled')) {
+            return;
+        }
+
         e.preventDefault();
         slot.classList.remove('drag-over');
 
@@ -1012,6 +1145,12 @@ function loadCustomFoods(customFoods) {
                 seenNames.add(foodName);
                 uniqueFoods.push(food);
             }
+        });
+
+        uniqueFoods.sort((a, b) => {
+            const nameA = (typeof a === 'string' ? a : a.name).toLowerCase();
+            const nameB = (typeof b === 'string' ? b : b.name).toLowerCase();
+            return nameA.localeCompare(nameB, 'es');
         });
         
         cleanedFoods[category] = uniqueFoods;
@@ -1233,7 +1372,8 @@ async function addNewCalendar(autoShift = false) {
             '• Se creará un nuevo Calendario 4 (vacío)\n\n' +
             '¿Deseas continuar?';
 
-        if (!confirm(confirmMsg)) {
+        const confirmed = await showCustomConfirm(confirmMsg, 'Nuevo calendario');
+        if (!confirmed) {
             return;
         }
     }
@@ -1322,7 +1462,12 @@ async function addNewCalendar(autoShift = false) {
 
 // Reiniciar calendario actual
 async function resetAllMeals() {
-    if (confirm(`¿Estás seguro de que quieres vaciar el Calendario ${currentCalendar}?\n\n✅ SOLO se limpiará el Calendario ${currentCalendar}\n❌ Los otros calendarios NO se modificarán\n❌ Los platos del banco NO se borrarán`)) {
+    const confirmed = await showCustomConfirm(
+        `¿Quieres limpiar el Calendario ${currentCalendar}?`,
+        `Limpiar Calendario ${currentCalendar}`
+    );
+
+    if (confirmed) {
         // Activar flag para evitar que la sincronización interfiera
         isResetting = true;
 
@@ -1564,6 +1709,10 @@ async function openFoodModal(slot) {
         const availablePlates = plates.filter(plate => {
             const plateName = typeof plate === 'string' ? plate : plate.name;
             return !existingPlates.includes(plateName);
+        }).sort((a, b) => {
+            const nameA = (typeof a === 'string' ? a : a.name).toLowerCase();
+            const nameB = (typeof b === 'string' ? b : b.name).toLowerCase();
+            return nameA.localeCompare(nameB, 'es');
         });
 
         if (availablePlates.length > 0) {
@@ -1710,8 +1859,13 @@ async function selectFood(foodName) {
 // Cerrar modal al hacer click fuera
 window.addEventListener('click', function(event) {
     const modal = document.getElementById('foodModal');
+    const confirmModal = document.getElementById('customConfirmModal');
     if (event.target == modal) {
         closeFoodModal();
+    }
+
+    if (event.target == confirmModal) {
+        resolveCustomConfirm(false);
     }
 });
 
@@ -1739,6 +1893,15 @@ function setupSlotClickHandlers() {
         const slot = e.target.closest('.meal-slot');
         
         if (slot) {
+            if (slot.classList.contains('slot-disabled')) {
+                return;
+            }
+
+            const isEmptySlot = !slot.querySelector('.meal-content');
+            if (!isEmptySlot) {
+                return;
+            }
+
             if (!e.target.classList.contains('remove-btn') &&
                 !e.target.closest('.remove-btn') &&
                 !e.target.classList.contains('meal-description-link') &&
@@ -1766,6 +1929,15 @@ function setupSlotClickHandlers() {
         const slot = e.target.closest('.meal-slot');
         
         if (slot) {
+            if (slot.classList.contains('slot-disabled')) {
+                return;
+            }
+
+            const isEmptySlot = !slot.querySelector('.meal-content');
+            if (!isEmptySlot) {
+                return;
+            }
+
             if (!e.target.classList.contains('remove-btn') &&
                 !e.target.closest('.remove-btn') &&
                 !e.target.classList.contains('meal-description-link') &&
@@ -1805,6 +1977,7 @@ function initViewControls() {
 }
 
 // Cargar datos al iniciar
+initThemeMode();
 initViewControls();
 updateTableHeaders();
 checkAndAutoShift();
