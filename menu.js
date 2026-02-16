@@ -73,6 +73,82 @@ function initThemeMode() {
     applyThemeMode(savedMode);
 }
 
+function getPlateName(item) {
+    return typeof item === 'string' ? item : (item?.name || '');
+}
+
+function normalizeFoodName(name) {
+    let normalized = String(name || '')
+        .normalize('NFC')
+        .replace(/[^\p{L}\s-]/gu, '')
+        .replace(/\s*-\s*/g, '-')
+        .replace(/-{2,}/g, '-')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/^-+|-+$/g, '')
+        .trim();
+
+    return normalized;
+}
+
+function isValidFoodName(name) {
+    return /^[\p{L}]+(?:[ -][\p{L}]+)*$/u.test(name);
+}
+
+function getInvalidFoodChars(name) {
+    const matches = String(name || '').match(/[^\p{L}\s-]/gu) || [];
+    return [...new Set(matches)];
+}
+
+function sanitizeCustomFoodsMap(customFoods = {}) {
+    const categories = ['primeros', 'segundos', 'postres', 'cenas'];
+    const sanitizedFoods = {};
+    let changed = false;
+
+    categories.forEach(category => {
+        const sourceFoods = Array.isArray(customFoods[category]) ? customFoods[category] : [];
+        const dedupe = new Map();
+
+        sourceFoods.forEach(food => {
+            const originalName = getPlateName(food);
+            const cleanedName = normalizeFoodName(originalName);
+
+            if (!cleanedName || !isValidFoodName(cleanedName)) {
+                if (originalName) {
+                    changed = true;
+                }
+                return;
+            }
+
+            const normalizedItem = typeof food === 'object' && food !== null
+                ? { ...food, name: cleanedName }
+                : cleanedName;
+
+            if (cleanedName !== originalName) {
+                changed = true;
+            }
+
+            const dedupeKey = cleanedName.toLocaleLowerCase('es');
+            if (!dedupe.has(dedupeKey)) {
+                dedupe.set(dedupeKey, normalizedItem);
+            } else {
+                changed = true;
+                const existing = dedupe.get(dedupeKey);
+                if (typeof existing === 'string' && typeof normalizedItem === 'object') {
+                    dedupe.set(dedupeKey, normalizedItem);
+                }
+            }
+        });
+
+        sanitizedFoods[category] = Array.from(dedupe.values());
+
+        if (sourceFoods.length !== sanitizedFoods[category].length) {
+            changed = true;
+        }
+    });
+
+    return { sanitizedFoods, changed };
+}
+
 // ====================================
 // SISTEMA DE NOTIFICACIONES
 // ====================================
@@ -189,6 +265,17 @@ function formatISODate(date) {
     return date.toISOString().split('T')[0];
 }
 
+function parseISODateLocal(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day);
+    date.setHours(0, 0, 0, 0);
+    return date;
+}
+
 function updateSlotsAvailability(dates) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -246,6 +333,22 @@ function updateTableHeaders() {
             headers[i].style.color = 'white';
         }
     }
+
+    // Sincronizar los data-day de los slots con las fechas visibles
+    // para que en móvil (Hoy / 3 Días) se carguen los platos correctos.
+    const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    const rows = document.querySelectorAll('#weekTable tbody tr');
+    rows.forEach(row => {
+        const slots = row.querySelectorAll('.meal-slot');
+        slots.forEach((slot, index) => {
+            if (index < dates.length) {
+                const date = dates[index];
+                const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, ...
+                const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                slot.dataset.day = dayKeys[adjustedDay];
+            }
+        });
+    });
 
     updateSlotsAvailability(dates);
 }
@@ -652,24 +755,27 @@ function toggleCategory(header) {
 // ====================================
 
 // Guardar menú en Firebase o localStorage
-async function saveMenu(day, meal, foodsArray, calendarOverride = null) {
-    // En vista daily, calcular el calendario real basado en la fecha
+async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOverride = null) {
     let calToUse = calendarOverride !== null ? calendarOverride : currentCalendar;
-    
-    if (!isMobileDevice && currentView === 'daily' && calendarOverride === null) {
-        // Calcular qué calendario corresponde al día basándose en la fecha objetivo
+    let dayToUse = day;
+
+    if (dateOverride instanceof Date && !Number.isNaN(dateOverride.getTime())) {
+        const { calendar, dayKey } = getCalendarAndDayFromDate(dateOverride);
+        calToUse = calendar;
+        dayToUse = dayKey;
+    } else if (!isMobileDevice && currentView === 'daily' && calendarOverride === null) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         const targetDate = new Date(today);
         targetDate.setDate(today.getDate() + (currentCalendar - 1));
-        
-        const {calendar, dayKey} = getCalendarAndDayFromDate(targetDate);
+
+        const { calendar, dayKey } = getCalendarAndDayFromDate(targetDate);
         calToUse = calendar;
-        // Nota: el 'day' que recibimos como parámetro ya debería ser correcto (dayKey)
+        dayToUse = dayKey;
     }
-    
-    const key = `cal${calToUse}-${day}-${meal}`;
+
+    const key = `cal${calToUse}-${dayToUse}-${meal}`;
     if (isFirebaseConfigured) {
         try {
             await db.collection('menus').doc(MENU_DOC_ID).set({
@@ -693,23 +799,10 @@ async function loadMenu() {
                 const data = doc.data();
                 const slots = document.querySelectorAll('.meal-slot');
                 slots.forEach(slot => {
-                    let calToUse = currentCalendar;
-                    
-                    // En vista daily, calcular el calendario real
-                    if (!isMobileDevice && currentView === 'daily') {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        
-                        const targetDate = new Date(today);
-                        targetDate.setDate(today.getDate() + (currentCalendar - 1));
-                        
-                        const {calendar} = getCalendarAndDayFromDate(targetDate);
-                        calToUse = calendar;
-                    }
-                    
-                    const key = `cal${calToUse}-${slot.dataset.day}-${slot.dataset.meal}`;
-                    if (data[key]) {
-                        updateSlotWithArray(slot, data[key]);
+                    const candidates = getMenuKeyCandidatesFromSlot(slot);
+                    const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                    if (foundKey) {
+                        updateSlotWithArray(slot, data[foundKey]);
                     } else {
                         slot.innerHTML = '';
                     }
@@ -750,26 +843,68 @@ function getCalendarAndDayFromDate(date) {
     return {calendar, dayKey};
 }
 
+function shouldUseDateBasedSlotKey(slot) {
+    if (!slot || !slot.dataset || !slot.dataset.date) {
+        return false;
+    }
+
+    return (isMobileDevice && (currentView === 'day' || currentView === 'three-days')) ||
+        (!isMobileDevice && currentView === 'daily');
+}
+
+function getStorageContextFromSlot(slot) {
+    if (shouldUseDateBasedSlotKey(slot)) {
+        const slotDate = parseISODateLocal(slot.dataset.date);
+        if (slotDate) {
+            const { calendar, dayKey } = getCalendarAndDayFromDate(slotDate);
+            return { calendar, day: dayKey, date: slotDate };
+        }
+    }
+
+    return {
+        calendar: Number(slot?.dataset?.calendar) || currentCalendar,
+        day: slot?.dataset?.day,
+        date: null
+    };
+}
+
+function getMenuKeyFromSlot(slot, mealOverride = null) {
+    const { calendar, day } = getStorageContextFromSlot(slot);
+    const meal = mealOverride || slot?.dataset?.meal;
+    return {
+        calendar,
+        day,
+        meal,
+        key: `cal${calendar}-${day}-${meal}`
+    };
+}
+
+function getLegacyMenuKeyFromSlot(slot, mealOverride = null) {
+    const calendar = Number(slot?.dataset?.calendar) || currentCalendar;
+    const day = slot?.dataset?.day;
+    const meal = mealOverride || slot?.dataset?.meal;
+    return {
+        calendar,
+        day,
+        meal,
+        key: `cal${calendar}-${day}-${meal}`
+    };
+}
+
+function getMenuKeyCandidatesFromSlot(slot, mealOverride = null) {
+    const primary = getMenuKeyFromSlot(slot, mealOverride).key;
+    const legacy = getLegacyMenuKeyFromSlot(slot, mealOverride).key;
+    return primary === legacy ? [primary] : [primary, legacy];
+}
+
 // Cargar desde localStorage (fallback)
 function loadFromLocalStorage() {
     const slots = document.querySelectorAll('.meal-slot');
     slots.forEach(slot => {
-        let calToUse = currentCalendar;
-        
-        // En vista daily, calcular el calendario real
-        if (!isMobileDevice && currentView === 'daily') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + (currentCalendar - 1));
-            
-            const {calendar} = getCalendarAndDayFromDate(targetDate);
-            calToUse = calendar;
-        }
-        
-        const key = `cal${calToUse}-${slot.dataset.day}-${slot.dataset.meal}`;
-        const saved = localStorage.getItem(key);
+        const candidates = getMenuKeyCandidatesFromSlot(slot);
+        const saved = candidates
+            .map(candidateKey => localStorage.getItem(candidateKey))
+            .find(value => value);
         if (saved) {
             try {
                 const foodsArray = JSON.parse(saved);
@@ -796,23 +931,10 @@ if (isFirebaseConfigured) {
         if (doc.exists) {
             const data = doc.data();
             slots.forEach(slot => {
-                let calToUse = currentCalendar;
-                
-                // En vista daily, calcular el calendario real
-                if (!isMobileDevice && currentView === 'daily') {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    
-                    const targetDate = new Date(today);
-                    targetDate.setDate(today.getDate() + (currentCalendar - 1));
-                    
-                    const {calendar} = getCalendarAndDayFromDate(targetDate);
-                    calToUse = calendar;
-                }
-                
-                const key = `cal${calToUse}-${slot.dataset.day}-${slot.dataset.meal}`;
-                if (data[key]) {
-                    updateSlotWithArray(slot, data[key]);
+                const candidates = getMenuKeyCandidatesFromSlot(slot);
+                const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                if (foundKey) {
+                    updateSlotWithArray(slot, data[foundKey]);
                 } else {
                     // Limpiar slot si no hay datos en Firebase para este calendario
                     slot.innerHTML = '';
@@ -920,23 +1042,31 @@ async function removeFoodTag(btn) {
     const foodName = tag.querySelector('.meal-text').textContent;
 
     // Leer datos actuales
-    const cal = slot.dataset.calendar || currentCalendar;
-    const key = `cal${cal}-${slot.dataset.day}-${slot.dataset.meal}`;
+    const { key, date } = getMenuKeyFromSlot(slot);
+    const candidates = getMenuKeyCandidatesFromSlot(slot);
     let foodsArray = [];
 
     // Cargar array actual
     if (isFirebaseConfigured) {
         try {
             const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
-            if (doc.exists && doc.data()[key]) {
-                foodsArray = doc.data()[key];
+            if (doc.exists) {
+                const data = doc.data();
+                const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                if (foundKey) {
+                    foodsArray = data[foundKey];
+                }
             }
         } catch (error) {
-            const saved = localStorage.getItem(key);
+            const saved = candidates
+                .map(candidateKey => localStorage.getItem(candidateKey))
+                .find(value => value);
             if (saved) foodsArray = JSON.parse(saved);
         }
     } else {
-        const saved = localStorage.getItem(key);
+        const saved = candidates
+            .map(candidateKey => localStorage.getItem(candidateKey))
+            .find(value => value);
         if (saved) foodsArray = JSON.parse(saved);
     }
 
@@ -950,14 +1080,16 @@ async function removeFoodTag(btn) {
     tag.remove();
 
     // Guardar
-    await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray);
+    await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
 
     if (isFirebaseConfigured) {
         try {
             if (foodsArray.length === 0) {
-                await db.collection('menus').doc(MENU_DOC_ID).update({
-                    [key]: firebase.firestore.FieldValue.delete()
+                const deletePayload = {};
+                candidates.forEach(candidateKey => {
+                    deletePayload[candidateKey] = firebase.firestore.FieldValue.delete();
                 });
+                await db.collection('menus').doc(MENU_DOC_ID).update(deletePayload);
             }
         } catch (error) {
             console.error("Error eliminando de Firebase:", error);
@@ -965,7 +1097,7 @@ async function removeFoodTag(btn) {
     }
 
     if (foodsArray.length === 0) {
-        localStorage.removeItem(key);
+        candidates.forEach(candidateKey => localStorage.removeItem(candidateKey));
     }
 }
 
@@ -1023,9 +1155,10 @@ document.querySelectorAll('.meal-slot').forEach(slot => {
             // Añadir nueva comida al slot
             const foodsArray = getSlotFoods(slot);
             foodsArray.push(draggedFood);
+            const { date } = getStorageContextFromSlot(slot);
 
             updateSlotWithArray(slot, foodsArray);
-            await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray);
+            await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
             draggedFood = null;
         }
     });
@@ -1033,6 +1166,11 @@ document.querySelectorAll('.meal-slot').forEach(slot => {
 
 // Guardar plato personalizado en la base de datos
 async function saveCustomFood(foodName, category) {
+    const normalizedFoodName = normalizeFoodName(foodName);
+    if (!normalizedFoodName || !isValidFoodName(normalizedFoodName)) {
+        return;
+    }
+
     if (isFirebaseConfigured) {
         try {
             const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
@@ -1043,57 +1181,82 @@ async function saveCustomFood(foodName, category) {
                 customFoods[category] = [];
             }
 
-            if (!customFoods[category].includes(foodName)) {
-                customFoods[category].push(foodName);
+            const alreadyExists = customFoods[category].some(item => {
+                const existingName = normalizeFoodName(getPlateName(item));
+                return existingName.toLocaleLowerCase('es') === normalizedFoodName.toLocaleLowerCase('es');
+            });
+
+            if (!alreadyExists) {
+                customFoods[category].push(normalizedFoodName);
                 await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
             }
         } catch (error) {
             console.error("Error guardando plato en Firebase:", error);
-            saveCustomFoodLocal(foodName, category);
+            saveCustomFoodLocal(normalizedFoodName, category);
         }
     } else {
-        saveCustomFoodLocal(foodName, category);
+        saveCustomFoodLocal(normalizedFoodName, category);
     }
 }
 
 // Guardar plato personalizado en localStorage
 function saveCustomFoodLocal(foodName, category) {
+    const normalizedFoodName = normalizeFoodName(foodName);
+    if (!normalizedFoodName || !isValidFoodName(normalizedFoodName)) {
+        return;
+    }
+
     const customFoods = JSON.parse(localStorage.getItem('customFoods') || '{}');
     if (!customFoods[category]) {
         customFoods[category] = [];
     }
-    if (!customFoods[category].includes(foodName)) {
-        customFoods[category].push(foodName);
+
+    const alreadyExists = customFoods[category].some(item => {
+        const existingName = normalizeFoodName(getPlateName(item));
+        return existingName.toLocaleLowerCase('es') === normalizedFoodName.toLocaleLowerCase('es');
+    });
+
+    if (!alreadyExists) {
+        customFoods[category].push(normalizedFoodName);
         localStorage.setItem('customFoods', JSON.stringify(customFoods));
     }
 }
 
 // Eliminar plato personalizado de la base de datos
 async function removeCustomFood(foodName, category) {
+    const normalizedFoodName = normalizeFoodName(foodName);
+
     if (isFirebaseConfigured) {
         try {
             const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
             if (doc.exists && doc.data().customFoods) {
                 const customFoods = doc.data().customFoods;
                 if (customFoods[category]) {
-                    customFoods[category] = customFoods[category].filter(f => f !== foodName);
+                    customFoods[category] = customFoods[category].filter(item => {
+                        const existingName = normalizeFoodName(getPlateName(item));
+                        return existingName.toLocaleLowerCase('es') !== normalizedFoodName.toLocaleLowerCase('es');
+                    });
                     await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
                 }
             }
         } catch (error) {
             console.error("Error eliminando plato de Firebase:", error);
-            removeCustomFoodLocal(foodName, category);
+            removeCustomFoodLocal(normalizedFoodName, category);
         }
     } else {
-        removeCustomFoodLocal(foodName, category);
+        removeCustomFoodLocal(normalizedFoodName, category);
     }
 }
 
 // Eliminar plato personalizado de localStorage
 function removeCustomFoodLocal(foodName, category) {
+    const normalizedFoodName = normalizeFoodName(foodName);
     const customFoods = JSON.parse(localStorage.getItem('customFoods') || '{}');
     if (customFoods[category]) {
-        customFoods[category] = customFoods[category].filter(f => f !== foodName);
+        customFoods[category] = customFoods[category].filter(item => {
+            const existingName = normalizeFoodName(getPlateName(item));
+            return existingName.toLocaleLowerCase('es') !== normalizedFoodName.toLocaleLowerCase('es');
+        });
         localStorage.setItem('customFoods', JSON.stringify(customFoods));
     }
 }
@@ -1122,15 +1285,17 @@ function createFoodItemElement(food) {
 
 // Cargar platos personalizados en el DOM
 function loadCustomFoods(customFoods) {
+    const { sanitizedFoods } = sanitizeCustomFoodsMap(customFoods);
+
     // Limpiar duplicados en cada categoría
     const cleanedFoods = {};
-    Object.keys(customFoods).forEach(category => {
-        const foods = customFoods[category] || [];
+    Object.keys(sanitizedFoods).forEach(category => {
+        const foods = sanitizedFoods[category] || [];
         const uniqueFoods = [];
         const seenNames = new Set();
         
         foods.forEach(food => {
-            const foodName = typeof food === 'string' ? food : food.name;
+            const foodName = getPlateName(food);
             if (!seenNames.has(foodName)) {
                 seenNames.add(foodName);
                 uniqueFoods.push(food);
@@ -1189,7 +1354,14 @@ async function loadCustomFoodsFromDB() {
         try {
             const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
             if (doc.exists && doc.data().customFoods) {
-                loadCustomFoods(doc.data().customFoods);
+                const { sanitizedFoods, changed } = sanitizeCustomFoodsMap(doc.data().customFoods);
+
+                if (changed) {
+                    await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods: sanitizedFoods });
+                    localStorage.setItem('customFoods', JSON.stringify(sanitizedFoods));
+                }
+
+                loadCustomFoods(sanitizedFoods);
             }
         } catch (error) {
             console.error("Error cargando platos de Firebase:", error);
@@ -1203,22 +1375,45 @@ async function loadCustomFoodsFromDB() {
 // Cargar platos personalizados desde localStorage
 function loadCustomFoodsFromLocal() {
     const customFoods = JSON.parse(localStorage.getItem('customFoods') || '{}');
-    loadCustomFoods(customFoods);
+    const { sanitizedFoods, changed } = sanitizeCustomFoodsMap(customFoods);
+
+    if (changed) {
+        localStorage.setItem('customFoods', JSON.stringify(sanitizedFoods));
+    }
+
+    loadCustomFoods(sanitizedFoods);
 }
 
 // Añadir comida personalizada
 async function addCustomFood() {
     const input = document.getElementById('customFood');
     const categorySelect = document.getElementById('categorySelect');
-    const foodName = input.value.trim();
+    const rawFoodName = input.value.trim();
+    const foodName = normalizeFoodName(rawFoodName);
     const category = categorySelect.value;
+
+    const invalidChars = getInvalidFoodChars(rawFoodName);
+    if (invalidChars.length > 0) {
+        showNotification(`Símbolos no permitidos: ${invalidChars.join(' ')}. Solo se permiten letras, espacios y guion (-)`, 'error');
+        return;
+    }
+
+    if (rawFoodName && !foodName) {
+        showNotification('Solo se permiten letras, espacios y guion (-)', 'error');
+        return;
+    }
+
+    if (foodName && !isValidFoodName(foodName)) {
+        showNotification('Formato inválido: usa palabras y solo guion (-)', 'error');
+        return;
+    }
 
     if (foodName) {
         // Verificar si ya existe en esta categoría
         const categoryIndex = CATEGORY_MAP[category];
         const categoryContainer = document.querySelectorAll('.category-items')[categoryIndex];
         const existingItem = Array.from(categoryContainer.querySelectorAll('.food-item-text'))
-            .find(item => item.textContent === foodName);
+            .find(item => normalizeFoodName(item.textContent).toLocaleLowerCase('es') === foodName.toLocaleLowerCase('es'));
 
         if (existingItem) {
             showNotification('Este plato ya existe en esta categoría', 'error');
@@ -1345,6 +1540,156 @@ function goToCalendar(calNumber) {
             } else {
                 updateTableHeaders();
             }
+        }
+    }
+}
+
+async function downloadMenuPDF() {
+    if (isMobileDevice) {
+        showNotification('La descarga PDF está disponible solo en la versión web', 'error');
+        return;
+    }
+
+    const tableElement = document.getElementById('weekTable');
+    if (!tableElement || typeof window.html2canvas === 'undefined' || !window.jspdf) {
+        showNotification('No se pudo preparar el PDF. Recarga la página e inténtalo de nuevo.', 'error');
+        return;
+    }
+
+    let exportWrapper = null;
+
+    try {
+        showNotification('Generando PDF...', 'info');
+
+        const tableClone = tableElement.cloneNode(true);
+        exportWrapper = document.createElement('div');
+        exportWrapper.style.position = 'fixed';
+        exportWrapper.style.left = '-10000px';
+        exportWrapper.style.top = '0';
+        exportWrapper.style.padding = '0';
+        exportWrapper.style.margin = '0';
+        exportWrapper.style.background = '#ffffff';
+        exportWrapper.style.zIndex = '-1';
+        exportWrapper.appendChild(tableClone);
+        document.body.appendChild(exportWrapper);
+
+        tableClone.style.width = `${tableElement.offsetWidth}px`;
+        tableClone.style.borderCollapse = 'collapse';
+        tableClone.style.tableLayout = 'fixed';
+        tableClone.style.background = '#ffffff';
+
+        tableClone.querySelectorAll('*').forEach(node => {
+            node.style.setProperty('background', 'transparent', 'important');
+            node.style.setProperty('background-image', 'none', 'important');
+            node.style.setProperty('box-shadow', 'none', 'important');
+            node.style.setProperty('color', '#111111', 'important');
+            node.style.setProperty('text-shadow', 'none', 'important');
+        });
+
+        tableClone.querySelectorAll('th, td').forEach(cell => {
+            cell.style.setProperty('border', '1px solid #222222', 'important');
+            cell.style.setProperty('padding', '12px 6px', 'important');
+            cell.style.setProperty('background', 'transparent', 'important');
+        });
+
+        tableClone.querySelectorAll('th').forEach(headerCell => {
+            headerCell.style.setProperty('font-weight', '700', 'important');
+            headerCell.style.setProperty('font-size', '22px', 'important');
+            headerCell.style.setProperty('line-height', '1.2', 'important');
+        });
+
+        tableClone.querySelectorAll('.day-header').forEach(dayHeader => {
+            dayHeader.style.setProperty('font-weight', '700', 'important');
+            dayHeader.style.setProperty('font-size', '19px', 'important');
+        });
+
+        tableClone.querySelectorAll('.meal-text').forEach(mealText => {
+            const textLength = (mealText.textContent || '').trim().length;
+
+            let dynamicFontSize = 19;
+            if (textLength > 48) {
+                dynamicFontSize = 15;
+            } else if (textLength > 36) {
+                dynamicFontSize = 16;
+            } else if (textLength > 26) {
+                dynamicFontSize = 17;
+            } else if (textLength > 18) {
+                dynamicFontSize = 18;
+            }
+
+            mealText.style.setProperty('font-size', `${dynamicFontSize}px`, 'important');
+            mealText.style.setProperty('font-weight', '700', 'important');
+            mealText.style.setProperty('line-height', '1.15', 'important');
+            mealText.style.setProperty('hyphens', 'none', 'important');
+            mealText.style.setProperty('word-break', 'normal', 'important');
+            mealText.style.setProperty('overflow-wrap', 'normal', 'important');
+            mealText.style.setProperty('text-wrap', 'pretty', 'important');
+            mealText.style.setProperty('text-align', 'center', 'important');
+        });
+
+        tableClone.querySelectorAll('.meal-slot').forEach(slot => {
+            slot.style.setProperty('min-height', '106px', 'important');
+            slot.style.setProperty('height', '106px', 'important');
+            slot.style.setProperty('padding', '12px 4px', 'important');
+            slot.style.setProperty('background', 'transparent', 'important');
+        });
+
+        tableClone.querySelectorAll('.meal-content').forEach(content => {
+            content.style.setProperty('background', 'transparent', 'important');
+            content.style.setProperty('border', 'none', 'important');
+        });
+
+        tableClone.querySelectorAll('.remove-btn, .meal-description-link, .daily-recipe-link, .daily-recipe-placeholder, .daily-comments-block, .daily-recipe-block').forEach(element => {
+            element.style.setProperty('display', 'none', 'important');
+        });
+
+        const canvas = await window.html2canvas(exportWrapper, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 4;
+        const maxWidth = pageWidth - margin * 2;
+        const maxHeight = pageHeight - margin * 2;
+
+        const imageWidth = canvas.width;
+        const imageHeight = canvas.height;
+        const imageRatio = imageWidth / imageHeight;
+
+        let renderWidth = maxWidth;
+        let renderHeight = renderWidth / imageRatio;
+
+        if (renderHeight > maxHeight) {
+            renderHeight = maxHeight;
+            renderWidth = renderHeight * imageRatio;
+        }
+
+        const posX = (pageWidth - renderWidth) / 2;
+        const posY = (pageHeight - renderHeight) / 2;
+        const imageData = canvas.toDataURL('image/png');
+
+        pdf.addImage(imageData, 'PNG', posX, posY, renderWidth, renderHeight, undefined, 'FAST');
+
+        const dateLabel = new Date().toISOString().slice(0, 10);
+        pdf.save(`menu-semanal-${dateLabel}.pdf`);
+        showNotification('PDF descargado correctamente', 'success');
+    } catch (error) {
+        console.error('Error generando PDF:', error);
+        showNotification('Error al generar el PDF', 'error');
+    } finally {
+        if (exportWrapper && exportWrapper.parentNode) {
+            exportWrapper.parentNode.removeChild(exportWrapper);
         }
     }
 }
@@ -1512,11 +1857,12 @@ async function resetAllMeals() {
 
 let currentSlot = null;
 let isModalOpening = false; // Flag para prevenir múltiples aperturas simultáneas
+let replaceTargetFoodName = null;
 
 // Las instrucciones ya están configuradas para click (funciona en todos los dispositivos)
 
 // Abrir modal de selección de comidas
-async function openFoodModal(slot) {
+async function openFoodModal(slot, replaceFoodName = null) {
     // Prevenir múltiples llamadas simultáneas
     if (isModalOpening) {
         console.log('Modal ya se está abriendo, ignorando llamada duplicada');
@@ -1528,10 +1874,12 @@ async function openFoodModal(slot) {
     
     try {
         currentSlot = slot;
+        replaceTargetFoodName = typeof replaceFoodName === 'string' ? replaceFoodName : null;
         const modal = document.getElementById('foodModal');
         const modalFoods = document.getElementById('modalFoods');
         const searchInput = document.getElementById('modalSearchInput');
         const modalFixedCategoryTitle = document.getElementById('modalFixedCategoryTitle');
+        const clearSlotBtn = document.getElementById('modalClearSlotBtn');
         const categoryTitles = {
             'primeros': '🥗 Primeros Platos',
             'segundos': '🍗 Segundos Platos',
@@ -1634,15 +1982,21 @@ async function openFoodModal(slot) {
 
     // Obtener platos ya añadidos en este slot
     const existingPlates = [];
-    const key = `cal${currentCalendar}-${day}-${meal}`;
-    let menuData = localStorage.getItem(key);
+    const candidates = getMenuKeyCandidatesFromSlot(slot, meal);
+    let menuData = candidates
+        .map(candidateKey => localStorage.getItem(candidateKey))
+        .find(value => value);
     
     // Intentar cargar desde Firebase si está configurado
     if (isFirebaseConfigured) {
         try {
             const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
-            if (doc.exists && doc.data()[key]) {
-                menuData = JSON.stringify(doc.data()[key]);
+            if (doc.exists) {
+                const data = doc.data();
+                const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                if (foundKey) {
+                    menuData = JSON.stringify(data[foundKey]);
+                }
             }
         } catch (error) {
             console.log('Error cargando desde Firebase, usando localStorage', error);
@@ -1661,6 +2015,10 @@ async function openFoodModal(slot) {
         } catch (e) {
             console.error('Error parsing existing plates:', e);
         }
+    }
+
+    if (clearSlotBtn) {
+        clearSlotBtn.disabled = existingPlates.length === 0;
     }
 
     // Determinar qué categorías mostrar según el tipo de comida
@@ -1693,7 +2051,11 @@ async function openFoodModal(slot) {
         // Filtrar platos ya añadidos
         const availablePlates = plates.filter(plate => {
             const plateName = typeof plate === 'string' ? plate : plate.name;
-            return !existingPlates.includes(plateName);
+            if (!existingPlates.includes(plateName)) {
+                return true;
+            }
+
+            return !!replaceTargetFoodName && plateName === replaceTargetFoodName;
         }).sort((a, b) => {
             const nameA = (typeof a === 'string' ? a : a.name).toLowerCase();
             const nameB = (typeof b === 'string' ? b : b.name).toLowerCase();
@@ -1782,36 +2144,78 @@ function closeFoodModal() {
     const modal = document.getElementById('foodModal');
     modal.style.display = 'none';
     currentSlot = null;
+    replaceTargetFoodName = null;
     isModalOpening = false; // Asegurar que el flag se resetea
+}
+
+async function clearCurrentSlotFromModal() {
+    if (!currentSlot) {
+        return;
+    }
+
+    const slot = currentSlot;
+    const { date } = getMenuKeyFromSlot(slot);
+    const candidates = getMenuKeyCandidatesFromSlot(slot);
+
+    slot.innerHTML = '';
+    candidates.forEach(candidateKey => localStorage.removeItem(candidateKey));
+
+    if (isFirebaseConfigured) {
+        try {
+            const deletePayload = {};
+            candidates.forEach(candidateKey => {
+                deletePayload[candidateKey] = firebase.firestore.FieldValue.delete();
+            });
+            await db.collection('menus').doc(MENU_DOC_ID).update(deletePayload);
+        } catch (error) {
+            console.error('Error borrando casilla en Firebase:', error);
+            await saveMenu(slot.dataset.day, slot.dataset.meal, [], null, date);
+        }
+    }
+
+    closeFoodModal();
 }
 
 // Seleccionar comida y añadirla al slot
 async function selectFood(foodName) {
     if (currentSlot) {
         // Leer datos actuales
-        const cal = currentSlot.dataset.calendar;
-        const key = `cal${cal}-${currentSlot.dataset.day}-${currentSlot.dataset.meal}`;
+        const { date } = getMenuKeyFromSlot(currentSlot);
+        const candidates = getMenuKeyCandidatesFromSlot(currentSlot);
         let foodsArray = [];
 
         // Cargar array actual
         if (isFirebaseConfigured) {
             try {
                 const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
-                if (doc.exists && doc.data()[key]) {
-                    foodsArray = doc.data()[key];
+                if (doc.exists) {
+                    const data = doc.data();
+                    const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                    if (foundKey) {
+                        foodsArray = data[foundKey];
+                    }
                 }
             } catch (error) {
-                const saved = localStorage.getItem(key);
+                const saved = candidates
+                    .map(candidateKey => localStorage.getItem(candidateKey))
+                    .find(value => value);
                 if (saved) foodsArray = JSON.parse(saved);
             }
         } else {
-            const saved = localStorage.getItem(key);
+            const saved = candidates
+                .map(candidateKey => localStorage.getItem(candidateKey))
+                .find(value => value);
             if (saved) foodsArray = JSON.parse(saved);
         }
 
         // Verificar si el plato ya está en el slot
         const alreadyExists = foodsArray.some(food => {
             const name = typeof food === 'string' ? food : food.name;
+
+            if (replaceTargetFoodName && name === replaceTargetFoodName) {
+                return false;
+            }
+
             return name === foodName;
         });
 
@@ -1822,32 +2226,25 @@ async function selectFood(foodName) {
 
         // Buscar el plato completo con descripción
         const fullPlate = findPlateByName(foodName);
-        foodsArray.push(fullPlate);
+
+        if (replaceTargetFoodName) {
+            const replaceIndex = foodsArray.findIndex(food => {
+                const name = typeof food === 'string' ? food : food.name;
+                return name === replaceTargetFoodName;
+            });
+
+            if (replaceIndex >= 0) {
+                foodsArray[replaceIndex] = fullPlate;
+            } else {
+                foodsArray.push(fullPlate);
+            }
+        } else {
+            foodsArray.push(fullPlate);
+        }
 
         updateSlotWithArray(currentSlot, foodsArray);
-        await saveMenu(currentSlot.dataset.day, currentSlot.dataset.meal, foodsArray);
-
-        // Eliminar el plato del modal (para evitar añadirlo nuevamente)
-        const modalFoods = document.getElementById('modalFoods');
-        const foodItems = modalFoods.querySelectorAll('.modal-food-item');
-        foodItems.forEach(item => {
-            if (item.textContent === foodName) {
-                item.remove();
-
-                // Si era el último de su categoría, eliminar también el título
-                const category = item.closest('.modal-category');
-                if (category && category.querySelectorAll('.modal-food-item').length === 0) {
-                    category.remove();
-                }
-            }
-        });
-
-        // Si no quedan más platos en el modal, cerrarlo
-        const remainingItems = modalFoods.querySelectorAll('.modal-food-item');
-        if (remainingItems.length === 0) {
-            modalFoods.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">✅ Todos los platos disponibles han sido añadidos</div>';
-            setTimeout(() => closeFoodModal(), 1500);
-        }
+        await saveMenu(currentSlot.dataset.day, currentSlot.dataset.meal, foodsArray, null, date);
+        closeFoodModal();
     }
 }
 
@@ -1875,6 +2272,18 @@ function setupSlotClickHandlers() {
     slotHandlersInitialized = true;
     
     let touchHandled = false;
+
+    function getReplaceTargetFoodName(slot, eventTarget) {
+        const clickedMealContent = eventTarget ? eventTarget.closest('.meal-content') : null;
+        const clickedMealTextNode = clickedMealContent ? clickedMealContent.querySelector('.meal-text') : null;
+
+        if (clickedMealTextNode && clickedMealTextNode.textContent) {
+            return clickedMealTextNode.textContent.trim();
+        }
+
+        const firstMealTextNode = slot.querySelector('.meal-content .meal-text');
+        return firstMealTextNode ? firstMealTextNode.textContent.trim() : null;
+    }
     
     // Para móviles - usar touchstart
     document.addEventListener('touchstart', (e) => {
@@ -1892,18 +2301,15 @@ function setupSlotClickHandlers() {
                 return;
             }
 
-            const isEmptySlot = !slot.querySelector('.meal-content');
-            if (!isEmptySlot) {
-                return;
-            }
-
             if (!e.target.classList.contains('remove-btn') &&
                 !e.target.closest('.remove-btn') &&
                 !e.target.classList.contains('meal-description-link') &&
                 !e.target.closest('.meal-description-link')) {
+                const hasContent = !!slot.querySelector('.meal-content');
+                const replaceFoodName = hasContent ? getReplaceTargetFoodName(slot, e.target) : null;
                 touchHandled = true;
                 setTimeout(() => { touchHandled = false; }, 500);
-                openFoodModal(slot);
+                openFoodModal(slot, replaceFoodName);
             }
         }
     }, { passive: true });
@@ -1928,16 +2334,13 @@ function setupSlotClickHandlers() {
                 return;
             }
 
-            const isEmptySlot = !slot.querySelector('.meal-content');
-            if (!isEmptySlot) {
-                return;
-            }
-
             if (!e.target.classList.contains('remove-btn') &&
                 !e.target.closest('.remove-btn') &&
                 !e.target.classList.contains('meal-description-link') &&
                 !e.target.closest('.meal-description-link')) {
-                openFoodModal(slot);
+                const hasContent = !!slot.querySelector('.meal-content');
+                const replaceFoodName = hasContent ? getReplaceTargetFoodName(slot, e.target) : null;
+                openFoodModal(slot, replaceFoodName);
             }
         }
     });
@@ -1960,7 +2363,7 @@ function initViewControls() {
           `
         : `
             <button class="view-btn active" data-view="single-week" onclick="changeView('single-week')">1 Semana</button>
-            <button class="view-btn" data-view="daily" onclick="changeView('daily')">Diario</button>
+                        <button class="view-btn" data-view="daily" onclick="changeView('daily')">1 Día</button>
           `;
 
     viewControls.innerHTML = '<span class="view-controls-label">Vista:</span>' + controlsHTML;

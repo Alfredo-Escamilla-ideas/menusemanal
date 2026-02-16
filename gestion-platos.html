@@ -36,7 +36,7 @@
                 <input type="text" id="plateName" placeholder="Ej: Paella valenciana">
             </div>
             <div class="form-group">
-                <label>Categorías * (Selecciona una o más)</label>
+                <label>Categorías *</label>
                 <div class="categories-selector">
                     <div class="category-option" data-category="primeros">
                         <input type="checkbox" id="cat-primeros" name="category" value="primeros">
@@ -57,11 +57,11 @@
                 </div>
             </div>
             <div class="form-group">
-                <label for="plateComments">💬 Comentarios (opcional)</label>
+                <label for="plateComments">💬 Comentarios</label>
                 <textarea id="plateComments" placeholder="Añade ingredientes, instrucciones, notas..."></textarea>
             </div>
             <div class="form-group">
-                <label for="plateLink">🔗 Link de Receta (opcional)</label>
+                <label for="plateLink">🔗 Link de Receta</label>
                 <input type="url" id="plateLink" placeholder="https://ejemplo.com/receta">
             </div>
             <button class="add-button" onclick="addPlate()">Añadir Plato</button>
@@ -70,6 +70,9 @@
         <!-- Lista de platos -->
         <div class="plates-list">
             <h2>📋 Mis Platos</h2>
+            <div class="plates-search-wrapper">
+                <input type="text" id="platesSearchInput" class="plates-search-input" placeholder="🔎 Buscar plato, comentario o enlace..." autocomplete="off" spellcheck="false">
+            </div>
             <div id="platesList">
                 <!-- Se llenará dinámicamente -->
             </div>

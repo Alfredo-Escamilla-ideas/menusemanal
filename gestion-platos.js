@@ -26,12 +26,13 @@ const CUSTOM_FOODS_DOC_ID = 'custom-foods';
 let editingPlateContext = null;
 let confirmResolver = null;
 const THEME_STORAGE_KEY = 'gestion-platos-theme-mode';
+let cachedCustomFoods = null;
 
 function applyThemeMode(mode) {
     const normalizedMode = ['light', 'dark'].includes(mode) ? mode : 'light';
 
     document.body.classList.remove('theme-light', 'theme-dark');
-    if (normalizedMode === 'dark') {
+    if (normalizedMode !== 'light') {
         document.body.classList.add('theme-dark');
     }
 
@@ -70,6 +71,87 @@ function parsePlateMeta(description) {
     }
 
     return { comments, link };
+}
+
+function getPlateName(plate) {
+    return typeof plate === 'string' ? plate : (plate?.name || '');
+}
+
+function normalizeFoodName(name) {
+    return String(name || '')
+        .normalize('NFC')
+        .replace(/[^\p{L}\s-]/gu, '')
+        .replace(/\s*-\s*/g, '-')
+        .replace(/-{2,}/g, '-')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/^-+|-+$/g, '')
+        .trim();
+}
+
+function isValidFoodName(name) {
+    return /^[\p{L}]+(?:[ -][\p{L}]+)*$/u.test(name);
+}
+
+function normalizeSearchText(text) {
+    return String(text || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+function getInvalidFoodChars(name) {
+    const matches = String(name || '').match(/[^\p{L}\s-]/gu) || [];
+    return [...new Set(matches)];
+}
+
+function sanitizeCustomFoodsMap(customFoods = {}) {
+    const categories = ['primeros', 'segundos', 'postres', 'cenas'];
+    const sanitizedFoods = {};
+    let changed = false;
+
+    categories.forEach(category => {
+        const sourceFoods = Array.isArray(customFoods[category]) ? customFoods[category] : [];
+        const dedupe = new Map();
+
+        sourceFoods.forEach(plate => {
+            const originalName = getPlateName(plate);
+            const cleanedName = normalizeFoodName(originalName);
+
+            if (!cleanedName || !isValidFoodName(cleanedName)) {
+                if (originalName) {
+                    changed = true;
+                }
+                return;
+            }
+
+            const normalizedPlate = typeof plate === 'object' && plate !== null
+                ? { ...plate, name: cleanedName }
+                : cleanedName;
+
+            if (cleanedName !== originalName) {
+                changed = true;
+            }
+
+            const dedupeKey = cleanedName.toLocaleLowerCase('es');
+            if (!dedupe.has(dedupeKey)) {
+                dedupe.set(dedupeKey, normalizedPlate);
+            } else {
+                changed = true;
+                const existing = dedupe.get(dedupeKey);
+                if (typeof existing === 'string' && typeof normalizedPlate === 'object') {
+                    dedupe.set(dedupeKey, normalizedPlate);
+                }
+            }
+        });
+
+        sanitizedFoods[category] = Array.from(dedupe.values());
+
+        if (sourceFoods.length !== sanitizedFoods[category].length) {
+            changed = true;
+        }
+    });
+
+    return { sanitizedFoods, changed };
 }
 
 // ====================================
@@ -131,8 +213,15 @@ async function loadPlates() {
         if (stored) customFoods = JSON.parse(stored);
     }
 
-    renderPlates(customFoods);
-    return customFoods;
+    const { sanitizedFoods, changed } = sanitizeCustomFoodsMap(customFoods);
+
+    if (changed) {
+        await savePlates(sanitizedFoods);
+    }
+
+    cachedCustomFoods = sanitizedFoods;
+    renderPlates(sanitizedFoods);
+    return sanitizedFoods;
 }
 
 // Guardar platos en Firebase y localStorage
@@ -157,7 +246,10 @@ async function savePlates(customFoods) {
 
 // Renderizar lista de platos
 function renderPlates(customFoods) {
+    cachedCustomFoods = customFoods;
     const container = document.getElementById('platesList');
+    const searchInput = document.getElementById('platesSearchInput');
+    const query = normalizeSearchText(searchInput ? searchInput.value.trim() : '');
     container.innerHTML = '';
 
     const categories = {
@@ -168,6 +260,7 @@ function renderPlates(customFoods) {
     };
 
     let hasPlates = false;
+    let hasVisiblePlates = false;
 
     for (const [category, title] of Object.entries(categories)) {
         const indexedPlates = (customFoods[category] || []).map((plate, originalIndex) => ({
@@ -178,15 +271,52 @@ function renderPlates(customFoods) {
             const nameB = (typeof b.plate === 'string' ? b.plate : b.plate.name).toLowerCase();
             return nameA.localeCompare(nameB, 'es');
         });
-        if (indexedPlates.length === 0) continue;
 
-        hasPlates = true;
+        if (indexedPlates.length > 0) {
+            hasPlates = true;
+        }
+
+        const filteredIndexedPlates = indexedPlates.filter(({ plate }) => {
+            if (!query) return true;
+
+            const name = typeof plate === 'string' ? plate : plate.name;
+            const description = typeof plate === 'object' ? plate.description : '';
+            const { comments, link } = parsePlateMeta(description);
+            const searchableText = `${name} ${comments} ${link}`;
+            return normalizeSearchText(searchableText).includes(query);
+        });
+
+        if (filteredIndexedPlates.length === 0) continue;
+
+        hasVisiblePlates = true;
 
         const section = document.createElement('div');
         section.className = 'category-section';
-        section.innerHTML = `<div class="category-title">${title}</div>`;
 
-        indexedPlates.forEach(({ plate, originalIndex }) => {
+        const categoryHeader = document.createElement('button');
+        categoryHeader.type = 'button';
+        categoryHeader.className = 'category-toggle';
+        categoryHeader.setAttribute('aria-expanded', 'false');
+        categoryHeader.innerHTML = `
+            <span class="category-title">${title} <span class="category-count">(${filteredIndexedPlates.length})</span></span>
+            <span class="category-arrow">▼</span>
+        `;
+
+        const categoryContent = document.createElement('div');
+        categoryContent.className = 'category-content collapsed';
+
+        categoryHeader.addEventListener('click', () => {
+            const isCollapsed = categoryContent.classList.toggle('collapsed');
+            categoryHeader.setAttribute('aria-expanded', String(!isCollapsed));
+            const arrow = categoryHeader.querySelector('.category-arrow');
+            if (arrow) {
+                arrow.textContent = isCollapsed ? '▼' : '▲';
+            }
+        });
+
+        section.appendChild(categoryHeader);
+
+        filteredIndexedPlates.forEach(({ plate, originalIndex }) => {
             const plateDiv = document.createElement('div');
             plateDiv.className = 'plate-item';
 
@@ -212,20 +342,39 @@ function renderPlates(customFoods) {
                     <button class="btn-delete" onclick="deletePlate('${category}', ${originalIndex})">🗑️ Eliminar</button>
                 </div>
             `;
-            section.appendChild(plateDiv);
+            categoryContent.appendChild(plateDiv);
         });
+
+        section.appendChild(categoryContent);
 
         container.appendChild(section);
     }
 
     if (!hasPlates) {
         container.innerHTML = '<div class="empty-message">No hay platos creados. ¡Añade tu primer plato!</div>';
+        return;
     }
+
+    if (!hasVisiblePlates) {
+        container.innerHTML = '<div class="empty-message">No hay resultados para esa búsqueda.</div>';
+    }
+}
+
+function initPlatesSearch() {
+    const searchInput = document.getElementById('platesSearchInput');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', () => {
+        if (cachedCustomFoods) {
+            renderPlates(cachedCustomFoods);
+        }
+    });
 }
 
 // Añadir nuevo plato
 async function addPlate() {
-    const name = document.getElementById('plateName').value.trim();
+    const rawName = document.getElementById('plateName').value.trim();
+    const name = normalizeFoodName(rawName);
     const comments = document.getElementById('plateComments').value.trim();
     const link = document.getElementById('plateLink').value.trim();
     
@@ -233,8 +382,19 @@ async function addPlate() {
     const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
         .map(checkbox => checkbox.value);
 
-    if (!name) {
+    if (!rawName) {
         showNotification('Por favor, introduce el nombre del plato', 'error');
+        return;
+    }
+
+    const invalidChars = getInvalidFoodChars(rawName);
+    if (invalidChars.length > 0) {
+        showNotification(`Símbolos no permitidos: ${invalidChars.join(' ')}. Solo se permiten letras, espacios y guion (-)`, 'error');
+        return;
+    }
+
+    if (!name || !isValidFoodName(name)) {
+        showNotification('Nombre inválido: solo letras, espacios y guion (-)', 'error');
         return;
     }
 
@@ -244,6 +404,19 @@ async function addPlate() {
     }
 
     const customFoods = await loadPlates();
+
+    const alreadyExists = selectedCategories.some(category => {
+        const categoryPlates = customFoods[category] || [];
+        return categoryPlates.some(item => {
+            const existingName = normalizeFoodName(getPlateName(item));
+            return existingName.toLocaleLowerCase('es') === name.toLocaleLowerCase('es');
+        });
+    });
+
+    if (alreadyExists) {
+        showNotification('Ese plato ya existe en una categoría seleccionada', 'error');
+        return;
+    }
 
     // Crear objeto de plato con nombre y descripción estructurada
     const plate = {
@@ -341,14 +514,26 @@ async function savePlateEdit() {
         return;
     }
 
-    const newName = document.getElementById('editPlateName').value.trim();
+    const rawNewName = document.getElementById('editPlateName').value.trim();
+    const newName = normalizeFoodName(rawNewName);
     const newComments = document.getElementById('editPlateComments').value.trim();
     const newLink = document.getElementById('editPlateLink').value.trim();
     const selectedCategories = Array.from(document.querySelectorAll('input[name="editCategory"]:checked'))
         .map(checkbox => checkbox.value);
 
-    if (!newName) {
+    if (!rawNewName) {
         showNotification('El nombre del plato es obligatorio', 'error');
+        return;
+    }
+
+    const invalidChars = getInvalidFoodChars(rawNewName);
+    if (invalidChars.length > 0) {
+        showNotification(`Símbolos no permitidos: ${invalidChars.join(' ')}. Solo se permiten letras, espacios y guion (-)`, 'error');
+        return;
+    }
+
+    if (!newName || !isValidFoodName(newName)) {
+        showNotification('Nombre inválido: solo letras, espacios y guion (-)', 'error');
         return;
     }
 
@@ -374,6 +559,19 @@ async function savePlateEdit() {
 
         customFoods[category] = list;
     });
+
+    const duplicateInSelection = selectedCategories.some(category => {
+        const list = customFoods[category] || [];
+        return list.some(item => {
+            const existingName = normalizeFoodName(getPlateName(item));
+            return existingName.toLocaleLowerCase('es') === newName.toLocaleLowerCase('es');
+        });
+    });
+
+    if (duplicateInSelection) {
+        showNotification('Ya existe un plato con ese nombre en una categoría seleccionada', 'error');
+        return;
+    }
 
     const updatedPlate = {
         name: newName,
@@ -430,9 +628,42 @@ window.addEventListener('click', function(event) {
     }
 });
 
+document.addEventListener('keydown', function(event) {
+    if (event.key !== 'Enter' && event.key !== 'NumpadEnter') {
+        return;
+    }
+
+    const target = event.target;
+    const isInsideAddForm = target.closest('.add-form');
+    const editModal = document.getElementById('editPlateModal');
+    const isEditModalOpen = editModal && editModal.classList.contains('show');
+    const activeElement = document.activeElement;
+    const isInsideEditModal = target.closest('#editPlateModal') || (activeElement && activeElement.closest('#editPlateModal'));
+    const isEditableControl = activeElement && ['INPUT', 'SELECT'].includes(activeElement.tagName);
+    const isTextarea = target.tagName === 'TEXTAREA';
+
+    if (isTextarea) {
+        return;
+    }
+
+    if (isEditModalOpen && isInsideEditModal && isEditableControl) {
+        event.preventDefault();
+        savePlateEdit();
+        return;
+    }
+
+    if (!isInsideAddForm) {
+        return;
+    }
+
+    event.preventDefault();
+    addPlate();
+});
+
 // ====================================
 // INICIALIZACIÓN
 // ====================================
 
 initThemeMode();
+initPlatesSearch();
 loadPlates();

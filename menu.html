@@ -11,6 +11,8 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     
     <link rel="stylesheet" href="menu.css">
 </head>
@@ -38,7 +40,10 @@
             <div class="modal-body">
                 <div class="modal-fixed-zone">
                     <input type="text" id="modalSearchInput" class="modal-search" placeholder="🔎 Buscar plato..." autocomplete="off" spellcheck="false">
-                    <div id="modalFixedCategoryTitle" class="modal-fixed-category-title"></div>
+                    <div class="modal-fixed-row">
+                        <div id="modalFixedCategoryTitle" class="modal-fixed-category-title"></div>
+                        <button id="modalClearSlotBtn" class="modal-clear-slot-btn" type="button" onclick="clearCurrentSlotFromModal()" aria-label="Borrar casilla">🗑️</button>
+                    </div>
                 </div>
                 <div id="modalFoods"></div>
             </div>
@@ -132,6 +137,7 @@
                     <div class="calendar-indicator" onclick="goToCalendar(4)">4</div>
                 </div>
                 <div class="calendar-action-buttons">
+                    <button class="pdf-btn" onclick="downloadMenuPDF()" title="Descargar menú en PDF horizontal">📄 PDF</button>
                     <button class="reset-btn" onclick="resetAllMeals()" title="Vacía solo el calendario actual">🔄 Reiniciar</button>
                 </div>
             </div>
