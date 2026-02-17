@@ -111,7 +111,7 @@ body {
     position: fixed;
     top: 20px;
     left: 20px;
-    background: #4CAF50;
+    background: #ff6b6b;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -125,9 +125,9 @@ body {
 }
 
 .back-button:hover {
-    background: #45a049;
+    background: #ff4444;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(255, 68, 68, 0.35);
 }
 
 .container {

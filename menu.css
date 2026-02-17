@@ -133,23 +133,23 @@ body.theme-dark {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: #FF9800;
+    background: #ff6b6b;
     color: white;
     border: none;
     padding: 12px 24px;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 0.95em;
     font-family: inherit;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(255, 68, 68, 0.25);
     transition: all 0.3s ease;
     z-index: 1000;
 }
 
 .manage-plates-btn:hover {
-    background: #F57C00;
+    background: #ff4444;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 12px rgba(255, 68, 68, 0.35);
 }
 
 .header h1 {
