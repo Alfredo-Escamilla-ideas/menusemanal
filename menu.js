@@ -2831,7 +2831,9 @@ async function openFoodModal(slot, replaceFoodName = null) {
 
     // Mostrar modal
     modal.style.display = 'block';
-    setTimeout(() => searchInput.focus(), 50);
+    if (!isMobileDevice) {
+        setTimeout(() => searchInput.focus(), 50);
+    }
     
     } finally {
         // Liberar el flag después de un pequeño delay
