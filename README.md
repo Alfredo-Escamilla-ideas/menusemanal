@@ -10,6 +10,8 @@ Una aplicación web minimalista para planificar tu menú semanal de forma visual
 ## 🌟 Características
 
 - ✅ **Planificación semanal completa** - 7 días con comida y cena (1º y 2º plato)
+- 🗓️ **Vistas flexibles** - Semana completa (web) y vista diaria
+- 📱 **Móvil optimizado** - Vistas Hoy y 3 Días con columnas adaptadas
 - 🎨 **Diseño minimalista** - Interfaz limpia y moderna en tonos grises
 - 🖱️ **Drag & Drop** - Arrastra platos desde el banco de comidas al calendario
 - 📦 **Categorías colapsables** - Organiza tus platos por tipo (Primeros, Segundos, Cenas)
@@ -17,16 +19,14 @@ Una aplicación web minimalista para planificar tu menú semanal de forma visual
 - 🗑️ **Gestión fácil** - Elimina platos con un click
 - 💾 **Persistencia local** - Tus cambios se guardan automáticamente
 - 📱 **Sincronización multi-dispositivo** (opcional con Firebase)
-- 🔄 **Reinicio rápido** - Limpia todo el menú para empezar de cero
+- 🔄 **Reinicio rápido** - Limpia todo el menú para empezar de cero (web)
 - 📱 **Responsive** - Funciona en móvil, tablet y escritorio
 
 ## 🚀 Uso Rápido
 
 ### Opción 1: Usar directamente desde GitHub Pages
 
-👉 **[Abrir la aplicación](https://USUARIO.github.io/REPOSITORIO/menu.html)**
-
-_(Reemplaza USUARIO y REPOSITORIO con tus datos de GitHub)_
+👉 **[Abrir la aplicación](https://daniel-escamilla.github.io/Comidas/menu.html)**
 
 ### Opción 2: Descargar y usar localmente
 
@@ -53,8 +53,12 @@ _(Reemplaza USUARIO y REPOSITORIO con tus datos de GitHub)_
    - Click en el título de cada categoría para expandir/colapsar
 
 5. **Reiniciar menú**
-   - Click en "🔄 Reiniciar Todo" (esquina superior derecha)
+   - Click en "Reiniciar" (versión web)
    - Confirma para borrar todo el menú
+
+6. **Cambiar vista**
+   - **Web:** "1 Semana" o "1 Día"
+   - **Móvil:** "Hoy" o "3 Días"
 
 ## 🌐 Sincronización Multi-Dispositivo (Opcional)
 
@@ -76,7 +80,9 @@ Para sincronizar tu menú entre todos tus dispositivos (móvil, tablet, PC), sig
 
 ```
 Comidas/
-├── menu.html                    # Aplicación principal (todo en uno)
+├── menu.html                    # Aplicación principal
+├── menu.css                     # Estilos
+├── menu.js                      # Lógica
 ├── INSTRUCCIONES_FIREBASE.md   # Guía para configurar sincronización
 └── README.md                    # Este archivo
 ```
