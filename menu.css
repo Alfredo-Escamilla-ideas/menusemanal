@@ -120,8 +120,8 @@ body.theme-dark {
     border-radius: 12px;
     display: inline-block;
     border: 1px solid var(--border-main);
-    cursor: help;
     transition: all 0.2s ease;
+    cursor: help;
 }
 
 .sync-status:hover {
