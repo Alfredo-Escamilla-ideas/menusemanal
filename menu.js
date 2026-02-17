@@ -585,6 +585,12 @@ function getMobileDates() {
     return dates;
 }
 
+// Convertir día de la semana JS (0=Domingo) a calendario europeo (0=Lunes)
+function getEuropeanDayIndex(date) {
+    const jsDayOfWeek = date.getDay(); // 0=Domingo, 1=Lunes, 2=Martes, ..., 6=Sábado
+    return jsDayOfWeek === 0 ? 6 : jsDayOfWeek - 1; // 0=Lunes, 1=Martes, ..., 6=Domingo
+}
+
 // Formatear fecha para encabezado
 function formatDateHeader(date) {
     const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -595,7 +601,10 @@ function formatDateHeader(date) {
 }
 
 function formatISODate(date) {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 // Obtener la fecha actual normalizada
@@ -684,21 +693,40 @@ function updateTableHeaders() {
     const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
     const rows = document.querySelectorAll('#weekTable tbody tr');
     
-    // En vista "week", mapear por día de la semana (Lun-Dom)
-    // En vista "day" o "three-days", usar slots secuenciales (slot 0 = dates[0], slot 1 = dates[1], etc.)
-    const useSequentialSlots = (currentView === 'day' || currentView === 'three-days');
+    // En vista "day": mostrar solo 1 día pero en su columna correcta según día de la semana
+    // En vista "three-days": usar slots secuenciales (0, 1, 2)
+    // En vista "week": mapear por día de la semana
     
-    if (useSequentialSlots) {
-        // Vista diaria/3 días: asignar dates[0] a slot 0, dates[1] a slot 1, etc.
+    if (currentView === 'day') {
+        // Vista 1 día: mapear por día de la semana pero mostrar solo el día actual
+        const date = dates[0]; // Solo hay 1 fecha
+        const targetSlotIndex = getEuropeanDayIndex(date); // 0=Lunes, 6=Domingo
+        
+        rows.forEach(row => {
+            const slots = row.querySelectorAll('.meal-slot');
+            
+            slots.forEach((slot, slotIndex) => {
+                if (slotIndex === targetSlotIndex) {
+                    // Este es el slot correcto para mostrar
+                    slot.dataset.day = dayKeys[targetSlotIndex];
+                    slot.dataset.date = formatISODate(date);
+                    slot.parentElement.style.display = '';
+                } else {
+                    // Ocultar los demás slots
+                    slot.parentElement.style.display = 'none';
+                }
+            });
+        });
+    } else if (currentView === 'three-days') {
+        // Vista 3 días: asignar dates[0] a slot 0, dates[1] a slot 1, dates[2] a slot 2
         rows.forEach(row => {
             const slots = row.querySelectorAll('.meal-slot');
             
             slots.forEach((slot, slotIndex) => {
                 if (slotIndex < dates.length) {
                     const date = dates[slotIndex];
-                    const dayOfWeek = date.getDay();
-                    const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-                    slot.dataset.day = dayKeys[adjustedDay];
+                    const europeanDayIndex = getEuropeanDayIndex(date);
+                    slot.dataset.day = dayKeys[europeanDayIndex];
                     slot.dataset.date = formatISODate(date);
                     slot.parentElement.style.display = '';
                 } else {
@@ -708,10 +736,7 @@ function updateTableHeaders() {
         });
     } else {
         // Vista semanal: mapear por día de la semana real
-        const dateDayOfWeekMap = dates.map(date => {
-            const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, ...
-            return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to 0=lunes, 6=domingo
-        });
+        const dateDayOfWeekMap = dates.map(date => getEuropeanDayIndex(date));
         
         rows.forEach(row => {
             const slots = row.querySelectorAll('.meal-slot');
@@ -723,9 +748,8 @@ function updateTableHeaders() {
                 if (dateIndex !== -1) {
                     // This slot matches one of our visible dates
                     const date = dates[dateIndex];
-                    const dayOfWeek = date.getDay();
-                    const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-                    slot.dataset.day = dayKeys[adjustedDay];
+                    const europeanDayIndex = getEuropeanDayIndex(date);
+                    slot.dataset.day = dayKeys[europeanDayIndex];
                     slot.dataset.date = formatISODate(date);
                     slot.parentElement.style.display = '';
                 } else {
@@ -853,6 +877,7 @@ function applyDesktopView(view) {
     cols.forEach(col => col.classList.remove('hide-column'));
 
     if (view === 'daily') {
+        updateTableForDailyView();
         // Vista diaria: mostrar solo el día correspondiente al calendario actual
         // Calendario 1 = hoy, 2 = mañana, 3 = pasado mañana, 4 = 3 días después
         const dayIndex = getDailyColumnIndex();
@@ -957,10 +982,8 @@ function updateTableHeadersWithDates(dates) {
         slots.forEach((slot, index) => {
             if (index < dates.length) {
                 const date = dates[index];
-                const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, etc.
-                // Convertir a nuestro sistema (0=lunes, 6=domingo)
-                const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-                slot.dataset.day = dayKeys[adjustedDay];
+                const europeanDayIndex = getEuropeanDayIndex(date);
+                slot.dataset.day = dayKeys[europeanDayIndex];
             }
         });
     });
@@ -1269,22 +1292,32 @@ async function loadMenu() {
             if (doc.exists) {
                 const data = doc.data();
                 const slots = document.querySelectorAll('.meal-slot');
-                
+                const isDailyLog = (!isMobileDevice && currentView === 'daily') || (isMobileDevice && currentView === 'day');
+                const dailyTargetDate = isDailyLog
+                    ? formatISODate(isMobileDevice ? getMobileDates()[0] : (() => {
+                        const base = getCurrentTestDate();
+                        const target = new Date(base);
+                        target.setDate(base.getDate() + (currentCalendar - 1));
+                        return target;
+                    })())
+                    : null;
+
                 slots.forEach(slot => {
                     const candidates = getMenuKeyCandidatesFromSlot(slot);
                     const foundKey = candidates.find(candidateKey => data[candidateKey]);
-                    
+                    let foodsArray = null;
+
                     if (foundKey) {
                         const menuData = data[foundKey];
-                        
+
                         // Handle both old format (array) and new format (object with timestamp)
                         if (Array.isArray(menuData)) {
-                            // Old format - migrate to new format
+                            foodsArray = menuData;
                             updateSlotWithArray(slot, menuData);
                         } else if (menuData && menuData.data) {
-                            // New format with timestamp
+                            foodsArray = menuData.data;
                             updateSlotWithArray(slot, menuData.data);
-                            
+
                             // Clear localStorage for this key since Firebase is authoritative
                             const localData = localStorage.getItem(foundKey);
                             if (localData) {
@@ -1292,7 +1325,7 @@ async function loadMenu() {
                                     const parsed = JSON.parse(localData);
                                     const localTimestamp = parsed.lastModified || 0;
                                     const firebaseTimestamp = menuData.lastModified || 0;
-                                    
+
                                     // Only clear if Firebase data is newer or equal
                                     if (firebaseTimestamp >= localTimestamp) {
                                         localStorage.removeItem(foundKey);
@@ -1307,6 +1340,7 @@ async function loadMenu() {
                     } else {
                         slot.innerHTML = '';
                     }
+
                 });
                 
                 syncStatus = 'firebase';
@@ -1348,12 +1382,12 @@ function getCalendarAndDayFromDate(date) {
     // Determinar el calendario (1-4)
     const calendar = weekOffset + 1;
     
-    // Determinar el día de la semana
-    const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, 2=martes, ..., 6=sábado
+    // Determinar el día de la semana (formato europeo: 0=Lunes, 6=Domingo)
+    const europeanDayIndex = getEuropeanDayIndex(date);
     
     // Mapear a las keys que usamos (lunes, martes, ..., domingo)
-    const dayKeys = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-    const dayKey = dayKeys[dayOfWeek];
+    const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    const dayKey = dayKeys[europeanDayIndex];
     
     return {calendar, dayKey};
 }
@@ -1408,6 +1442,9 @@ function getLegacyMenuKeyFromSlot(slot, mealOverride = null) {
 
 function getMenuKeyCandidatesFromSlot(slot, mealOverride = null) {
     const primary = getMenuKeyFromSlot(slot, mealOverride).key;
+    if (shouldUseDateBasedSlotKey(slot)) {
+        return [primary];
+    }
     const legacy = getLegacyMenuKeyFromSlot(slot, mealOverride).key;
     return primary === legacy ? [primary] : [primary, legacy];
 }
@@ -2028,27 +2065,36 @@ document.getElementById('customFood').addEventListener('keypress', (e) => {
 // Actualizar la interfaz de navegación
 function updateCalendarNavigation() {
     // Obtener rango de fechas del calendario actual
-    let dates, startDate, endDate;
+    let dates, labelText;
 
-    if (isMobileDevice && (currentView === 'day' || currentView === 'three-days')) {
-        // En móvil: mostrar rango de días consecutivos
+    if (isMobileDevice && currentView === 'day') {
+        // En vista de 1 día: mostrar solo la fecha de ese día
         dates = getMobileDates();
-        startDate = formatDateHeader(dates[0]);
-        if (currentView === 'day') {
-            endDate = startDate; // Solo un día
-        } else {
-            endDate = formatDateHeader(dates[2]); // 3 días
-        }
+        const dayDate = dates[0];
+        labelText = formatDateHeader(dayDate);
+    } else if (isMobileDevice && currentView === 'three-days') {
+        // En vista de 3 días: mostrar rango
+        dates = getMobileDates();
+        const startDate = formatDateHeader(dates[0]);
+        const endDate = formatDateHeader(dates[2]);
+        labelText = `(${startDate} - ${endDate})`;
+    } else if (!isMobileDevice && currentView === 'daily') {
+        // En desktop vista diaria: mostrar solo la fecha de ese día
+        const today = getCurrentTestDate();
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + (currentCalendar - 1));
+        labelText = formatDateHeader(targetDate);
     } else {
-        // En desktop: mostrar semana completa
+        // Vista de semana completa
         const weekOffset = currentCalendar - 1;
         dates = getWeekDates(weekOffset);
-        startDate = formatDateHeader(dates[0]);
-        endDate = formatDateHeader(dates[6]);
+        const startDate = formatDateHeader(dates[0]);
+        const endDate = formatDateHeader(dates[6]);
+        labelText = `(${startDate} - ${endDate})`;
     }
 
     // Actualizar label con las fechas
-    document.getElementById('calendarLabel').textContent = `(${startDate} - ${endDate})`;
+    document.getElementById('calendarLabel').textContent = labelText;
 
     // Actualizar botones de flecha
     document.getElementById('prevBtn').disabled = (currentCalendar === 1);
@@ -2595,6 +2641,16 @@ async function openFoodModal(slot, replaceFoodName = null) {
         return;
     }
 
+    const normalizeFoodsArray = (value) => {
+        if (Array.isArray(value)) {
+            return value;
+        }
+        if (value && Array.isArray(value.data)) {
+            return value.data;
+        }
+        return [];
+    };
+
     // Obtener platos ya añadidos en este slot
     const existingPlates = [];
     const candidates = getMenuKeyCandidatesFromSlot(slot, meal);
@@ -2620,13 +2676,12 @@ async function openFoodModal(slot, replaceFoodName = null) {
     
     if (menuData) {
         try {
-            const foodsArray = JSON.parse(menuData);
-            if (Array.isArray(foodsArray)) {
-                foodsArray.forEach(food => {
-                    const plateName = typeof food === 'string' ? food : food.name;
-                    if (plateName) existingPlates.push(plateName);
-                });
-            }
+            const parsed = JSON.parse(menuData);
+            const foodsArray = normalizeFoodsArray(parsed);
+            foodsArray.forEach(food => {
+                const plateName = typeof food === 'string' ? food : food.name;
+                if (plateName) existingPlates.push(plateName);
+            });
         } catch (e) {
             console.error('Error parsing existing plates:', e);
         }
@@ -2794,6 +2849,16 @@ async function clearCurrentSlotFromModal() {
 // Seleccionar comida y añadirla al slot
 async function selectFood(foodName) {
     if (currentSlot) {
+        const normalizeFoodsArray = (value) => {
+            if (Array.isArray(value)) {
+                return value;
+            }
+            if (value && Array.isArray(value.data)) {
+                return value.data;
+            }
+            return [];
+        };
+
         // Leer datos actuales
         const { date } = getMenuKeyFromSlot(currentSlot);
         const candidates = getMenuKeyCandidatesFromSlot(currentSlot);
@@ -2807,20 +2872,20 @@ async function selectFood(foodName) {
                     const data = doc.data();
                     const foundKey = candidates.find(candidateKey => data[candidateKey]);
                     if (foundKey) {
-                        foodsArray = data[foundKey];
+                        foodsArray = normalizeFoodsArray(data[foundKey]);
                     }
                 }
             } catch (error) {
                 const saved = candidates
                     .map(candidateKey => localStorage.getItem(candidateKey))
                     .find(value => value);
-                if (saved) foodsArray = JSON.parse(saved);
+                if (saved) foodsArray = normalizeFoodsArray(JSON.parse(saved));
             }
         } else {
             const saved = candidates
                 .map(candidateKey => localStorage.getItem(candidateKey))
                 .find(value => value);
-            if (saved) foodsArray = JSON.parse(saved);
+            if (saved) foodsArray = normalizeFoodsArray(JSON.parse(saved));
         }
 
         // Verificar si el plato ya está en el slot
@@ -3037,3 +3102,104 @@ if (isFirebaseConfigured) {
 setInterval(() => {
     checkAndAutoShift();
 }, 3600000); // 1 hora
+
+// ====================================
+// MIGRACIÓN DE DATOS (EJECUTAR UNA SOLA VEZ)
+// ====================================
+async function migrateCalendarDays(direction = 'forward') {
+    if (!isFirebaseConfigured) {
+        console.error('❌ Firebase no configurado. No se puede migrar.');
+        return;
+    }
+    
+    const isForward = direction === 'forward';
+    const label = isForward ? 'adelante' : 'atrás';
+    console.log(`🔄 Iniciando migración de días (${label})...`);
+    
+    const dayMap = isForward
+        ? {
+            'lunes': 'martes',
+            'martes': 'miercoles',
+            'miercoles': 'jueves',
+            'jueves': 'viernes',
+            'viernes': 'sabado',
+            'sabado': 'domingo',
+            'domingo': 'lunes'
+        }
+        : {
+            'lunes': 'domingo',
+            'martes': 'lunes',
+            'miercoles': 'martes',
+            'jueves': 'miercoles',
+            'viernes': 'jueves',
+            'sabado': 'viernes',
+            'domingo': 'sabado'
+        };
+    
+    try {
+        const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+        if (!doc.exists) {
+            console.log('⚠️ No hay datos para migrar');
+            return;
+        }
+        
+        const oldData = doc.data();
+        const newData = {};
+        let migrationCount = 0;
+        
+        console.log('📊 Datos originales en Firebase:');
+        Object.keys(oldData).forEach(key => {
+            console.log(`  ${key}`);
+        });
+        
+        console.log('\n🔄 Aplicando migración...');
+        Object.keys(oldData).forEach(key => {
+            // Parse: cal1-martes-comida1 → cal, day, meal
+            const match = key.match(/^(cal\d+)-(\w+)-(.+)$/);
+            if (match) {
+                const [, cal, oldDay, meal] = match;
+                const newDay = dayMap[oldDay] || oldDay;
+                const newKey = `${cal}-${newDay}-${meal}`;
+                newData[newKey] = oldData[key];
+                console.log(`  ✅ ${key} → ${newKey}`);
+                migrationCount++;
+            } else {
+                // Mantener claves que no coinciden con el patrón
+                newData[key] = oldData[key];
+                console.log(`  ⚠️ ${key} (sin cambios - formato no reconocido)`);
+            }
+        });
+        
+        console.log(`\n💾 Creando backup antes de migrar...`);
+        await db.collection('menu-backups').add({
+            data: oldData,
+            timestamp: Date.now(),
+            date: new Date().toISOString(),
+            reason: `pre-migration-backup-day-shift-${direction}`
+        });
+        console.log('✅ Backup creado exitosamente');
+        
+        console.log(`\n📝 Escribiendo datos migrados a Firebase...`);
+        await db.collection('menus').doc(MENU_DOC_ID).set(newData);
+        console.log(`✅ Migración completada (${label}) exitosamente (${migrationCount} claves migradas)`);
+        
+        console.log('\n📊 Datos migrados en Firebase:');
+        Object.keys(newData).forEach(key => {
+            console.log(`  ${key}`);
+        });
+        
+        console.log('\n🔄 Recargando menú...');
+        await loadMenu();
+        
+        showNotification(`✅ Migración ${label} completada - Datos actualizados`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Error durante la migración:', error);
+        showNotification('❌ Error en la migración - Ver consola', 'error');
+    }
+}
+
+// Exponer funciones globalmente para ejecutarlas desde consola
+window.migrateCalendarDays = migrateCalendarDays;
+window.migrateCalendarDaysForward = () => migrateCalendarDays('forward');
+window.migrateCalendarDaysBackward = () => migrateCalendarDays('backward');
