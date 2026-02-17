@@ -101,6 +101,7 @@ body.theme-dark {
     color: #333;
     margin-bottom: 15px;
     position: relative;
+    padding-top: 64px;
 }
 
 .sync-status {
@@ -154,27 +155,6 @@ body.theme-dark {
 .header p {
     color: var(--text-soft);
     font-size: 0.95em;
-}
-
-@media (max-width: 768px) {
-    .theme-switcher {
-        position: static;
-        margin: 12px auto 4px;
-        justify-content: center;
-        width: fit-content;
-    }
-
-    .manage-plates-btn {
-        position: static;
-        margin: 8px auto 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .header {
-        margin-top: 6px;
-    }
 }
 
 body .header,
