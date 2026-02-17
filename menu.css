@@ -156,6 +156,27 @@ body.theme-dark {
     font-size: 0.95em;
 }
 
+@media (max-width: 768px) {
+    .theme-switcher {
+        position: static;
+        margin: 12px auto 4px;
+        justify-content: center;
+        width: fit-content;
+    }
+
+    .manage-plates-btn {
+        position: static;
+        margin: 8px auto 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .header {
+        margin-top: 6px;
+    }
+}
+
 body .header,
 body .sidebar h2,
 body .category-title,
@@ -296,6 +317,12 @@ body.theme-dark .manage-plates-btn {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin: 0;
+}
+
+@media (max-width: 768px) {
+    .reset-btn {
+        display: none !important;
+    }
 }
 
 .category-arrow {
@@ -738,6 +765,20 @@ body.daily-view .daily-comments-text {
     text-wrap: balance;
 }
 
+@media (max-width: 768px) {
+    body.daily-view .meal-text {
+        font-size: 1.12em;
+    }
+
+    body.daily-view .daily-comments-text {
+        font-size: 0.95em;
+    }
+
+    body.daily-view .day-header {
+        font-size: 1.5em;
+    }
+}
+
 body.daily-view .daily-recipe-block {
     display: flex;
     justify-content: flex-end;
@@ -755,6 +796,48 @@ body.daily-view .daily-recipe-link {
 body.daily-view .daily-recipe-placeholder {
     color: var(--text-soft);
     font-weight: 600;
+}
+
+@media (max-width: 360px) {
+    body.daily-view #weekTable th:first-child,
+    body.daily-view #weekTable .day-header {
+        width: 18% !important;
+        min-width: 18% !important;
+        max-width: 18% !important;
+    }
+
+    body.daily-view #weekTable th:not(:first-child):not(.hide-column),
+    body.daily-view #weekTable td:not(.day-header):not(.hide-column) {
+        width: 82% !important;
+    }
+
+    body.daily-view .meal-content {
+        grid-template-columns: 1.6fr 2.2fr 0.7fr;
+        column-gap: 6px;
+        padding: 6px 6px !important;
+    }
+
+    body.daily-view .meal-text {
+        font-size: 1.02em;
+    }
+
+    body.daily-view .daily-comments-text {
+        font-size: 0.88em;
+    }
+
+    body.daily-view .daily-recipe-block {
+        padding-right: 6px;
+    }
+
+    body.daily-view .daily-recipe-link {
+        min-width: 26px;
+        padding: 4px 6px;
+    }
+
+    body.daily-view .remove-btn.tab-close {
+        width: 24px;
+        height: 24px;
+    }
 }
 
 /* Ajustar botón de eliminar en vista diaria */
