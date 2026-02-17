@@ -45,6 +45,18 @@ let isResetting = false; // Flag para evitar conflictos durante el reset
 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
 const THEME_STORAGE_KEY = 'menu-theme-mode';
 
+// ====================================
+// SYNC STATUS & TIMESTAMP TRACKING
+// ====================================
+let syncStatus = 'unknown'; // 'firebase', 'cache', 'offline', 'syncing'
+let lastSyncTimestamp = 0;
+const LOCK_EXPIRY_MS = 30000; // 30 seconds
+const APP_STATE_DOC_ID = 'app-state';
+const LOCKS_DOC_ID = 'locks';
+const BACKUPS_COLLECTION = 'menu-backups';
+const ROTATION_HISTORY_COLLECTION = 'rotation-history';
+const MAX_BACKUP_COUNT = 7;
+
 function applyThemeMode(mode) {
     const normalizedMode = ['light', 'dark'].includes(mode) ? mode : 'light';
 
@@ -206,9 +218,211 @@ function resolveCustomConfirm(confirmed) {
 // SISTEMA DE FECHAS
 // ====================================
 
+// Retry helper for Firebase operations
+async function retryOperation(operation, maxRetries = 3, delayMs = 1000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await operation();
+        } catch (error) {
+            console.error(`❌ Attempt ${attempt}/${maxRetries} failed:`, error.message);
+            
+            if (attempt === maxRetries) {
+                throw error; // Final attempt failed
+            }
+            
+            // Exponential backoff
+            const delay = delayMs * Math.pow(2, attempt - 1);
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
+
+// Fecha actual de la app
+function getAppNow() {
+    return new Date();
+}
+
+// ====================================
+// SYNC STATUS & DISTRIBUTED LOCKS
+// ====================================
+
+// Update sync status indicator in UI
+function updateSyncStatusUI() {
+    const statusIcons = {
+        'firebase': '🟢',
+        'cache': '🟡',
+        'offline': '🔴',
+        'syncing': '🔄'
+    };
+    
+    const statusMessages = {
+        'firebase': 'Connected to Firebase',
+        'cache': 'Using local cache',
+        'offline': 'Offline mode',
+        'syncing': 'Syncing...'
+    };
+    
+    const icon = statusIcons[syncStatus] || '⚪';
+    const message = statusMessages[syncStatus] || 'Unknown status';
+    
+    // Update UI element if it exists
+    const statusElement = document.getElementById('sync-status');
+    if (statusElement) {
+        statusElement.textContent = `${icon} ${message}`;
+        statusElement.title = `Last sync: ${lastSyncTimestamp ? new Date(lastSyncTimestamp).toLocaleTimeString() : 'Never'}`;
+    }
+    
+    console.log(`${icon} Sync status: ${message}`);
+}
+
+// Check and acquire distributed lock for calendar rotation
+async function acquireRotationLock() {
+    if (!isFirebaseConfigured) {
+        return true; // No lock needed for localStorage-only mode
+    }
+    
+    try {
+        const lockDoc = await db.collection(LOCKS_DOC_ID).doc('calendar-rotation-lock').get();
+        
+        if (lockDoc.exists) {
+            const lockData = lockDoc.data();
+            const lockAge = Date.now() - lockData.timestamp;
+            
+            // If lock exists and is not expired, rotation is already in progress
+            if (lockAge < LOCK_EXPIRY_MS) {
+                console.log(`🔒 Rotation lock held by another user (age: ${Math.round(lockAge/1000)}s)`);
+                return false;
+            }
+            
+            // Lock expired, we can take it
+            console.log(`🔓 Expired lock found, acquiring new lock`);
+        }
+        
+        // Acquire the lock
+        await db.collection(LOCKS_DOC_ID).doc('calendar-rotation-lock').set({
+            timestamp: Date.now(),
+            lockedBy: navigator.userAgent.substring(0, 50)
+        });
+        
+        console.log('🔒 Rotation lock acquired');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Error acquiring lock:', error);
+        return false;
+    }
+}
+
+// Release distributed lock
+async function releaseRotationLock() {
+    if (!isFirebaseConfigured) {
+        return;
+    }
+    
+    try {
+        await db.collection(LOCKS_DOC_ID).doc('calendar-rotation-lock').delete();
+        console.log('🔓 Rotation lock released');
+    } catch (error) {
+        console.error('❌ Error releasing lock:', error);
+    }
+}
+
+// Get lastAccessDate from Firebase instead of localStorage
+async function getLastAccessDate() {
+    if (!isFirebaseConfigured) {
+        return localStorage.getItem('lastAccessDate');
+    }
+    
+    try {
+        const doc = await db.collection(APP_STATE_DOC_ID).doc('last-access-date').get();
+        if (doc.exists) {
+            return doc.data().date;
+        }
+        return null;
+    } catch (error) {
+        console.error('❌ Error reading lastAccessDate from Firebase:', error);
+        return localStorage.getItem('lastAccessDate'); // Fallback
+    }
+}
+
+// Set lastAccessDate to Firebase instead of localStorage
+async function setLastAccessDate(dateStr) {
+    if (!isFirebaseConfigured) {
+        localStorage.setItem('lastAccessDate', dateStr);
+        return;
+    }
+    
+    try {
+        await db.collection(APP_STATE_DOC_ID).doc('last-access-date').set({
+            date: dateStr,
+            timestamp: Date.now()
+        });
+        console.log(`📅 lastAccessDate updated in Firebase: ${dateStr}`);
+    } catch (error) {
+        console.error('❌ Error writing lastAccessDate to Firebase:', error);
+        localStorage.setItem('lastAccessDate', dateStr); // Fallback
+    }
+}
+
+// Create backup before rotation
+async function createRotationBackup(allData) {
+    if (!isFirebaseConfigured) {
+        return;
+    }
+    
+    try {
+        const backup = {
+            data: allData,
+            timestamp: Date.now(),
+            date: new Date().toISOString()
+        };
+        
+        await db.collection(BACKUPS_COLLECTION).add(backup);
+        console.log('💾 Rotation backup created');
+        
+        // Clean old backups (keep only last 7)
+        const backups = await db.collection(BACKUPS_COLLECTION)
+            .orderBy('timestamp', 'desc')
+            .get();
+        
+        if (backups.size > MAX_BACKUP_COUNT) {
+            const toDelete = [];
+            backups.forEach((doc, index) => {
+                if (index >= MAX_BACKUP_COUNT) {
+                    toDelete.push(doc.ref.delete());
+                }
+            });
+            await Promise.all(toDelete);
+            console.log(`🗑️ Cleaned ${toDelete.length} old backups`);
+        }
+    } catch (error) {
+        console.error('❌ Error creating backup:', error);
+    }
+}
+
+// Log rotation to history
+async function logRotation(success, error = null) {
+    if (!isFirebaseConfigured) {
+        return;
+    }
+    
+    try {
+        await db.collection(ROTATION_HISTORY_COLLECTION).add({
+            timestamp: Date.now(),
+            date: new Date().toISOString(),
+            success: success,
+            error: error ? error.message : null,
+            userAgent: navigator.userAgent.substring(0, 100)
+        });
+    } catch (err) {
+        console.error('❌ Error logging rotation:', err);
+    }
+}
+
 // Obtener el lunes de una semana específica
 function getMondayOfWeek(weekOffset = 0) {
-    const now = new Date();
+    const now = getCurrentTestDate();
     const dayOfWeek = now.getDay(); // 0 = Domingo, 1 = Lunes, ...
     const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Ajustar al lunes
     const monday = new Date(now);
@@ -231,8 +445,7 @@ function getWeekDates(weekOffset = 0) {
 
 // Obtener array de 7 días consecutivos para móvil
 function getMobileDates() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getCurrentTestDate();
 
     let dayOffset = 0;
     if (currentView === 'day') {
@@ -265,6 +478,13 @@ function formatISODate(date) {
     return date.toISOString().split('T')[0];
 }
 
+// Obtener la fecha actual normalizada
+function getCurrentTestDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
 function parseISODateLocal(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return null;
     const parts = dateStr.split('-').map(Number);
@@ -277,8 +497,7 @@ function parseISODateLocal(dateStr) {
 }
 
 function updateSlotsAvailability(dates) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getCurrentTestDate();
 
     const rows = document.querySelectorAll('#weekTable tbody tr');
     rows.forEach(row => {
@@ -310,6 +529,7 @@ function updateTableHeaders() {
     }
 
     const headers = document.querySelectorAll('#weekTable thead th');
+    const testToday = getCurrentTestDate();
 
     // Actualizar cada día (empezando desde el índice 1, ya que el 0 es la columna vacía)
     for (let i = 1; i < headers.length; i++) {
@@ -318,20 +538,16 @@ function updateTableHeaders() {
 
         const headerDate = new Date(dates[i - 1]);
         headerDate.setHours(0, 0, 0, 0);
-        const todayForHeader = new Date();
-        todayForHeader.setHours(0, 0, 0, 0);
-        headers[i].classList.toggle('day-disabled', headerDate < todayForHeader);
 
-        // Resaltar el día actual
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (dates[i - 1].getTime() === today.getTime()) {
-            headers[i].style.background = '#4CAF50';
-            headers[i].style.color = 'white';
-        } else {
-            headers[i].style.background = '#333';
-            headers[i].style.color = 'white';
-        }
+        // Limpiar estilos inline antiguos y aplicar clases de estado
+        headers[i].style.background = '';
+        headers[i].style.color = '';
+
+        const isPast = headerDate < testToday;
+        const isCurrent = headerDate.getTime() === testToday.getTime();
+
+        headers[i].classList.toggle('day-disabled', isPast);
+        headers[i].classList.toggle('current-day', isCurrent);
     }
 
     // Sincronizar los data-day de los slots con las fechas visibles
@@ -346,6 +562,9 @@ function updateTableHeaders() {
                 const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, ...
                 const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
                 slot.dataset.day = dayKeys[adjustedDay];
+                
+                // Establecer también la fecha en formato ISO para soporte de clave basada en fecha
+                slot.dataset.date = formatISODate(date);
             }
         });
     });
@@ -354,35 +573,39 @@ function updateTableHeaders() {
 }
 
 // Verificar si el calendario actual está obsoleto y auto-desplazar
-function checkAndAutoShift() {
-    if (isMobileDevice) {
-        // En móvil: verificar si pasó un día
-        const lastDate = localStorage.getItem('lastAccessDate');
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split('T')[0];
+async function checkAndAutoShift() {
+    const lastDateStr = await getLastAccessDate();
+    const today = getCurrentTestDate();
+    const todayStr = formatISODate(today);
 
-        if (lastDate && lastDate !== todayStr) {
-            addNewCalendar(true); // true = auto-shift silencioso
-        }
-
-        // Guardar la fecha actual
-        localStorage.setItem('lastAccessDate', todayStr);
-    } else {
-        // En desktop: verificar si pasó la semana
-        const weekOffset = currentCalendar - 1;
-        const monday = getMondayOfWeek(weekOffset);
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        sunday.setHours(23, 59, 59, 999);
-
-        const now = new Date();
-
-        // Si ya pasó el domingo de esta semana, auto-desplazar
-        if (now > sunday && currentCalendar === 1) {
-            addNewCalendar(true); // true = auto-shift silencioso
-        }
+    // Si es el primer acceso o no ha cambiado la fecha, no hacer nada
+    if (!lastDateStr || lastDateStr === todayStr) {
+        await setLastAccessDate(todayStr);
+        return;
     }
+
+    // Obtener las fechas de ayer y hoy
+    const lastDate = parseISODateLocal(lastDateStr);
+    if (!lastDate) {
+        await setLastAccessDate(todayStr);
+        return;
+    }
+
+    // Verificar si hubo transición domingo → lunes
+    const lastDayOfWeek = lastDate.getDay(); // 0=domingo, 1=lunes, ...
+    const todayDayOfWeek = today.getDay();
+
+    const crossedToMonday = (lastDayOfWeek === 0 && todayDayOfWeek === 1) || // Domingo → Lunes directo
+                           (lastDayOfWeek === 0 && todayDayOfWeek !== 0) || // Domingo → cualquier día después
+                           (lastDate < today && todayDayOfWeek === 1 && lastDayOfWeek !== 1); // Cruzamos al lunes
+
+    if (crossedToMonday) {
+        console.log('🔄 Detectada transición domingo → lunes. Rotando calendarios...');
+        await addNewCalendar(true); // true = auto-shift silencioso
+    }
+
+    // Actualizar la última fecha de acceso
+    await setLastAccessDate(todayStr);
 }
 
 // ====================================
@@ -479,8 +702,7 @@ function applyDesktopView(view) {
 function getDailyColumnIndex() {
     // Calcular qué columna mostrar según el calendario actual
     // Calendario 1 = hoy, 2 = mañana, 3 = pasado mañana, 4 = 3 días después
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getCurrentTestDate();
     
     // Calcular la fecha objetivo según el calendario
     const targetDate = new Date(today);
@@ -515,8 +737,7 @@ function getDailyColumnIndex() {
 
 function updateTableForDailyView() {
     // Actualizar los headers de la tabla para mostrar la semana que contiene el día objetivo
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getCurrentTestDate();
     
     const targetDate = new Date(today);
     targetDate.setDate(today.getDate() + (currentCalendar - 1));
@@ -543,6 +764,7 @@ function updateTableHeadersWithDates(dates) {
     const headers = document.querySelectorAll('#weekTable thead th');
     const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    const testToday = getCurrentTestDate();
     
     for (let i = 0; i < 7 && i + 1 < headers.length; i++) {
         const date = dates[i];
@@ -551,9 +773,14 @@ function updateTableHeadersWithDates(dates) {
 
         const headerDate = new Date(date);
         headerDate.setHours(0, 0, 0, 0);
-        const todayForHeader = new Date();
-        todayForHeader.setHours(0, 0, 0, 0);
-        headers[i + 1].classList.toggle('day-disabled', headerDate < todayForHeader);
+        headers[i + 1].style.background = '';
+        headers[i + 1].style.color = '';
+
+        const isPast = headerDate < testToday;
+        const isCurrent = headerDate.getTime() === testToday.getTime();
+
+        headers[i + 1].classList.toggle('day-disabled', isPast);
+        headers[i + 1].classList.toggle('current-day', isCurrent);
     }
     
     // También actualizar los data-day de los slots para que coincidan con las fechas
@@ -577,8 +804,7 @@ function updateTableHeadersWithDates(dates) {
 function getTodayColumnIndex() {
     const weekOffset = currentCalendar - 1;
     const dates = getWeekDates(weekOffset);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getCurrentTestDate();
 
     for (let i = 0; i < dates.length; i++) {
         if (dates[i].getTime() === today.getTime()) {
@@ -764,8 +990,7 @@ async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOver
         calToUse = calendar;
         dayToUse = dayKey;
     } else if (!isMobileDevice && currentView === 'daily' && calendarOverride === null) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = getCurrentTestDate();
 
         const targetDate = new Date(today);
         targetDate.setDate(today.getDate() + (currentCalendar - 1));
@@ -776,17 +1001,48 @@ async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOver
     }
 
     const key = `cal${calToUse}-${dayToUse}-${meal}`;
+    const timestamp = Date.now();
+    const dataWithTimestamp = {
+        data: foodsArray,
+        lastModified: timestamp
+    };
+
     if (isFirebaseConfigured) {
         try {
-            await db.collection('menus').doc(MENU_DOC_ID).set({
-                [key]: foodsArray
-            }, { merge: true });
+            syncStatus = 'syncing';
+            updateSyncStatusUI();
+            
+            // Save with timestamp using retry logic
+            await retryOperation(async () => {
+                await db.collection('menus').doc(MENU_DOC_ID).set({
+                    [key]: dataWithTimestamp
+                }, { merge: true });
+            });
+            
+            // Verify the save was successful
+            const verifyDoc = await db.collection('menus').doc(MENU_DOC_ID).get();
+            if (verifyDoc.exists && verifyDoc.data()[key]) {
+                const saved = verifyDoc.data()[key];
+                const savedData = saved.data || saved; // Handle both formats
+                if (JSON.stringify(savedData) === JSON.stringify(foodsArray)) {
+                    syncStatus = 'firebase';
+                    lastSyncTimestamp = timestamp;
+                    updateSyncStatusUI();
+                    console.log(`✅ Menu saved to Firebase: ${key} at ${new Date(timestamp).toISOString()}`);
+                } else {
+                    throw new Error('Data verification failed');
+                }
+            }
         } catch (error) {
-            console.error("Error guardando en Firebase:", error);
-            localStorage.setItem(key, JSON.stringify(foodsArray));
+            console.error(`❌ Error saving to Firebase (${key}):`, error);
+            syncStatus = 'cache';
+            updateSyncStatusUI();
+            localStorage.setItem(key, JSON.stringify(dataWithTimestamp));
+            showNotification('⚠️ Saved locally - Firebase sync failed', 'warning');
         }
     } else {
-        localStorage.setItem(key, JSON.stringify(foodsArray));
+        syncStatus = 'cache';
+        localStorage.setItem(key, JSON.stringify(dataWithTimestamp));
     }
 }
 
@@ -794,27 +1050,73 @@ async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOver
 async function loadMenu() {
     if (isFirebaseConfigured) {
         try {
+            syncStatus = 'syncing';
             const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+            
             if (doc.exists) {
                 const data = doc.data();
                 const slots = document.querySelectorAll('.meal-slot');
+                
                 slots.forEach(slot => {
                     const candidates = getMenuKeyCandidatesFromSlot(slot);
                     const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                    
                     if (foundKey) {
-                        updateSlotWithArray(slot, data[foundKey]);
+                        const menuData = data[foundKey];
+                        
+                        // Handle both old format (array) and new format (object with timestamp)
+                        if (Array.isArray(menuData)) {
+                            // Old format - migrate to new format
+                            updateSlotWithArray(slot, menuData);
+                        } else if (menuData && menuData.data) {
+                            // New format with timestamp
+                            updateSlotWithArray(slot, menuData.data);
+                            
+                            // Clear localStorage for this key since Firebase is authoritative
+                            const localData = localStorage.getItem(foundKey);
+                            if (localData) {
+                                try {
+                                    const parsed = JSON.parse(localData);
+                                    const localTimestamp = parsed.lastModified || 0;
+                                    const firebaseTimestamp = menuData.lastModified || 0;
+                                    
+                                    // Only clear if Firebase data is newer or equal
+                                    if (firebaseTimestamp >= localTimestamp) {
+                                        localStorage.removeItem(foundKey);
+                                    }
+                                } catch (e) {
+                                    localStorage.removeItem(foundKey);
+                                }
+                            }
+                        } else {
+                            slot.innerHTML = '';
+                        }
                     } else {
                         slot.innerHTML = '';
                     }
                 });
+                
+                syncStatus = 'firebase';
+                lastSyncTimestamp = Date.now();
+                console.log('✅ Menu loaded from Firebase');
+            } else {
+                // No Firebase data, try localStorage as fallback
+                console.log('⚠️ No Firebase data found, checking localStorage...');
+                loadFromLocalStorage();
+                syncStatus = 'cache';
             }
         } catch (error) {
-            console.error("Error cargando de Firebase:", error);
+            console.error("❌ Error loading from Firebase:", error);
+            syncStatus = 'offline';
             loadFromLocalStorage();
+            showNotification('⚠️ Offline mode - using cached data', 'warning');
         }
     } else {
+        syncStatus = 'cache';
         loadFromLocalStorage();
     }
+    
+    updateSyncStatusUI();
 }
 
 // Función auxiliar para determinar calendario y día desde una fecha
@@ -907,9 +1209,18 @@ function loadFromLocalStorage() {
             .find(value => value);
         if (saved) {
             try {
-                const foodsArray = JSON.parse(saved);
-                updateSlotWithArray(slot, foodsArray);
+                const parsed = JSON.parse(saved);
+                
+                // Handle both old format (array) and new format (object with timestamp)
+                if (Array.isArray(parsed)) {
+                    updateSlotWithArray(slot, parsed);
+                } else if (parsed && parsed.data) {
+                    updateSlotWithArray(slot, parsed.data);
+                } else {
+                    slot.innerHTML = '';
+                }
             } catch (e) {
+                console.error('Error parsing localStorage data:', e);
                 // Compatibilidad con formato antiguo (string simple)
                 updateSlotWithArray(slot, [saved]);
             }
@@ -917,34 +1228,91 @@ function loadFromLocalStorage() {
             slot.innerHTML = '';
         }
     });
+    console.log('📦 Loaded menu from localStorage cache');
 }
 
 // Sincronización en tiempo real del menú (solo con Firebase)
 if (isFirebaseConfigured) {
     db.collection('menus').doc(MENU_DOC_ID).onSnapshot((doc) => {
-        // Ignorar cambios durante el reset para evitar race conditions
+        // During rotation, we handle updates manually to avoid conflicts
+        // But we still accept updates from other users
         if (isResetting) {
+            console.log('⏸️ Snapshot update during reset, will process after completion');
             return;
         }
 
         const slots = document.querySelectorAll('.meal-slot');
         if (doc.exists) {
             const data = doc.data();
+            let updatesApplied = 0;
+            
             slots.forEach(slot => {
                 const candidates = getMenuKeyCandidatesFromSlot(slot);
                 const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                
                 if (foundKey) {
-                    updateSlotWithArray(slot, data[foundKey]);
+                    const menuData = data[foundKey];
+                    
+                    // Handle both old format (array) and new format (object with timestamp)
+                    if (Array.isArray(menuData)) {
+                        // Old format - migrate to new format on next save
+                        updateSlotWithArray(slot, menuData);
+                        updatesApplied++;
+                    } else if (menuData && menuData.data) {
+                        // New format with timestamp - check if newer than local
+                        const firebaseTimestamp = menuData.lastModified || 0;
+                        
+                        // Check localStorage for comparison
+                        const localData = localStorage.getItem(foundKey);
+                        let shouldUpdate = true;
+                        
+                        if (localData) {
+                            try {
+                                const parsed = JSON.parse(localData);
+                                const localTimestamp = parsed.lastModified || 0;
+                                
+                                // Only update if Firebase data is newer or equal
+                                if (firebaseTimestamp < localTimestamp) {
+                                    console.log(`⚠️ Local data newer for ${foundKey}, keeping local`);
+                                    shouldUpdate = false;
+                                }
+                            } catch (e) {
+                                // Invalid local data, accept Firebase data
+                            }
+                        }
+                        
+                        if (shouldUpdate) {
+                            updateSlotWithArray(slot, menuData.data);
+                            updatesApplied++;
+                            
+                            // Clear outdated localStorage
+                            localStorage.removeItem(foundKey);
+                        }
+                    } else {
+                        slot.innerHTML = '';
+                    }
                 } else {
-                    // Limpiar slot si no hay datos en Firebase para este calendario
-                    slot.innerHTML = '';
+                    // No data for this slot in Firebase
+                    // Check if we have local data that should be uploaded
+                    const localData = localStorage.getItem(candidates[0]);
+                    if (!localData || localData === '[]') {
+                        slot.innerHTML = '';
+                    }
                 }
             });
+            
+            if (updatesApplied > 0) {
+                console.log(`🔄 Applied ${updatesApplied} remote updates from Firebase`);
+                syncStatus = 'firebase';
+                lastSyncTimestamp = Date.now();
+                updateSyncStatusUI();
+            }
         } else {
             // Si el documento no existe, limpiar todas las casillas
             slots.forEach(slot => {
                 slot.innerHTML = '';
             });
+            console.log('⚠️ Firebase document deleted or does not exist');
         }
     });
 
@@ -954,6 +1322,7 @@ if (isFirebaseConfigured) {
             const data = doc.data();
             if (data.customFoods) {
                 loadCustomFoods(data.customFoods);
+                console.log('🔄 Custom foods updated from Firebase');
             }
         }
     });
@@ -1697,6 +2066,16 @@ async function downloadMenuPDF() {
 // Añadir nuevo calendario (desplaza los anteriores)
 // Añadir nuevo calendario (desplaza los anteriores)
 async function addNewCalendar(autoShift = false) {
+    // Check if rotation lock is available
+    const lockAcquired = await acquireRotationLock();
+    if (!lockAcquired) {
+        console.log('⏸️ Rotation already in progress by another user, skipping...');
+        if (!autoShift) {
+            showNotification('⏸️ Rotation in progress by another user, please wait...', 'info');
+        }
+        return;
+    }
+
     if (!autoShift) {
         const confirmMsg = '¿Quieres crear un nuevo calendario?\n\n' +
             '⚠️ ATENCIÓN:\n' +
@@ -1705,10 +2084,12 @@ async function addNewCalendar(autoShift = false) {
             '• El Calendario 3 pasará a ser el 2\n' +
             '• El Calendario 4 pasará a ser el 3\n' +
             '• Se creará un nuevo Calendario 4 (vacío)\n\n' +
+            '✅ Se creará un backup automático antes de la rotación\n\n' +
             '¿Deseas continuar?';
 
         const confirmed = await showCustomConfirm(confirmMsg, 'Nuevo calendario');
         if (!confirmed) {
+            await releaseRotationLock();
             return;
         }
     }
@@ -1716,6 +2097,8 @@ async function addNewCalendar(autoShift = false) {
     isResetting = true;
 
     try {
+        console.log('🔄 Starting calendar rotation...');
+        
         // Obtener todos los datos actuales
         let allData = {};
 
@@ -1730,10 +2113,17 @@ async function addNewCalendar(autoShift = false) {
                 const key = localStorage.key(i);
                 if (key.startsWith('cal')) {
                     const value = localStorage.getItem(key);
-                    allData[key] = JSON.parse(value);
+                    try {
+                        allData[key] = JSON.parse(value);
+                    } catch (e) {
+                        console.error(`Error parsing ${key}:`, e);
+                    }
                 }
             }
         }
+
+        // Create backup before rotation
+        await createRotationBackup(allData);
 
         // Crear objeto con datos desplazados
         const newData = {};
@@ -1756,6 +2146,7 @@ async function addNewCalendar(autoShift = false) {
         // Guardar los nuevos datos
         if (isFirebaseConfigured) {
             await db.collection('menus').doc(MENU_DOC_ID).set(newData);
+            console.log('✅ Rotation data saved to Firebase');
         } else {
             // Limpiar localStorage de calendarios
             const keysToRemove = [];
@@ -1771,7 +2162,11 @@ async function addNewCalendar(autoShift = false) {
             Object.keys(newData).forEach(key => {
                 localStorage.setItem(key, JSON.stringify(newData[key]));
             });
+            console.log('✅ Rotation data saved to localStorage');
         }
+
+        // Log successful rotation
+        await logRotation(true);
 
         // Ir al calendario 4 (el nuevo vacío) o al 1 si es auto-shift
         currentCalendar = autoShift ? 1 : 4;
@@ -1780,15 +2175,22 @@ async function addNewCalendar(autoShift = false) {
         loadMenu();
 
         if (!autoShift) {
-            showNotification('Nuevo calendario creado correctamente', 'success');
+            showNotification('✅ Nuevo calendario creado correctamente', 'success');
+        } else {
+            console.log('✅ Auto-rotation completed successfully');
         }
 
     } catch (error) {
-        console.error("Error creando nuevo calendario:", error);
+        console.error("❌ Error creating new calendar:", error);
+        await logRotation(false, error);
+        
         if (!autoShift) {
-            showNotification('Error al crear nuevo calendario', 'error');
+            showNotification('❌ Error al crear nuevo calendario', 'error');
         }
     } finally {
+        // Release lock
+        await releaseRotationLock();
+        
         setTimeout(() => {
             isResetting = false;
         }, 500);
@@ -2386,5 +2788,39 @@ updateCalendarNavigation();
 // Inicializar eventos de click DESPUÉS de que todo esté cargado
 setupSlotClickHandlers();
 
+// Initialize sync status
+updateSyncStatusUI();
+
+// Monitor Firebase connection status
+if (isFirebaseConfigured) {
+    // Monitor connection status
+    const connectedRef = db.collection('__connection_status__').doc('test');
+    
+    // Try to detect online/offline status
+    window.addEventListener('online', () => {
+        console.log('🌐 Network online');
+        syncStatus = 'syncing';
+        updateSyncStatusUI();
+        loadMenu(); // Reload from Firebase
+    });
+    
+    window.addEventListener('offline', () => {
+        console.log('📡 Network offline');
+        syncStatus = 'offline';
+        updateSyncStatusUI();
+        showNotification('⚠️ Connection lost - working offline', 'warning');
+    });
+    
+    // Periodic sync check every 5 minutes
+    setInterval(() => {
+        if (navigator.onLine && isFirebaseConfigured) {
+            console.log('🔄 Periodic sync check...');
+            loadMenu();
+        }
+    }, 300000); // 5 minutes
+}
+
 // Verificar cada hora si hay que auto-desplazar
-setInterval(checkAndAutoShift, 3600000); // 1 hora
+setInterval(() => {
+    checkAndAutoShift();
+}, 3600000); // 1 hora

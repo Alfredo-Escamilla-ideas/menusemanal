@@ -103,6 +103,25 @@ body.theme-dark {
     position: relative;
 }
 
+.sync-status {
+    margin-top: 8px;
+    font-size: 0.85em;
+    color: var(--text-soft);
+    font-weight: 500;
+    padding: 4px 12px;
+    background: var(--surface-soft);
+    border-radius: 12px;
+    display: inline-block;
+    border: 1px solid var(--border-main);
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+.sync-status:hover {
+    background: var(--slot-hover);
+    transform: translateY(-1px);
+}
+
 .manage-plates-btn {
     position: fixed;
     top: 20px;
@@ -143,7 +162,6 @@ body .category-title,
 body .day-header,
 body .modal-category-title,
 body .view-controls-label,
-body th,
 body td,
 body .meal-text,
 body .confirm-message {
@@ -390,6 +408,11 @@ th:first-child {
     background: var(--surface-soft);
     color: var(--text-main);
     min-width: 120px;
+}
+
+#weekTable thead th:not(:first-child):not(.day-disabled):not(.current-day) {
+    background: var(--table-header-bg);
+    color: var(--table-header-text);
 }
 
 td {
@@ -755,6 +778,15 @@ body.daily-view .remove-btn.tab-close {
 th.day-disabled {
     opacity: 0.65;
     filter: saturate(0.75);
+    background: var(--surface-soft) !important;
+    color: var(--text-soft) !important;
+}
+
+th.current-day {
+    background: #4CAF50 !important;
+    color: #ffffff !important;
+    opacity: 1;
+    filter: none;
 }
 
 /* Estilos para la imagen del plato en vista diaria */
