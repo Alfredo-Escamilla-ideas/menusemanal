@@ -1825,3 +1825,32 @@ body.daily-view .meal-content .meal-text {
         padding: 12px 16px;
     }
 }
+
+/* ====================================
+   FORCE RELOAD BUTTON ANIMATION
+   ==================================== */
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 6px 18px rgba(255,107,107,0.5);
+    }
+}
+
+.force-reload-btn {
+    animation: pulse 2s infinite;
+}
+
+.force-reload-btn:hover {
+    background: linear-gradient(135deg, #f57c00 0%, #e65100 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(255,152,0,0.6) !important;
+}
+
+.force-reload-btn:active {
+    transform: translateY(0) scale(0.98) !important;
+}

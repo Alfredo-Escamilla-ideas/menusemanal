@@ -56,6 +56,8 @@ const LOCKS_DOC_ID = 'locks';
 const BACKUPS_COLLECTION = 'menu-backups';
 const ROTATION_HISTORY_COLLECTION = 'rotation-history';
 const MAX_BACKUP_COUNT = 7;
+let connectionRetryCount = 0;
+let maxConnectionRetries = 5;
 
 function applyThemeMode(mode) {
     const normalizedMode = ['light', 'dark'].includes(mode) ? mode : 'light';
@@ -238,6 +240,30 @@ async function retryOperation(operation, maxRetries = 3, delayMs = 1000) {
     }
 }
 
+// Timeout wrapper for Firebase operations
+async function withTimeout(promise, timeoutMs = 10000, fallbackValue = null) {
+    let timeoutHandle;
+    
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+            reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+    });
+    
+    try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        clearTimeout(timeoutHandle);
+        return result;
+    } catch (error) {
+        clearTimeout(timeoutHandle);
+        if (error.message.includes('timed out')) {
+            console.warn(`⏱️ Firebase operation timed out after ${timeoutMs}ms, using fallback`);
+            return fallbackValue;
+        }
+        throw error;
+    }
+}
+
 // Fecha actual de la app
 function getAppNow() {
     return new Date();
@@ -246,6 +272,9 @@ function getAppNow() {
 // ====================================
 // SYNC STATUS & DISTRIBUTED LOCKS
 // ====================================
+
+let syncingStartTime = 0;
+let forceReloadCheckInterval = null;
 
 // Update sync status indicator in UI
 function updateSyncStatusUI() {
@@ -269,11 +298,98 @@ function updateSyncStatusUI() {
     // Update UI element if it exists
     const statusElement = document.getElementById('sync-status');
     if (statusElement) {
-        statusElement.textContent = `${icon} ${message}`;
+        // Mostrar número de reintento si hay más de uno
+        let displayMessage = message;
+        if (syncStatus === 'syncing' && connectionRetryCount > 0) {
+            displayMessage = `Syncing... (intento ${connectionRetryCount + 1}/${maxConnectionRetries})`;
+        }
+        
+        statusElement.textContent = `${icon} ${displayMessage}`;
         statusElement.title = `Last sync: ${lastSyncTimestamp ? new Date(lastSyncTimestamp).toLocaleTimeString() : 'Never'}`;
+        
+        // Si está syncing, iniciar temporizador
+        if (syncStatus === 'syncing') {
+            if (syncingStartTime === 0) {
+                syncingStartTime = Date.now();
+            }
+            
+            // Verificar cada segundo si lleva más de 10 segundos
+            if (!forceReloadCheckInterval) {
+                forceReloadCheckInterval = setInterval(() => {
+                    const elapsed = Date.now() - syncingStartTime;
+                    if (elapsed > 10000 && syncStatus === 'syncing') {
+                        // Mostrar botón de forzar recarga
+                        showForceReloadButton();
+                    }
+                }, 1000);
+            }
+        } else {
+            // Resetear temporizador
+            syncingStartTime = 0;
+            if (forceReloadCheckInterval) {
+                clearInterval(forceReloadCheckInterval);
+                forceReloadCheckInterval = null;
+            }
+            hideForceReloadButton();
+        }
     }
     
     console.log(`${icon} Sync status: ${message}`);
+}
+
+function showForceReloadButton() {
+    let btn = document.getElementById('force-reload-btn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'force-reload-btn';
+        btn.className = 'force-reload-btn';
+        btn.innerHTML = '🔄 Reintentar Conexión';
+        btn.onclick = forceReloadFromCache;
+        btn.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-family: inherit;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+            transition: all 0.3s ease;
+        `;
+        document.body.appendChild(btn);
+        console.log('⚠️ Retry connection button shown (syncing > 10s)');
+    }
+}
+
+function hideForceReloadButton() {
+    const btn = document.getElementById('force-reload-btn');
+    if (btn) {
+        btn.remove();
+    }
+}
+
+async function forceReloadFromCache() {
+    console.log('🔄 Manual retry requested by user...');
+    hideForceReloadButton();
+    
+    // Reset retry counter to start fresh
+    connectionRetryCount = 0;
+    syncingStartTime = 0;
+    
+    syncStatus = 'syncing';
+    updateSyncStatusUI();
+    
+    showNotification('🔄 Reintentando conexión a Firebase...', 'info');
+    
+    // Retry loading from Firebase
+    await loadMenu();
 }
 
 // Check and acquire distributed lock for calendar rotation
@@ -448,16 +564,20 @@ function getMobileDates() {
     const today = getCurrentTestDate();
 
     let dayOffset = 0;
+    let numDays = 7; // Por defecto, vista semana completa
+    
     if (currentView === 'day') {
-        // Para vista de 1 día: Cal 1 = día 0, Cal 2 = día 1, etc.
+        // Para vista de 1 día: Cal 1 = HOY, Cal 2 = MAÑANA, Cal 3 = PASADO, Cal 4 = +3
         dayOffset = (currentCalendar - 1);
+        numDays = 1; // Solo mostrar 1 día
     } else if (currentView === 'three-days') {
         // Para vista de 3 días: Cal 1 = días 0-2, Cal 2 = días 3-5, etc.
         dayOffset = (currentCalendar - 1) * 3;
+        numDays = 3; // Solo mostrar 3 días
     }
 
     const dates = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < numDays; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + dayOffset + i);
         dates.push(date);
@@ -533,41 +653,88 @@ function updateTableHeaders() {
 
     // Actualizar cada día (empezando desde el índice 1, ya que el 0 es la columna vacía)
     for (let i = 1; i < headers.length; i++) {
-        headers[i].textContent = formatDateHeader(dates[i - 1]);
-        headers[i].dataset.date = formatISODate(dates[i - 1]);
+        const dateIndex = i - 1;
+        
+        if (dateIndex < dates.length) {
+            // Mostrar y actualizar header
+            headers[i].style.display = '';
+            headers[i].textContent = formatDateHeader(dates[dateIndex]);
+            headers[i].dataset.date = formatISODate(dates[dateIndex]);
 
-        const headerDate = new Date(dates[i - 1]);
-        headerDate.setHours(0, 0, 0, 0);
+            const headerDate = new Date(dates[dateIndex]);
+            headerDate.setHours(0, 0, 0, 0);
 
-        // Limpiar estilos inline antiguos y aplicar clases de estado
-        headers[i].style.background = '';
-        headers[i].style.color = '';
+            // Limpiar estilos inline antiguos y aplicar clases de estado
+            headers[i].style.background = '';
+            headers[i].style.color = '';
 
-        const isPast = headerDate < testToday;
-        const isCurrent = headerDate.getTime() === testToday.getTime();
+            const isPast = headerDate < testToday;
+            const isCurrent = headerDate.getTime() === testToday.getTime();
 
-        headers[i].classList.toggle('day-disabled', isPast);
-        headers[i].classList.toggle('current-day', isCurrent);
+            headers[i].classList.toggle('day-disabled', isPast);
+            headers[i].classList.toggle('current-day', isCurrent);
+        } else {
+            // Ocultar headers extra en móvil
+            headers[i].style.display = 'none';
+        }
     }
 
     // Sincronizar los data-day de los slots con las fechas visibles
     // para que en móvil (Hoy / 3 Días) se carguen los platos correctos.
     const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
     const rows = document.querySelectorAll('#weekTable tbody tr');
-    rows.forEach(row => {
-        const slots = row.querySelectorAll('.meal-slot');
-        slots.forEach((slot, index) => {
-            if (index < dates.length) {
-                const date = dates[index];
-                const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, ...
-                const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-                slot.dataset.day = dayKeys[adjustedDay];
-                
-                // Establecer también la fecha en formato ISO para soporte de clave basada en fecha
-                slot.dataset.date = formatISODate(date);
-            }
+    
+    // En vista "week", mapear por día de la semana (Lun-Dom)
+    // En vista "day" o "three-days", usar slots secuenciales (slot 0 = dates[0], slot 1 = dates[1], etc.)
+    const useSequentialSlots = (currentView === 'day' || currentView === 'three-days');
+    
+    if (useSequentialSlots) {
+        // Vista diaria/3 días: asignar dates[0] a slot 0, dates[1] a slot 1, etc.
+        rows.forEach(row => {
+            const slots = row.querySelectorAll('.meal-slot');
+            
+            slots.forEach((slot, slotIndex) => {
+                if (slotIndex < dates.length) {
+                    const date = dates[slotIndex];
+                    const dayOfWeek = date.getDay();
+                    const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                    slot.dataset.day = dayKeys[adjustedDay];
+                    slot.dataset.date = formatISODate(date);
+                    slot.parentElement.style.display = '';
+                } else {
+                    slot.parentElement.style.display = 'none';
+                }
+            });
         });
-    });
+    } else {
+        // Vista semanal: mapear por día de la semana real
+        const dateDayOfWeekMap = dates.map(date => {
+            const dayOfWeek = date.getDay(); // 0=domingo, 1=lunes, ...
+            return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to 0=lunes, 6=domingo
+        });
+        
+        rows.forEach(row => {
+            const slots = row.querySelectorAll('.meal-slot');
+            
+            slots.forEach((slot, slotIndex) => {
+                // slotIndex represents day of week: 0=Lunes, 1=Martes, ..., 6=Domingo
+                const dateIndex = dateDayOfWeekMap.indexOf(slotIndex);
+                
+                if (dateIndex !== -1) {
+                    // This slot matches one of our visible dates
+                    const date = dates[dateIndex];
+                    const dayOfWeek = date.getDay();
+                    const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                    slot.dataset.day = dayKeys[adjustedDay];
+                    slot.dataset.date = formatISODate(date);
+                    slot.parentElement.style.display = '';
+                } else {
+                    // Hide slots that don't match any visible date
+                    slot.parentElement.style.display = 'none';
+                }
+            });
+        });
+    }
 
     updateSlotsAvailability(dates);
 }
@@ -1051,8 +1218,54 @@ async function loadMenu() {
     if (isFirebaseConfigured) {
         try {
             syncStatus = 'syncing';
-            const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+            updateSyncStatusUI();
             
+            // Add 10 second timeout
+            const doc = await withTimeout(
+                db.collection('menus').doc(MENU_DOC_ID).get(),
+                10000, // 10 seconds
+                null
+            );
+            
+            if (doc === null) {
+                // Timeout occurred
+                connectionRetryCount++;
+                console.warn(`⏱️ Firebase load timed out (attempt ${connectionRetryCount}/${maxConnectionRetries})`);
+                
+                // Show cached data immediately for UX
+                loadFromLocalStorage();
+                
+                if (connectionRetryCount >= maxConnectionRetries) {
+                    // Después de 5 intentos, cambiar a modo offline
+                    console.error('❌ Max retry attempts reached, switching to offline mode');
+                    syncStatus = 'offline';
+                    updateSyncStatusUI();
+                    showNotification('❌ No se puede conectar a Firebase - Modo offline', 'error');
+                    connectionRetryCount = 0; // Reset for next time
+                    return;
+                }
+                
+                // Keep status as syncing
+                syncStatus = 'syncing';
+                updateSyncStatusUI();
+                
+                // Calculate exponential backoff delay: 3s, 6s, 12s, 24s
+                const retryDelay = 3000 * Math.pow(2, connectionRetryCount - 1);
+                showNotification(`⚠️ Reintentando en ${retryDelay/1000}s (${connectionRetryCount}/${maxConnectionRetries})...`, 'warning');
+                
+                // Automatically retry with exponential backoff
+                setTimeout(async () => {
+                    if (syncStatus === 'syncing') {
+                        console.log(`🔄 Auto-retry #${connectionRetryCount}...`);
+                        await loadMenu();
+                    }
+                }, retryDelay);
+                
+                return;
+            }
+            
+            // Success - reset retry counter
+            connectionRetryCount = 0;
             if (doc.exists) {
                 const data = doc.data();
                 const slots = document.querySelectorAll('.meal-slot');
