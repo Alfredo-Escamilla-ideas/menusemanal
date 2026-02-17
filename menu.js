@@ -718,7 +718,7 @@ function updateTableHeaders() {
             });
         });
     } else if (currentView === 'three-days') {
-        // Vista 3 días: asignar dates[0] a slot 0, dates[1] a slot 1, dates[2] a slot 2
+        // Vista 3 días: mapear secuencialmente (col 1-3) empezando desde HOY
         rows.forEach(row => {
             const slots = row.querySelectorAll('.meal-slot');
             
@@ -852,10 +852,11 @@ function applyMobileView(view) {
             }
         });
     } else if (view === 'three-days') {
-        // Mostrar los primeros 3 días (columnas 1, 2, 3)
+        // Mostrar solo las primeras 3 columnas (HOY, +1, +2)
+        const visibleColumns = [1, 2, 3];
         cols.forEach((col, index) => {
             const colIndex = index % 8;
-            if (colIndex !== 0 && colIndex > 3) {
+            if (colIndex !== 0 && !visibleColumns.includes(colIndex)) {
                 col.classList.add('hide-column');
             }
         });
