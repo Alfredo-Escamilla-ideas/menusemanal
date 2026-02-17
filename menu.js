@@ -816,7 +816,7 @@ function changeView(view) {
     });
 
     // Agregar/quitar clase al body para estilos específicos de vista diaria
-    if (view === 'daily') {
+    if (view === 'daily' || (isMobileDevice && view === 'day')) {
         document.body.classList.add('daily-view');
     } else {
         document.body.classList.remove('daily-view');
@@ -844,10 +844,13 @@ function applyMobileView(view) {
     cols.forEach(col => col.classList.remove('hide-column'));
 
     if (view === 'day') {
-        // Mostrar solo el primer día (columna 1)
+        // Mostrar solo la columna correspondiente al día actual
+        const dates = getMobileDates();
+        const targetDate = dates[0];
+        const targetColumn = getEuropeanDayIndex(targetDate) + 1; // +1 por header vacío
         cols.forEach((col, index) => {
             const colIndex = index % 8; // 8 columnas por fila (1 header + 7 días)
-            if (colIndex !== 0 && colIndex !== 1) {
+            if (colIndex !== 0 && colIndex !== targetColumn) {
                 col.classList.add('hide-column');
             }
         });
