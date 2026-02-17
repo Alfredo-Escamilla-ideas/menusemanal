@@ -660,31 +660,59 @@ function updateTableHeaders() {
     const headers = document.querySelectorAll('#weekTable thead th');
     const testToday = getCurrentTestDate();
 
-    // Actualizar cada día (empezando desde el índice 1, ya que el 0 es la columna vacía)
-    for (let i = 1; i < headers.length; i++) {
-        const dateIndex = i - 1;
-        
-        if (dateIndex < dates.length) {
-            // Mostrar y actualizar header
-            headers[i].style.display = '';
-            headers[i].textContent = formatDateHeader(dates[dateIndex]);
-            headers[i].dataset.date = formatISODate(dates[dateIndex]);
+    if (currentView === 'day') {
+        const date = dates[0];
+        const targetHeaderIndex = getEuropeanDayIndex(date) + 1; // +1 por columna vacía
 
-            const headerDate = new Date(dates[dateIndex]);
-            headerDate.setHours(0, 0, 0, 0);
+        for (let i = 1; i < headers.length; i++) {
+            if (i === targetHeaderIndex) {
+                headers[i].style.display = '';
+                headers[i].textContent = formatDateHeader(date);
+                headers[i].dataset.date = formatISODate(date);
 
-            // Limpiar estilos inline antiguos y aplicar clases de estado
-            headers[i].style.background = '';
-            headers[i].style.color = '';
+                const headerDate = new Date(date);
+                headerDate.setHours(0, 0, 0, 0);
 
-            const isPast = headerDate < testToday;
-            const isCurrent = headerDate.getTime() === testToday.getTime();
+                headers[i].style.background = '';
+                headers[i].style.color = '';
 
-            headers[i].classList.toggle('day-disabled', isPast);
-            headers[i].classList.toggle('current-day', isCurrent);
-        } else {
-            // Ocultar headers extra en móvil
-            headers[i].style.display = 'none';
+                const isPast = headerDate < testToday;
+                const isCurrent = headerDate.getTime() === testToday.getTime();
+
+                headers[i].classList.toggle('day-disabled', isPast);
+                headers[i].classList.toggle('current-day', isCurrent);
+            } else {
+                headers[i].style.display = 'none';
+            }
+        }
+    } else {
+
+        // Actualizar cada día (empezando desde el índice 1, ya que el 0 es la columna vacía)
+        for (let i = 1; i < headers.length; i++) {
+            const dateIndex = i - 1;
+            
+            if (dateIndex < dates.length) {
+                // Mostrar y actualizar header
+                headers[i].style.display = '';
+                headers[i].textContent = formatDateHeader(dates[dateIndex]);
+                headers[i].dataset.date = formatISODate(dates[dateIndex]);
+
+                const headerDate = new Date(dates[dateIndex]);
+                headerDate.setHours(0, 0, 0, 0);
+
+                // Limpiar estilos inline antiguos y aplicar clases de estado
+                headers[i].style.background = '';
+                headers[i].style.color = '';
+
+                const isPast = headerDate < testToday;
+                const isCurrent = headerDate.getTime() === testToday.getTime();
+
+                headers[i].classList.toggle('day-disabled', isPast);
+                headers[i].classList.toggle('current-day', isCurrent);
+            } else {
+                // Ocultar headers extra en móvil
+                headers[i].style.display = 'none';
+            }
         }
     }
 

@@ -36,6 +36,12 @@ body {
     transition: background 0.3s ease, color 0.3s ease;
 }
 
+@media (max-width: 768px) {
+    body {
+        font-size: 1.40em;
+    }
+}
+
 body.theme-dark {
     --bg-main: #12151d;
     --surface-main: #1a1f2a;
@@ -463,6 +469,13 @@ body.daily-view #weekTable .day-header {
     width: 15% !important;
     min-width: 15% !important;
     max-width: 15% !important;
+}
+
+body.daily-view #weekTable th:first-child {
+    padding: 8px 3px;
+    border-left: 2px solid var(--table-grid);
+    border-top: 2px solid var(--table-grid);
+    background: var(--surface-soft);
 }
 
 body.daily-view #weekTable th:not(:first-child):not(.hide-column),
