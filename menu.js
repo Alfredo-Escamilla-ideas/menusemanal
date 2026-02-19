@@ -46,6 +46,297 @@ const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera
 const THEME_STORAGE_KEY = 'menu-theme-mode';
 
 // ====================================
+// COPY MODE (RUTA /copia)
+// ====================================
+const COPY_ROUTE_NAME = 'copia';
+const COPY_FOLDER_NAME = 'Copia';
+const COPY_ENTRY_FILE = 'menu.html';
+const COPY_SESSION_KEY = 'menu-copy-allowed';
+const COPY_DATA_KEY = 'menu-copy-data';
+const COPY_ACCESS_KEY = 'menu-copy-allowed-at';
+const COPY_ACCESS_TTL_MS = 10 * 60 * 1000;
+let isCopyMode = false;
+
+function isCopyRouteRequested() {
+    const pathname = window.location.pathname.toLowerCase();
+    const copyFolderPath = `/${COPY_FOLDER_NAME.toLowerCase()}/${COPY_ENTRY_FILE}`;
+    const hasPath = pathname.endsWith(copyFolderPath) || pathname.endsWith(`/${COPY_ROUTE_NAME}`) || pathname.endsWith(`/${COPY_ROUTE_NAME}/`);
+    const params = new URLSearchParams(window.location.search);
+    const hasQuery = params.get('copia') === '1' || params.get('copia') === 'true';
+    const hash = window.location.hash.replace('#', '').toLowerCase();
+    const hasHash = hash === COPY_ROUTE_NAME;
+    return hasPath || hasQuery || hasHash;
+}
+
+function buildCopyPath() {
+    const current = window.location.pathname;
+    const copyFolderPath = `/${COPY_FOLDER_NAME}/${COPY_ENTRY_FILE}`;
+    if (current.endsWith(copyFolderPath) || current.endsWith(copyFolderPath + '/')) {
+        return current.replace(/\/$/, '');
+    }
+    if (current.endsWith(`/${COPY_ROUTE_NAME}`) || current.endsWith(`/${COPY_ROUTE_NAME}/`)) {
+        return current.replace(/\/$/, '');
+    }
+    if (current.endsWith('/menu.html')) {
+        return current.replace(/\/menu\.html$/, copyFolderPath);
+    }
+    if (current.endsWith('/')) {
+        return `${current}${COPY_FOLDER_NAME}/${COPY_ENTRY_FILE}`;
+    }
+    return `${current}/${COPY_FOLDER_NAME}/${COPY_ENTRY_FILE}`;
+}
+
+function buildMenuPath() {
+    const current = window.location.pathname;
+    const copyFolderPath = `/${COPY_FOLDER_NAME}/${COPY_ENTRY_FILE}`;
+    if (current.endsWith(copyFolderPath) || current.endsWith(copyFolderPath + '/')) {
+        return current.replace(new RegExp(`${copyFolderPath}/?$`), '/menu.html');
+    }
+    if (current.endsWith(`/${COPY_ROUTE_NAME}`) || current.endsWith(`/${COPY_ROUTE_NAME}/`)) {
+        return current.replace(new RegExp(`/${COPY_ROUTE_NAME}/?$`), '/menu.html');
+    }
+    return current;
+}
+
+function updateCopyRouteInUrl(enable) {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.pathname = enable ? buildCopyPath() : buildMenuPath();
+    window.history.replaceState({}, '', url);
+}
+
+function initCopyModeFromRoute() {
+    const requested = isCopyRouteRequested();
+    const allowed = hasCopyAccess();
+    const canEnter = requested && allowed && !isMobileDevice;
+
+    if (requested && !canEnter) {
+        const pathname = window.location.pathname.toLowerCase();
+        const copyFolderPath = `/${COPY_FOLDER_NAME.toLowerCase()}/${COPY_ENTRY_FILE}`;
+        if (pathname.endsWith(copyFolderPath) || pathname.endsWith(`/${COPY_ROUTE_NAME}`) || pathname.endsWith(`/${COPY_ROUTE_NAME}/`)) {
+            window.location.href = buildMenuPath();
+        } else {
+            updateCopyRouteInUrl(false);
+        }
+        clearCopyAccess();
+        isCopyMode = false;
+        return;
+    }
+
+    isCopyMode = canEnter;
+    if (isCopyMode) {
+        updateCopyRouteInUrl(true);
+    }
+}
+
+function isSingleWeekView() {
+    return !isMobileDevice && (currentView === 'single-week' || currentView === 'week');
+}
+
+function getCopyPayload() {
+    const raw = sessionStorage.getItem(COPY_DATA_KEY) || localStorage.getItem(COPY_DATA_KEY);
+    if (!raw) {
+        return { data: {}, calendar: currentCalendar, createdAt: Date.now() };
+    }
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        return { data: {}, calendar: currentCalendar, createdAt: Date.now() };
+    }
+}
+
+function setCopyPayload(payload) {
+    sessionStorage.setItem(COPY_DATA_KEY, JSON.stringify(payload));
+    localStorage.setItem(COPY_DATA_KEY, JSON.stringify(payload));
+}
+
+function setCopyAccessAllowed() {
+    sessionStorage.setItem(COPY_SESSION_KEY, '1');
+    localStorage.setItem(COPY_ACCESS_KEY, String(Date.now()));
+}
+
+function hasCopyAccess() {
+    if (sessionStorage.getItem(COPY_SESSION_KEY) === '1') {
+        return true;
+    }
+    const raw = localStorage.getItem(COPY_ACCESS_KEY);
+    const timestamp = raw ? Number(raw) : 0;
+    if (!timestamp || Number.isNaN(timestamp)) {
+        return false;
+    }
+    if (Date.now() - timestamp > COPY_ACCESS_TTL_MS) {
+        localStorage.removeItem(COPY_ACCESS_KEY);
+        return false;
+    }
+    return true;
+}
+
+function clearCopyAccess() {
+    sessionStorage.removeItem(COPY_SESSION_KEY);
+    sessionStorage.removeItem(COPY_DATA_KEY);
+    localStorage.removeItem(COPY_ACCESS_KEY);
+    localStorage.removeItem(COPY_DATA_KEY);
+}
+
+function getFoodsArrayFromSlot(slot) {
+    const raw = slot?.dataset?.foods;
+    const hasContent = !!slot?.querySelector?.('.meal-content');
+    if (raw) {
+        if (!hasContent) {
+            return [];
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch (error) {
+            // Fallback to DOM extraction below
+        }
+    }
+    return getSlotFoods(slot);
+}
+
+function updateCopyButtonsVisibility() {
+    const createBtn = document.getElementById('createCopyBtn');
+    const applyBtn = document.getElementById('applyCopyBtn');
+    if (!createBtn || !applyBtn) {
+        return;
+    }
+
+    const shouldShow = isSingleWeekView();
+    if (!shouldShow) {
+        createBtn.style.display = 'none';
+        applyBtn.style.display = 'none';
+        return;
+    }
+
+    if (isCopyMode) {
+        createBtn.style.display = 'none';
+        applyBtn.style.display = 'inline-flex';
+    } else {
+        createBtn.style.display = 'inline-flex';
+        applyBtn.style.display = 'none';
+    }
+}
+
+function captureCopySnapshot() {
+    const slots = document.querySelectorAll('#weekTable .meal-slot');
+    const data = {};
+
+    console.log('🧩 Copy snapshot: capturing current calendar data...');
+    slots.forEach(slot => {
+        const day = slot.dataset.day;
+        const meal = slot.dataset.meal;
+        if (!day || !meal) {
+            return;
+        }
+        const key = `cal${currentCalendar}-${day}-${meal}`;
+        data[key] = getFoodsArrayFromSlot(slot);
+    });
+
+    setCopyPayload({
+        data,
+        calendar: currentCalendar,
+        createdAt: Date.now()
+    });
+    console.log(`🧩 Copy snapshot saved for calendar ${currentCalendar} (${Object.keys(data).length} slots)`);
+}
+
+function loadFromCopyStore() {
+    const payload = getCopyPayload();
+    const data = payload?.data || {};
+    const slots = document.querySelectorAll('.meal-slot');
+
+    slots.forEach(slot => {
+        const candidates = getMenuKeyCandidatesFromSlot(slot);
+        const foundKey = candidates.find(candidateKey => Object.prototype.hasOwnProperty.call(data, candidateKey));
+        if (foundKey) {
+            updateSlotWithArray(slot, data[foundKey]);
+        } else {
+            slot.innerHTML = '';
+            if (slot.dataset) {
+                slot.dataset.foods = '[]';
+            }
+        }
+    });
+
+    console.log('🧩 Copy mode loaded from snapshot');
+}
+
+function saveCopyMenuData(calendar, day, meal, foodsArray) {
+    const payload = getCopyPayload();
+    const key = `cal${calendar}-${day}-${meal}`;
+    const updated = {
+        ...payload,
+        data: {
+            ...(payload.data || {}),
+            [key]: foodsArray
+        }
+    };
+    setCopyPayload(updated);
+    console.log(`🧩 Copy slot updated: ${key} (${Array.isArray(foodsArray) ? foodsArray.length : 0} items)`);
+}
+
+function getCopyFoodsArrayForSlot(slot, mealOverride = null) {
+    const payload = getCopyPayload();
+    const data = payload?.data || {};
+    const candidates = getMenuKeyCandidatesFromSlot(slot, mealOverride);
+    const foundKey = candidates.find(candidateKey => Object.prototype.hasOwnProperty.call(data, candidateKey));
+    if (!foundKey) {
+        return [];
+    }
+    const stored = data[foundKey];
+    return Array.isArray(stored) ? stored : [];
+}
+
+function parseMenuKey(key) {
+    const match = /^cal(\d+)-([a-zñ]+)-([a-z0-9]+)$/i.exec(key);
+    if (!match) {
+        return null;
+    }
+    return {
+        calendar: Number(match[1]),
+        day: match[2],
+        meal: match[3]
+    };
+}
+
+async function createCopyCalendar() {
+    if (isMobileDevice || !isSingleWeekView()) {
+        return;
+    }
+
+    captureCopySnapshot();
+    setCopyAccessAllowed();
+    showNotification('✅ Copia creada. Ya puedes revisar y aplicar.', 'success');
+}
+
+async function applyCopyToOfficial() {
+    if (!isCopyMode || isMobileDevice || !isSingleWeekView()) {
+        return;
+    }
+
+    const payload = getCopyPayload();
+    const data = payload?.data || {};
+    const keys = Object.keys(data);
+    console.log(`🧩 Applying copy snapshot to official (${keys.length} slots)`);
+
+    for (const key of keys) {
+        const parsed = parseMenuKey(key);
+        if (!parsed) {
+            continue;
+        }
+        const foodsArray = Array.isArray(data[key]) ? data[key] : [];
+        await saveMenu(parsed.day, parsed.meal, foodsArray, parsed.calendar, null, { forceOfficial: true, silent: true });
+    }
+
+    console.log('✅ Copy snapshot applied to official calendar');
+    showNotification('✅ Copia aplicada al calendario oficial', 'success');
+}
+
+// ====================================
 // SYNC STATUS & TIMESTAMP TRACKING
 // ====================================
 let syncStatus = 'unknown'; // 'firebase', 'cache', 'offline', 'syncing'
@@ -793,6 +1084,9 @@ function updateTableHeaders() {
 
 // Verificar si el calendario actual está obsoleto y auto-desplazar
 async function checkAndAutoShift() {
+    if (isCopyMode) {
+        return;
+    }
     const lastDateStr = await getLastAccessDate();
     const today = getCurrentTestDate();
     const todayStr = formatISODate(today);
@@ -859,6 +1153,7 @@ function changeView(view) {
 
     // Recargar menú para actualizar visualización de descripciones
     loadMenu();
+    updateCopyButtonsVisibility();
 }
 
 function applyMobileView(view) {
@@ -1202,8 +1497,7 @@ function toggleCategory(header) {
 // FUNCIONES DE BASE DE DATOS
 // ====================================
 
-// Guardar menú en Firebase o localStorage
-async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOverride = null) {
+function resolveSaveTarget(day, calendarOverride = null, dateOverride = null) {
     let calToUse = calendarOverride !== null ? calendarOverride : currentCalendar;
     let dayToUse = day;
 
@@ -1220,6 +1514,19 @@ async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOver
         const { calendar, dayKey } = getCalendarAndDayFromDate(targetDate);
         calToUse = calendar;
         dayToUse = dayKey;
+    }
+
+    return { calToUse, dayToUse };
+}
+
+// Guardar menú en Firebase o localStorage
+async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOverride = null, options = {}) {
+    const { calToUse, dayToUse } = resolveSaveTarget(day, calendarOverride, dateOverride);
+    const silent = options?.silent === true;
+
+    if (isCopyMode && !options?.forceOfficial) {
+        saveCopyMenuData(calToUse, dayToUse, meal, foodsArray);
+        return;
     }
 
     const key = `cal${calToUse}-${dayToUse}-${meal}`;
@@ -1260,7 +1567,9 @@ async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOver
             syncStatus = 'cache';
             updateSyncStatusUI();
             localStorage.setItem(key, JSON.stringify(dataWithTimestamp));
-            showNotification('⚠️ Saved locally - Firebase sync failed', 'warning');
+            if (!silent) {
+                showNotification('⚠️ Saved locally - Firebase sync failed', 'warning');
+            }
         }
     } else {
         syncStatus = 'cache';
@@ -1270,6 +1579,11 @@ async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOver
 
 // Cargar menú desde Firebase o localStorage
 async function loadMenu() {
+    if (isCopyMode) {
+        loadFromCopyStore();
+        updateCopyButtonsVisibility();
+        return;
+    }
     if (isFirebaseConfigured) {
         try {
             syncStatus = 'syncing';
@@ -1523,6 +1837,10 @@ if (isFirebaseConfigured) {
             return;
         }
 
+        if (isCopyMode) {
+            return;
+        }
+
         const slots = document.querySelectorAll('.meal-slot');
         if (doc.exists) {
             const data = doc.data();
@@ -1616,6 +1934,10 @@ function updateSlotWithArray(slot, foodsArray) {
         foodsArray = [foodsArray];
     }
 
+    if (slot?.dataset) {
+        slot.dataset.foods = JSON.stringify(foodsArray);
+    }
+
     slot.innerHTML = '';
     foodsArray.forEach(food => {
         const tag = document.createElement('div');
@@ -1692,6 +2014,21 @@ async function removeFoodTag(btn) {
     const tag = btn.closest('.meal-content');
     const foodName = tag.querySelector('.meal-text').textContent;
 
+    if (isCopyMode) {
+        const { date } = getMenuKeyFromSlot(slot);
+        let foodsArray = getFoodsArrayFromSlot(slot);
+
+        foodsArray = foodsArray.filter(food => {
+            const name = typeof food === 'string' ? food : food.name;
+            return name !== foodName;
+        });
+
+        updateSlotWithArray(slot, foodsArray);
+        await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
+        console.log('🧩 Copy slot item removed');
+        return;
+    }
+
     // Leer datos actuales
     const { key, date } = getMenuKeyFromSlot(slot);
     const candidates = getMenuKeyCandidatesFromSlot(slot);
@@ -1728,7 +2065,7 @@ async function removeFoodTag(btn) {
     });
 
     // Actualizar UI
-    tag.remove();
+    updateSlotWithArray(slot, foodsArray);
 
     // Guardar
     await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
@@ -1938,6 +2275,11 @@ function createFoodItemElement(food) {
 function loadCustomFoods(customFoods) {
     const { sanitizedFoods } = sanitizeCustomFoodsMap(customFoods);
 
+    const categoryContainers = document.querySelectorAll('.category-items');
+    if (categoryContainers.length === 0) {
+        return;
+    }
+
     // Limpiar duplicados en cada categoría
     const cleanedFoods = {};
     Object.keys(sanitizedFoods).forEach(category => {
@@ -1966,7 +2308,7 @@ function loadCustomFoods(customFoods) {
     customFoodsGlobal = cleanedFoods;
 
     // Limpiar todas las categorías primero
-    document.querySelectorAll('.category-items').forEach(cat => {
+    categoryContainers.forEach(cat => {
         cat.innerHTML = '';
     });
 
@@ -1974,7 +2316,7 @@ function loadCustomFoods(customFoods) {
     Object.keys(cleanedFoods).forEach(category => {
         const categoryIndex = CATEGORY_MAP[category];
         if (categoryIndex !== undefined) {
-            const categoryContainer = document.querySelectorAll('.category-items')[categoryIndex];
+            const categoryContainer = categoryContainers[categoryIndex];
             cleanedFoods[category].forEach(food => {
                 const foodName = typeof food === 'string' ? food : food.name;
                 categoryContainer.appendChild(createFoodItemElement(food));
@@ -2001,6 +2343,9 @@ function findPlateByName(name) {
 
 // Cargar platos personalizados desde Firebase o localStorage
 async function loadCustomFoodsFromDB() {
+    if (document.querySelectorAll('.category-items').length === 0) {
+        return;
+    }
     if (isFirebaseConfigured) {
         try {
             const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
@@ -2084,11 +2429,14 @@ async function addCustomFood() {
 }
 
 // Permitir añadir con Enter
-document.getElementById('customFood').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        addCustomFood();
-    }
-});
+const customFoodInput = document.getElementById('customFood');
+if (customFoodInput) {
+    customFoodInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            addCustomFood();
+        }
+    });
+}
 
 // ====================================
 // NAVEGACIÓN DE CALENDARIOS
@@ -2496,6 +2844,19 @@ async function resetAllMeals() {
     );
 
     if (confirmed) {
+        if (isCopyMode) {
+            const slots = document.querySelectorAll('.meal-slot');
+            slots.forEach(slot => {
+                slot.innerHTML = '';
+                if (slot.dataset) {
+                    slot.dataset.foods = '[]';
+                }
+            });
+            captureCopySnapshot();
+            updateCopyButtonsVisibility();
+            return;
+        }
+
         // Activar flag para evitar que la sincronización interfiera
         isResetting = true;
 
@@ -2686,36 +3047,44 @@ async function openFoodModal(slot, replaceFoodName = null) {
     // Obtener platos ya añadidos en este slot
     const existingPlates = [];
     const candidates = getMenuKeyCandidatesFromSlot(slot, meal);
-    let menuData = candidates
-        .map(candidateKey => localStorage.getItem(candidateKey))
-        .find(value => value);
-    
-    // Intentar cargar desde Firebase si está configurado
-    if (isFirebaseConfigured) {
-        try {
-            const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
-            if (doc.exists) {
-                const data = doc.data();
-                const foundKey = candidates.find(candidateKey => data[candidateKey]);
-                if (foundKey) {
-                    menuData = JSON.stringify(data[foundKey]);
+    if (isCopyMode) {
+        const foodsArray = getCopyFoodsArrayForSlot(slot, meal);
+        foodsArray.forEach(food => {
+            const plateName = typeof food === 'string' ? food : food.name;
+            if (plateName) existingPlates.push(plateName);
+        });
+    } else {
+        let menuData = candidates
+            .map(candidateKey => localStorage.getItem(candidateKey))
+            .find(value => value);
+        
+        // Intentar cargar desde Firebase si está configurado
+        if (isFirebaseConfigured) {
+            try {
+                const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                    if (foundKey) {
+                        menuData = JSON.stringify(data[foundKey]);
+                    }
                 }
+            } catch (error) {
+                console.log('Error cargando desde Firebase, usando localStorage', error);
             }
-        } catch (error) {
-            console.log('Error cargando desde Firebase, usando localStorage', error);
         }
-    }
-    
-    if (menuData) {
-        try {
-            const parsed = JSON.parse(menuData);
-            const foodsArray = normalizeFoodsArray(parsed);
-            foodsArray.forEach(food => {
-                const plateName = typeof food === 'string' ? food : food.name;
-                if (plateName) existingPlates.push(plateName);
-            });
-        } catch (e) {
-            console.error('Error parsing existing plates:', e);
+        
+        if (menuData) {
+            try {
+                const parsed = JSON.parse(menuData);
+                const foodsArray = normalizeFoodsArray(parsed);
+                foodsArray.forEach(food => {
+                    const plateName = typeof food === 'string' ? food : food.name;
+                    if (plateName) existingPlates.push(plateName);
+                });
+            } catch (e) {
+                console.error('Error parsing existing plates:', e);
+            }
         }
     }
 
@@ -2861,7 +3230,14 @@ async function clearCurrentSlotFromModal() {
     const { date } = getMenuKeyFromSlot(slot);
     const candidates = getMenuKeyCandidatesFromSlot(slot);
 
-    slot.innerHTML = '';
+    if (isCopyMode) {
+        updateSlotWithArray(slot, []);
+        await saveMenu(slot.dataset.day, slot.dataset.meal, [], null, date);
+        closeFoodModal();
+        return;
+    }
+
+    updateSlotWithArray(slot, []);
     candidates.forEach(candidateKey => localStorage.removeItem(candidateKey));
 
     if (isFirebaseConfigured) {
@@ -2898,28 +3274,32 @@ async function selectFood(foodName) {
         const candidates = getMenuKeyCandidatesFromSlot(currentSlot);
         let foodsArray = [];
 
-        // Cargar array actual
-        if (isFirebaseConfigured) {
-            try {
-                const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    const foundKey = candidates.find(candidateKey => data[candidateKey]);
-                    if (foundKey) {
-                        foodsArray = normalizeFoodsArray(data[foundKey]);
+        if (isCopyMode) {
+            foodsArray = getCopyFoodsArrayForSlot(currentSlot);
+        } else {
+            // Cargar array actual
+            if (isFirebaseConfigured) {
+                try {
+                    const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        const foundKey = candidates.find(candidateKey => data[candidateKey]);
+                        if (foundKey) {
+                            foodsArray = normalizeFoodsArray(data[foundKey]);
+                        }
                     }
+                } catch (error) {
+                    const saved = candidates
+                        .map(candidateKey => localStorage.getItem(candidateKey))
+                        .find(value => value);
+                    if (saved) foodsArray = normalizeFoodsArray(JSON.parse(saved));
                 }
-            } catch (error) {
+            } else {
                 const saved = candidates
                     .map(candidateKey => localStorage.getItem(candidateKey))
                     .find(value => value);
                 if (saved) foodsArray = normalizeFoodsArray(JSON.parse(saved));
             }
-        } else {
-            const saved = candidates
-                .map(candidateKey => localStorage.getItem(candidateKey))
-                .find(value => value);
-            if (saved) foodsArray = normalizeFoodsArray(JSON.parse(saved));
         }
 
         // Verificar si el plato ya está en el slot
@@ -3070,6 +3450,9 @@ function setupSlotClickHandlers() {
 // Inicializar controles de vista según el dispositivo
 function initViewControls() {
     const viewControls = document.getElementById('viewControls');
+    if (!viewControls) {
+        return;
+    }
     const controlsHTML = isMobileDevice
         ? `
             <button class="view-btn" data-view="day" onclick="changeView('day')">Hoy</button>
@@ -3089,6 +3472,7 @@ function initViewControls() {
 }
 
 // Cargar datos al iniciar
+initCopyModeFromRoute();
 initThemeMode();
 initViewControls();
 updateTableHeaders();
@@ -3096,6 +3480,7 @@ checkAndAutoShift();
 loadMenu();
 loadCustomFoodsFromDB();
 updateCalendarNavigation();
+updateCopyButtonsVisibility();
 
 // Inicializar eventos de click DESPUÉS de que todo esté cargado
 setupSlotClickHandlers();

@@ -14,21 +14,11 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     
-    <link rel="stylesheet" href="menu.css">
+    <link rel="stylesheet" href="../menu.css">
 </head>
 <body>
-    <div class="theme-switcher" aria-label="Selector de tema">
-        <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
-        <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
-    </div>
-
-    <!-- Botón para gestionar platos -->
-    <button class="manage-plates-btn" onclick="window.location.href='gestion-platos.html'">🍽️ Gestionar Platos</button>
-
     <div class="header">
         <h1>🍴 Menú Semanal 🍴</h1>
-        <p id="headerInstructions">Haz clic en las casillas para añadir platos</p>
-        <div id="sync-status" class="sync-status" title="Estado de sincronización">⚪ Checking connection...</div>
     </div>
 
     <!-- Modal para seleccionar comidas en móvil -->
@@ -65,66 +55,11 @@
     </div>
 
     <div class="main-container">
-        <div class="sidebar">
-            <h2>📋 Banco de Comidas</h2>
-            
-            <div class="food-category">
-                <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🥗 Primeros Platos</div>
-                    <span class="category-arrow">▼</span>
-                </div>
-                <div class="category-items collapsed" data-category="primeros">
-                </div>
-            </div>
-
-            <div class="food-category">
-                <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🍗 Segundos Platos</div>
-                    <span class="category-arrow">▼</span>
-                </div>
-                <div class="category-items collapsed" data-category="segundos">
-                </div>
-            </div>
-
-            <div class="food-category">
-                <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🍮 Postres</div>
-                    <span class="category-arrow">▼</span>
-                </div>
-                <div class="category-items collapsed" data-category="postres">
-                </div>
-            </div>
-
-            <div class="food-category">
-                <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🌙 Cenas Ligeras</div>
-                    <span class="category-arrow">▼</span>
-                </div>
-                <div class="category-items collapsed" data-category="cenas">
-                </div>
-            </div>
-
-            <div class="add-custom">
-                <h3>➕ Añadir Nuevo Plato</h3>
-                <select id="categorySelect" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; font-size: 0.9em;">
-                    <option value="primeros">🥗 Primeros Platos</option>
-                    <option value="segundos">🍗 Segundos Platos</option>
-                    <option value="postres">🍮 Postres</option>
-                    <option value="cenas">🌙 Cenas Ligeras</option>
-                </select>
-                <input type="text" id="customFood" placeholder="Escribe el nombre del plato...">
-                <button onclick="addCustomFood()">Añadir Plato</button>
-            </div>
-        </div>
-
         <div class="table-container">
-            <!-- Controles de vista -->
-            <div class="view-controls" id="viewControls">
-                <span class="view-controls-label">Vista:</span>
-                <!-- Botones se generarán dinámicamente según el dispositivo -->
+            <div class="calendar-action-buttons" style="justify-content: center; margin-bottom: 16px;">
+                <button class="copy-btn" id="applyCopyBtn" onclick="applyCopyToOfficial()" title="Aplicar copia al calendario oficial" style="display: inline-flex;">✅ Aplicar</button>
             </div>
 
-            <!-- Navegación de calendarios -->
             <div class="calendar-navigation">
                 <div class="calendar-nav-left">
                     <button class="nav-arrow" onclick="prevCalendar()" id="prevBtn">‹</button>
@@ -136,12 +71,6 @@
                     <div class="calendar-indicator" onclick="goToCalendar(2)">2</div>
                     <div class="calendar-indicator" onclick="goToCalendar(3)">3</div>
                     <div class="calendar-indicator" onclick="goToCalendar(4)">4</div>
-                </div>
-                <div class="calendar-action-buttons">
-                    <button class="pdf-btn" onclick="downloadMenuPDF()" title="Descargar menú en PDF horizontal">📄 PDF</button>
-                    <button class="copy-btn" id="createCopyBtn" onclick="createCopyCalendar()" title="Crear copia del calendario actual">🧩 Copia</button>
-                    <button class="copy-btn" id="applyCopyBtn" onclick="applyCopyToOfficial()" title="Aplicar copia al calendario oficial">✅ Aplicar</button>
-                    <button class="reset-btn" onclick="resetAllMeals()" title="Vacía solo el calendario actual">🔄 Reiniciar</button>
                 </div>
             </div>
 
@@ -225,48 +154,9 @@
                 </table>
             </div>
 
-            <!-- Vista de 4 semanas (solo desktop) -->
-            <div class="four-week-view" id="fourWeekView">
-                <!-- Se generará dinámicamente -->
-            </div>
         </div>
     </div>
 
-    <script src="menu.js"></script>
-
-    <!--
-    ====================================
-    📱 CÓMO CONFIGURAR FIREBASE PARA SINCRONIZACIÓN MULTI-DISPOSITIVO
-    ====================================
-    
-    PASO 1: Crear un proyecto Firebase
-    1. Ve a https://console.firebase.google.com/
-    2. Click en "Agregar proyecto"
-    3. Dale un nombre (ej: "menu-semanal")
-    4. Desactiva Google Analytics (opcional)
-    5. Click en "Crear proyecto"
-    
-    PASO 2: Registrar tu aplicación web
-    1. En la página principal, click en el ícono "</>" (Web)
-    2. Dale un nombre a tu app (ej: "Menu Web")
-    3. Click en "Registrar app"
-    4. Copia el objeto "firebaseConfig" que te muestra
-    
-    PASO 3: Configurar Firestore
-    1. En el menú izquierdo, click en "Firestore Database"
-    2. Click en "Crear base de datos"
-    3. Selecciona "Comenzar en modo de prueba" (para desarrollo)
-    4. Elige una ubicación cercana
-    5. Click en "Habilitar"
-    
-    PASO 4: Pegar tu configuración
-    1. Reemplaza el objeto firebaseConfig en este archivo (líneas 379-385)
-    2. Pega los valores que copiaste en el PASO 2
-    
-    ¡Listo! Ahora tus cambios se sincronizarán automáticamente entre todos tus dispositivos.
-    
-    NOTA: El modo de prueba expira en 30 días. Para producción, configura reglas de seguridad.
-    -->
-
+    <script src="../menu.js"></script>
 </body>
 </html>
