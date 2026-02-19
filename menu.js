@@ -3115,6 +3115,7 @@ async function openFoodModal(slot, replaceFoodName = null) {
     let hasPlates = false;
     const availableCategoryKeys = [];
     const hasMultipleCategories = categoriesToShow.length > 1;
+    const keepCategoriesExpanded = meal === 'cena1';
 
     categoriesToShow.forEach((category, index) => {
         const plates = customFoodsGlobal[category] || [];
@@ -3158,14 +3159,21 @@ async function openFoodModal(slot, replaceFoodName = null) {
                 categoryTitle.style.marginBottom = '8px';
                 categoryTitle.style.fontWeight = '600';
                 
-                // Empezar colapsado
-                categoryDiv.classList.add('collapsed');
+                // Empezar colapsado salvo en cena1
+                if (!keepCategoriesExpanded) {
+                    categoryDiv.classList.add('collapsed');
+                }
                 
                 categoryTitle.onclick = function() {
                     const isCollapsed = categoryDiv.classList.toggle('collapsed');
                     const arrow = categoryTitle.querySelector('.category-arrow');
                     arrow.textContent = isCollapsed ? '▼' : '▲';
                 };
+
+                if (keepCategoriesExpanded) {
+                    const arrow = categoryTitle.querySelector('.category-arrow');
+                    arrow.textContent = '▲';
+                }
 
                 categoryDiv.appendChild(categoryTitle);
             }
