@@ -709,7 +709,7 @@ body {
     background: var(--danger-hover);
 }
 
-.category-option {
+    box-shadow: 0 4px 8px rgba(63, 79, 111, 0.35);
     background: var(--category-bg);
     border-color: var(--category-border);
 }
