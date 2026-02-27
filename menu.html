@@ -64,6 +64,8 @@
         </div>
     </div>
 
+    <!-- (mover a) eliminado -->
+
     <div class="main-container">
         <div class="sidebar">
             <h2>📋 Banco de Comidas</h2>
@@ -92,6 +94,9 @@
                     <span class="category-arrow">▼</span>
                 </div>
                 <div class="category-items collapsed" data-category="postres">
+                    <div class="category-controls" style="padding:8px 6px; display:flex; gap:6px; align-items:center;">
+                        <button id="randomizeDessertsBtn" class="small-btn" onclick="randomizeDesserts()" title="Asignar postres aleatorios">🎲 Aleatorizar</button>
+                    </div>
                 </div>
             </div>
 
@@ -142,6 +147,7 @@
                     <button class="copy-btn" id="createCopyBtn" onclick="createCopyCalendar()" title="Crear copia del calendario actual">🧩 Copia</button>
                     <button class="copy-btn" id="applyCopyBtn" onclick="applyCopyToOfficial()" title="Aplicar copia al calendario oficial">✅ Aplicar</button>
                     <button class="reset-btn" onclick="resetAllMeals()" title="Vacía solo el calendario actual">🔄 Reiniciar</button>
+                    
                 </div>
             </div>
 

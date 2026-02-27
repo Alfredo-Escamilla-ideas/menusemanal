@@ -1,6 +1,8 @@
 // ====================================
 // CONFIGURACIÓN DE FIREBASE
 // ====================================
+// (funcionalidad de desplazamiento +1/-1 eliminada por solicitud del usuario)
+
 const firebaseConfig = {
     apiKey: "AIzaSyDPxRwlqftP-RoeJILhw_PsM3fsqCFIfqo",
     authDomain: "comidas-33dba.firebaseapp.com",
@@ -44,6 +46,7 @@ const CATEGORY_MAP = {
 let isResetting = false; // Flag para evitar conflictos durante el reset
 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
 const THEME_STORAGE_KEY = 'menu-theme-mode';
+// Move modal state (removed)
 
 // ====================================
 // COPY MODE (RUTA /copia)
@@ -1467,18 +1470,20 @@ function setupDragAndDropForFourWeeks() {
 
                 // Buscar el plato completo con descripción
                 const fullPlate = findPlateByName(draggedFood);
-                foodsArray.push(fullPlate);
+                const incomingKey = foodNameKey(fullPlate.name);
+                const exists = (Array.isArray(foodsArray) ? foodsArray : [])
+                    .some(f => foodNameKey(typeof f === 'string' ? f : f.name) === incomingKey);
 
-                // Actualizar UI
-                updateSlotWithArray(slot, foodsArray);
-
-                // Guardar
-                if (isFirebaseConfigured) {
-                    await db.collection('menus').doc(MENU_DOC_ID).set({
-                        [key]: foodsArray
-                    }, { merge: true });
+                if (exists) {
+                    showNotification('Ya existe este plato en ese día', 'info');
                 } else {
-                    localStorage.setItem(key, JSON.stringify(foodsArray));
+                    foodsArray.push(fullPlate);
+
+                    // Actualizar UI
+                    updateSlotWithArray(slot, foodsArray);
+
+                    // Guardar usando saveMenu para mantener formato y timestamps
+                    await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, Number(cal), null);
                 }
                 draggedFood = null;
             }
@@ -1523,6 +1528,25 @@ function resolveSaveTarget(day, calendarOverride = null, dateOverride = null) {
 async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOverride = null, options = {}) {
     const { calToUse, dayToUse } = resolveSaveTarget(day, calendarOverride, dateOverride);
     const silent = options?.silent === true;
+
+    // Normalizar y eliminar duplicados por nombre dentro del mismo día
+    if (!Array.isArray(foodsArray)) {
+        foodsArray = [foodsArray];
+    }
+    const seen = new Map();
+    const deduped = [];
+    foodsArray.forEach(item => {
+        const name = typeof item === 'string' ? item : (item?.name || '');
+        const key = foodNameKey(name);
+        if (!seen.has(key)) {
+            seen.set(key, true);
+            deduped.push(item);
+        }
+    });
+    if (deduped.length !== foodsArray.length) {
+        foodsArray = deduped;
+        if (!silent) showNotification('Se eliminaron duplicados en el mismo día', 'info');
+    }
 
     if (isCopyMode && !options?.forceOfficial) {
         saveCopyMenuData(calToUse, dayToUse, meal, foodsArray);
@@ -1968,8 +1992,7 @@ function updateSlotWithArray(slot, foodsArray) {
             const recipeContent = link
                 ? `<a href="${link}" target="_blank" class="meal-description-link daily-recipe-link" title="Abrir receta" onclick="event.stopPropagation();">🔗</a>`
                 : `<span class="daily-recipe-placeholder">—</span>`;
-
-            tag.innerHTML = `
+                tag.innerHTML = `
                 <div class="daily-name-block">
                     <span class="meal-text daily-name-text">${foodName}</span>
                 </div>
@@ -2140,13 +2163,19 @@ document.querySelectorAll('.meal-slot').forEach(slot => {
         slot.classList.remove('drag-over');
 
         if (draggedFood) {
-            // Añadir nueva comida al slot
+            // Añadir nueva comida al slot (evitar duplicados por nombre)
             const foodsArray = getSlotFoods(slot);
-            foodsArray.push(draggedFood);
+            const incomingKey = foodNameKey(draggedFood);
+            const exists = foodsArray.some(f => foodNameKey(typeof f === 'string' ? f : f.name) === incomingKey);
             const { date } = getStorageContextFromSlot(slot);
 
-            updateSlotWithArray(slot, foodsArray);
-            await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
+            if (exists) {
+                showNotification('Ya existe este plato en este día', 'info');
+            } else {
+                foodsArray.push(draggedFood);
+                updateSlotWithArray(slot, foodsArray);
+                await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
+            }
             draggedFood = null;
         }
     });
@@ -2308,8 +2337,14 @@ function loadCustomFoods(customFoods) {
     customFoodsGlobal = cleanedFoods;
 
     // Limpiar todas las categorías primero
+    // -> Solo eliminar los elementos de tipo `food-item` (platos) para preservar controles añadidos manualmente
     categoryContainers.forEach(cat => {
-        cat.innerHTML = '';
+        const children = Array.from(cat.children);
+        children.forEach(child => {
+            if (child.classList && child.classList.contains('food-item')) {
+                child.remove();
+            }
+        });
     });
 
     // Cargar platos en sus respectivas categorías
@@ -2321,6 +2356,17 @@ function loadCustomFoods(customFoods) {
                 const foodName = typeof food === 'string' ? food : food.name;
                 categoryContainer.appendChild(createFoodItemElement(food));
             });
+        }
+    });
+
+    // Logs para depuración: comprobar que los controles personalizados (ej. botón Aleatorizar) existen
+    categoryContainers.forEach((cat, idx) => {
+        const catName = Object.keys(CATEGORY_MAP).find(k => CATEGORY_MAP[k] === idx) || `idx:${idx}`;
+        const controls = cat.querySelector('.category-controls');
+        const randomBtn = cat.querySelector('#randomizeDessertsBtn');
+        console.log(`loadCustomFoods: category='${catName}', foodItems=${cat.querySelectorAll('.food-item').length}, hasControls=${!!controls}, randomizeBtn=${!!randomBtn}`);
+        if (controls && randomBtn) {
+            console.log('loadCustomFoods: Found randomize button in', catName, randomBtn);
         }
     });
 }
@@ -2340,6 +2386,13 @@ function findPlateByName(name) {
     // Si no se encuentra, devolver objeto con solo el nombre
     return { name: name, description: '' };
 }
+
+// Normalizar nombre para comparación (clave simple)
+function foodNameKey(name) {
+    return normalizeFoodName(String(name || '')).toLocaleLowerCase('es');
+}
+
+// (mover a) funcionalidad eliminada — eliminar y recrear menú es la alternativa recomendada
 
 // Cargar platos personalizados desde Firebase o localStorage
 async function loadCustomFoodsFromDB() {
@@ -2378,6 +2431,131 @@ function loadCustomFoodsFromLocal() {
     }
 
     loadCustomFoods(sanitizedFoods);
+}
+
+// Log comprobatorio al inicio para depuración rápida
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('menu.js: DOMContentLoaded - checking randomize button...');
+    const btn = document.getElementById('randomizeDessertsBtn');
+    console.log('menu.js: randomizeDessertsBtn exists:', !!btn, btn);
+
+    // Hacer clicables los encabezados de fila 'Postre' en la tabla para activar aleatorización
+    try {
+        const dayHeaderTexts = Array.from(document.querySelectorAll('#weekTable .day-header'));
+        dayHeaderTexts.forEach(td => {
+            const textEl = td.querySelector('.text');
+            if (textEl && textEl.textContent && textEl.textContent.trim().toLowerCase().includes('postre')) {
+                td.style.cursor = 'pointer';
+                td.title = 'Click para aleatorizar postres';
+                td.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('menu.js: Postre header clicked - invoking randomizeDesserts');
+                    randomizeDesserts();
+                });
+                console.log('menu.js: made Postre header clickable', td);
+            }
+        });
+    } catch (e) {
+        console.warn('menu.js: error attaching clickable postre headers', e);
+    }
+});
+
+// Asignar postres aleatorios a los slots de postre del calendario actual
+async function randomizeDesserts() {
+    if (isCopyMode) {
+        showNotification('No disponible en modo copia', 'error');
+        return;
+    }
+
+    const desserts = Array.isArray(customFoodsGlobal.postres) ? customFoodsGlobal.postres.map(d => (typeof d === 'string' ? d : d.name)) : [];
+    if (!desserts || desserts.length === 0) {
+        showNotification('No hay postres en el diccionario', 'error');
+        return;
+    }
+
+    // Seleccionar slots de postre (comida y cena) y agrupar por día
+    const postreSlots = Array.from(document.querySelectorAll('#weekTable .meal-slot[data-meal="postre"]'));
+    const cenaPostreSlots = Array.from(document.querySelectorAll('#weekTable .meal-slot[data-meal="cenaPostre"]'));
+
+    const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+    const dayGroups = days.map(dayName => {
+        const group = [];
+        const p = postreSlots.find(s => s.dataset.day === dayName);
+        const c = cenaPostreSlots.find(s => s.dataset.day === dayName);
+        if (p) group.push(p);
+        if (c) group.push(c);
+        return { day: dayName, slots: group };
+    }).filter(g => g.slots.length > 0);
+
+    if (dayGroups.length === 0) {
+        showNotification('No se encontraron casillas de postre', 'error');
+        return;
+    }
+
+    function shuffle(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    // Deck que iremos consumiendo; cuando se agote se remezcla
+    let deck = shuffle(desserts);
+    const assignments = [];
+    let unavoidableDuplicates = false;
+
+    console.log('randomizeDesserts: desserts count=', desserts.length, desserts);
+    console.log('randomizeDesserts: dayGroups count=', dayGroups.length, dayGroups.map(g => ({ day: g.day, slots: g.slots.length })));
+    console.log('randomizeDesserts: initial deck=', deck);
+
+    for (const group of dayGroups) {
+        const assignedForDay = [];
+        for (let i = 0; i < group.slots.length; i++) {
+            if (deck.length === 0) deck = shuffle(desserts);
+
+            // Intentar sacar un elemento distinto de los ya asignados en este día
+            let candidate = deck.pop();
+            console.debug(`randomizeDesserts: day=${group.day} popped candidate=${candidate}`);
+            if (assignedForDay.includes(candidate)) {
+                // Buscar en deck otro candidato diferente
+                const idx = deck.findIndex(x => !assignedForDay.includes(x));
+                if (idx !== -1) {
+                    candidate = deck.splice(idx, 1)[0];
+                    console.debug(`randomizeDesserts: day=${group.day} replaced with candidate=${candidate}`);
+                } else {
+                    // No queda alternativa: usar candidate (duplicado inevitable)
+                    unavoidableDuplicates = true;
+                }
+            }
+
+            assignedForDay.push(candidate);
+            assignments.push({ slot: group.slots[i], value: candidate });
+            console.debug(`randomizeDesserts: assigned day=${group.day} slot=${group.slots[i].dataset.meal} -> ${candidate}`);
+        }
+    }
+
+    // Aplicar asignaciones (guardar silent y actualizar DOM)
+    console.log('randomizeDesserts: total assignments=', assignments.length, assignments.map(a => ({ day: a.slot.dataset.day, meal: a.slot.dataset.meal, value: a.value })));
+    for (const a of assignments) {
+        const slot = a.slot;
+        const day = slot.dataset.day;
+        const meal = slot.dataset.meal;
+        try {
+            await saveMenu(day, meal, a.value, currentCalendar, null, { silent: true });
+            updateSlotWithArray(slot, [a.value]);
+            console.log(`randomizeDesserts: saved ${a.value} -> cal${currentCalendar}-${day}-${meal}`);
+        } catch (err) {
+            console.error('Error asignando postre aleatorio:', err);
+        }
+    }
+
+    if (unavoidableDuplicates) {
+        showNotification('⚠️ Asignación completada, pero hubo que repetir postres por falta de variedad', 'warning');
+    } else {
+        showNotification('✅ Postres aleatorios asignados (sin repeticiones por día)', 'success');
+    }
 }
 
 // Añadir comida personalizada
