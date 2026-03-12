@@ -32,8 +32,15 @@ body {
     background: var(--bg-main);
     color: var(--text-main);
     min-height: 100vh;
-    padding: 15px;
+    padding: 0;
     transition: background 0.3s ease, color 0.3s ease;
+    user-select: none;
+    cursor: default;
+}
+
+input, textarea, select {
+    user-select: text;
+    cursor: text;
 }
 
 @media (max-width: 768px) {
@@ -105,9 +112,8 @@ body.theme-dark {
 .header {
     text-align: center;
     color: #333;
-    margin-bottom: 15px;
-    position: relative;
-    padding-top: 64px;
+    margin-bottom: 10px;
+    padding: 10px 15px 0;
 }
 
 .sync-status {
@@ -278,6 +284,7 @@ body.theme-dark .manage-plates-btn {
 .main-container {
     max-width: 1400px;
     margin: 0 auto;
+    padding: 0 15px 15px;
 }
 
 .sidebar {
@@ -1950,4 +1957,241 @@ body.daily-view .meal-content .meal-text {
 
 .force-reload-btn:active {
     transform: translateY(0) scale(0.98) !important;
+}
+
+/* ====================================
+   AUTH WIDGET
+   ==================================== */
+
+.auth-widget {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 1300;
+}
+
+.auth-login-btn {
+    display: block;
+    background: var(--control-active-bg);
+    color: var(--control-active-text);
+    border: 1px solid var(--control-active-border);
+    padding: 10px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.88em;
+    font-family: inherit;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(63, 79, 111, 0.25);
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.auth-login-btn:hover {
+    background: var(--control-active-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(63, 79, 111, 0.35);
+}
+
+.auth-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--control-active-bg);
+    color: var(--control-active-text);
+    border: 1px solid var(--control-active-border);
+    padding: 7px 12px 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.88em;
+    font-family: inherit;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(63, 79, 111, 0.25);
+    transition: all 0.2s ease;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.auth-trigger:hover {
+    background: var(--control-active-hover);
+    box-shadow: 0 4px 12px rgba(63, 79, 111, 0.35);
+}
+
+.auth-trigger.active {
+    background: #1a4731;
+    color: #6ee7b7;
+    border-color: #065f46;
+}
+
+.auth-trigger.active:hover { background: #1e5438; }
+
+.auth-trigger.no-access {
+    background: #3b1a0e;
+    color: #fca07a;
+    border-color: #7c2d12;
+}
+
+.auth-trigger.no-access:hover { background: #4a200f; }
+
+.auth-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+}
+
+.auth-avatar-ph { font-size: 1.1em; }
+
+.auth-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.auth-chevron {
+    font-size: 0.75em;
+    opacity: 0.7;
+}
+
+.auth-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--surface-main);
+    border: 1px solid var(--border-main);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    min-width: 200px;
+    z-index: 1400;
+    animation: authDropIn 0.15s ease;
+}
+
+.auth-dropdown.hidden { display: none; }
+
+@keyframes authDropIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.auth-dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.88em;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    color: var(--text-main);
+    text-decoration: none;
+    border: none;
+    background: none;
+    box-sizing: border-box;
+}
+
+.auth-dropdown-item:hover { background: var(--surface-soft); }
+
+.auth-dropdown-admin { border-bottom: 1px solid var(--border-main); }
+
+.auth-dropdown-logout { color: #dc2626; }
+
+.auth-dropdown-logout:hover {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+body.theme-dark .auth-dropdown-logout:hover {
+    background: #3b1111;
+    color: #fca5a5;
+}
+
+@media (max-width: 768px) {
+    .auth-widget { top: 60px; right: 10px; }
+    .auth-name { max-width: 80px; }
+}
+
+/* ====================================
+   TOPBAR (barra de navegación superior)
+   ==================================== */
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 20px;
+    height: 56px;
+    background: var(--surface-main);
+    border-bottom: 1px solid var(--border-main);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.07);
+}
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.topbar-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.topbar-nav-btn {
+    background: transparent;
+    color: var(--text-main);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-family: inherit;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.topbar-nav-btn:hover {
+    background: var(--surface-soft);
+    transform: translateY(-1px);
+}
+
+/* Dentro del topbar: overrides de estilos flotantes */
+.topbar .theme-toggle-btn {
+    font-size: 0.85em;
+    padding: 5px 9px;
+}
+
+.topbar .auth-widget {
+    position: relative;
+    top: auto;
+    right: auto;
+    z-index: auto;
+}
+
+@media (max-width: 768px) {
+    .topbar { padding: 0 10px; gap: 6px; height: 52px; }
+    .topbar-center { display: none; }
+    .topbar-nav-btn { padding: 7px 10px; font-size: 0.78em; }
+    .auth-name { max-width: 60px; }
 }
