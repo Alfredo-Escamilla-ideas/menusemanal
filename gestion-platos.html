@@ -11,29 +11,33 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
     <link rel="stylesheet" href="gestion-platos.css">
 </head>
 <body>
-    <div class="theme-switcher" aria-label="Selector de tema">
-        <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
-        <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
-    </div>
-
-    <button class="back-button" onclick="window.location.href='menu.html'">⬅ Volver al Menú</button>
+    <nav class="topbar">
+        <div class="topbar-left">
+            <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
+            <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+        </div>
+        <div class="topbar-center">🍽️ Gestión de Platos</div>
+        <div class="topbar-right">
+            <button class="topbar-nav-btn" onclick="window.location.href='menu.html'">⬅ Volver al Menú</button>
+            <div id="authWidget" class="auth-widget"></div>
+        </div>
+    </nav>
 
     <div class="container">
-        <div class="header">
-            <h1>🍽️ Gestión de Platos</h1>
-            <p>Crea y gestiona tus platos personalizados</p>
-        </div>
-
         <!-- Formulario para añadir platos -->
         <div class="add-form">
             <h2>➕ Añadir Nuevo Plato</h2>
             <div class="form-group">
                 <label for="plateName">Nombre del Plato *</label>
-                <input type="text" id="plateName" placeholder="Ej: Paella valenciana">
+                <div class="input-with-action">
+                    <input type="text" id="plateName" placeholder="Ej: Paella valenciana">
+                    <button type="button" class="search-recipe-btn" onclick="searchInDirectoAlPaladar()" title="Buscar receta en DirectoAlPaladar">🔍 Buscar receta</button>
+                </div>
             </div>
             <div class="form-group">
                 <label>Categorías *</label>
@@ -88,7 +92,10 @@
             <div class="custom-modal-body">
                 <div class="form-group">
                     <label for="editPlateName">Nombre del Plato *</label>
-                    <input type="text" id="editPlateName" placeholder="Nombre del plato">
+                    <div class="input-with-action">
+                        <input type="text" id="editPlateName" placeholder="Nombre del plato">
+                        <button type="button" class="search-recipe-btn" onclick="searchInDirectoAlPaladar('edit')" title="Buscar receta en DirectoAlPaladar">🔍 Buscar receta</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Categorías *</label>
