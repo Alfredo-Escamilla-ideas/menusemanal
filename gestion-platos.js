@@ -16,10 +16,157 @@ try {
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
+        try {
+            // Enable IndexedDB persistence so data is kept offline and synced
+            firebase.firestore().enablePersistence({ synchronizeTabs: true });
+            console.log('✅ Firestore persistence enabled');
+        } catch (err) {
+            console.warn('⚠️ Firestore persistence not enabled:', err && err.code ? err.code : err);
+        }
         console.log("✅ Firebase conectado correctamente");
     }
 } catch (error) {
     console.log("⚠️ Error al conectar Firebase - Usando localStorage", error);
+}
+
+// ====================================
+// AUTENTICACIÓN
+// ====================================
+let auth = null;
+let currentUser = null;
+let isEditorUser = false;
+let authDropdownOpen = false;
+const ADMIN_EMAIL = 'daniel.escamilla.bq@gmail.com';
+
+try {
+    auth = firebase.auth();
+} catch (e) {
+    console.warn('⚠️ Auth no disponible', e);
+}
+
+// Mostrar botón de entrada inmediatamente (antes de que Firebase responda)
+document.addEventListener('DOMContentLoaded', () => renderAuthWidget(null, false));
+
+function handleAuthClick() {
+    if (!auth) return;
+    if (!currentUser) {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider).catch(err => {
+            console.warn('Login cancelado o error', err);
+        });
+    } else {
+        toggleAuthDropdown();
+    }
+}
+
+function logoutAuth() {
+    if (auth) auth.signOut();
+    closeAuthDropdown();
+}
+
+function toggleAuthDropdown() {
+    authDropdownOpen = !authDropdownOpen;
+    const dropdown = document.getElementById('authDropdown');
+    if (dropdown) dropdown.classList.toggle('hidden', !authDropdownOpen);
+}
+
+function closeAuthDropdown() {
+    authDropdownOpen = false;
+    const dropdown = document.getElementById('authDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#authWidget')) closeAuthDropdown();
+});
+
+async function checkIfEditor(user) {
+    if (!user || !db) return false;
+    try {
+        const doc = await db.collection('editors').doc('allowed').get();
+        if (!doc.exists) return false;
+        const emails = doc.data().emails || [];
+        return emails.map(e => e.toLowerCase()).includes(user.email.toLowerCase());
+    } catch (e) {
+        return false;
+    }
+}
+
+function renderAuthWidget(user, isEditor) {
+    const widget = document.getElementById('authWidget');
+    if (!widget) return;
+
+    if (!user) {
+        widget.innerHTML = `<div class="auth-login-btn" onclick="handleAuthClick()" title="Iniciar sesión para editar">🔑 Entrar</div>`;
+        return;
+    }
+
+    const isAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const name = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
+    const avatar = user.photoURL
+        ? `<img class="auth-avatar" src="${user.photoURL}" alt="">`
+        : `<span class="auth-avatar-ph">👤</span>`;
+    const statusClass = isEditor ? 'active' : 'no-access';
+    const adminLink = isAdmin
+        ? `<a class="auth-dropdown-item auth-dropdown-admin" href="admin.html">⚙️ Gestionar editores</a>`
+        : '';
+
+    widget.innerHTML = `
+        <div class="auth-trigger ${statusClass}" onclick="handleAuthClick()"
+             title="${isEditor ? 'Editor activo: ' + user.email : user.email + ' — sin permiso de edición'}">
+            ${avatar}
+            <span class="auth-name">${name}</span>
+            <span class="auth-chevron">▾</span>
+        </div>
+        <div id="authDropdown" class="auth-dropdown hidden">
+            ${adminLink}
+            <button class="auth-dropdown-item auth-dropdown-logout" onclick="logoutAuth()">🚪 Cerrar sesión</button>
+        </div>`;
+}
+
+function isPermissionDeniedError(error) {
+    return error && (
+        error.code === 'permission-denied' ||
+        (error.message && error.message.toLowerCase().includes('permission'))
+    );
+}
+
+function handleFirebaseError(error) {
+    if (isPermissionDeniedError(error)) {
+        if (!currentUser) {
+            showNotification('🔒 Inicia sesión para poder editar los platos', 'warning');
+        } else {
+            showNotification('⛔ Tu cuenta no tiene permiso de edición', 'error');
+        }
+        return true;
+    }
+    return false;
+}
+
+if (auth) {
+    auth.onAuthStateChanged(async (user) => {
+        currentUser = user;
+        if (user) {
+            isEditorUser = await checkIfEditor(user);
+        } else {
+            isEditorUser = false;
+        }
+        renderAuthWidget(user, isEditorUser);
+    });
+}
+
+// ====================================
+// BUSCADOR DIRECTOALPALADAR
+// ====================================
+function searchInDirectoAlPaladar(context = 'add') {
+    const inputId = context === 'edit' ? 'editPlateName' : 'plateName';
+    const name = document.getElementById(inputId)?.value?.trim();
+    if (!name) {
+        showNotification('Escribe el nombre del plato primero', 'warning');
+        return;
+    }
+    const query = encodeURIComponent(name.toLowerCase()).replace(/%20/g, '+');
+    window.open(`https://www.directoalpaladar.com/?s=${query}`, '_blank', 'noopener');
 }
 
 const CUSTOM_FOODS_DOC_ID = 'custom-foods';
@@ -498,7 +645,25 @@ async function deletePlate(category, index) {
     const confirmed = await showConfirmModal(`¿Estás seguro de eliminar "${name}"?`, 'Eliminar plato');
     if (!confirmed) return;
 
-    customFoods[category].splice(index, 1);
+    // Soft-delete: mark the item as deleted instead of removing it
+    try {
+        if (!customFoods[category][index]) {
+            // fallback: remove if not found
+            customFoods[category].splice(index, 1);
+        } else {
+            const item = customFoods[category][index];
+            if (typeof item === 'object' && item !== null) {
+                item.deleted = true;
+            } else {
+                // convert simple string into an object with deleted flag
+                customFoods[category][index] = { name: item, deleted: true };
+            }
+        }
+    } catch (e) {
+        // fallback to removal
+        customFoods[category].splice(index, 1);
+    }
+
     await savePlates(customFoods);
     renderPlates(customFoods);
 }
