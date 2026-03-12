@@ -29,6 +29,134 @@ try {
     console.log("⚠️ Error al conectar Firebase - Usando localStorage", error);
 }
 
+// ====================================
+// AUTENTICACIÓN
+// ====================================
+let auth = null;
+let currentUser = null;
+let isEditorUser = false;
+let authDropdownOpen = false;
+const ADMIN_EMAIL = 'daniel.escamilla.bq@gmail.com';
+
+if (isFirebaseConfigured) {
+    try {
+        auth = firebase.auth();
+    } catch (e) {
+        console.warn('⚠️ Auth no disponible', e);
+    }
+}
+
+// Mostrar botón de entrada inmediatamente (antes de que Firebase responda)
+document.addEventListener('DOMContentLoaded', () => renderAuthWidget(null, false));
+
+function handleAuthClick() {
+    if (!auth) return;
+    if (!currentUser) {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider).catch(err => {
+            console.warn('Login cancelado o error', err);
+        });
+    } else {
+        toggleAuthDropdown();
+    }
+}
+
+function logoutAuth() {
+    if (auth) auth.signOut();
+    closeAuthDropdown();
+}
+
+function toggleAuthDropdown() {
+    authDropdownOpen = !authDropdownOpen;
+    const dropdown = document.getElementById('authDropdown');
+    if (dropdown) dropdown.classList.toggle('hidden', !authDropdownOpen);
+}
+
+function closeAuthDropdown() {
+    authDropdownOpen = false;
+    const dropdown = document.getElementById('authDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#authWidget')) closeAuthDropdown();
+});
+
+async function checkIfEditor(user) {
+    if (!user || !db) return false;
+    try {
+        const doc = await db.collection('editors').doc('allowed').get();
+        if (!doc.exists) return false;
+        const emails = doc.data().emails || [];
+        return emails.map(e => e.toLowerCase()).includes(user.email.toLowerCase());
+    } catch (e) {
+        return false;
+    }
+}
+
+function renderAuthWidget(user, isEditor) {
+    const widget = document.getElementById('authWidget');
+    if (!widget) return;
+
+    if (!user) {
+        widget.innerHTML = `<div class="auth-login-btn" onclick="handleAuthClick()" title="Iniciar sesión para editar">🔑 Entrar</div>`;
+        return;
+    }
+
+    const isAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const name = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
+    const avatar = user.photoURL
+        ? `<img class="auth-avatar" src="${user.photoURL}" alt="">`
+        : `<span class="auth-avatar-ph">👤</span>`;
+    const statusClass = isEditor ? 'active' : 'no-access';
+    const adminLink = isAdmin
+        ? `<a class="auth-dropdown-item auth-dropdown-admin" href="admin.html">⚙️ Gestionar editores</a>`
+        : '';
+
+    widget.innerHTML = `
+        <div class="auth-trigger ${statusClass}" onclick="handleAuthClick()"
+             title="${isEditor ? 'Editor activo: ' + user.email : user.email + ' — sin permiso de edición'}">
+            ${avatar}
+            <span class="auth-name">${name}</span>
+            <span class="auth-chevron">▾</span>
+        </div>
+        <div id="authDropdown" class="auth-dropdown hidden">
+            ${adminLink}
+            <button class="auth-dropdown-item auth-dropdown-logout" onclick="logoutAuth()">🚪 Cerrar sesión</button>
+        </div>`;
+}
+
+function isPermissionDeniedError(error) {
+    return error && (
+        error.code === 'permission-denied' ||
+        (error.message && error.message.toLowerCase().includes('permission'))
+    );
+}
+
+function handleFirebaseError(error) {
+    if (isPermissionDeniedError(error)) {
+        if (!currentUser) {
+            showNotification('🔒 Inicia sesión para poder editar el menú', 'warning');
+        } else {
+            showNotification('⛔ Tu cuenta no tiene permiso de edición', 'error');
+        }
+        return true;
+    }
+    return false;
+}
+
+if (auth) {
+    auth.onAuthStateChanged(async (user) => {
+        currentUser = user;
+        if (user) {
+            isEditorUser = await checkIfEditor(user);
+        } else {
+            isEditorUser = false;
+        }
+        renderAuthWidget(user, isEditorUser);
+    });
+}
+
 // Variables globales
 let draggedFood = null;
 let currentCalendar = 1; // Calendario actual (1-4)
