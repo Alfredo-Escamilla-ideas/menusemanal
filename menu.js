@@ -173,7 +173,7 @@ const CATEGORY_MAP = {
 };
 let isResetting = false; // Flag para evitar conflictos durante el reset
 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-const THEME_STORAGE_KEY = 'menu-theme-mode';
+const THEME_STORAGE_KEY = 'app-theme-mode';
 // Move modal state (removed)
 
 // ====================================
@@ -708,26 +708,22 @@ function updateSyncStatusUI() {
     };
     
     const statusMessages = {
-        'firebase': 'Connected to Firebase',
-        'cache': 'Using local cache',
-        'offline': 'Offline mode',
-        'syncing': 'Syncing...'
+        'firebase': 'Sincronizado',
+        'cache': 'Caché local',
+        'offline': 'Sin conexión',
+        'syncing': 'Sincronizando...'
     };
-    
+
     const icon = statusIcons[syncStatus] || '⚪';
-    const message = statusMessages[syncStatus] || 'Unknown status';
-    
+    const message = statusMessages[syncStatus] || '';
+
     // Update UI element if it exists
     const statusElement = document.getElementById('sync-status');
     if (statusElement) {
-        // Mostrar número de reintento si hay más de uno
-        let displayMessage = message;
-        if (syncStatus === 'syncing' && connectionRetryCount > 0) {
-            displayMessage = `Syncing... (intento ${connectionRetryCount + 1}/${maxConnectionRetries})`;
-        }
-        
-        statusElement.textContent = `${icon} ${displayMessage}`;
-        statusElement.title = `Last sync: ${lastSyncTimestamp ? new Date(lastSyncTimestamp).toLocaleTimeString() : 'Never'}`;
+        statusElement.className = `sync-status status-${syncStatus}`;
+        statusElement.textContent = '';
+        const lastSync = lastSyncTimestamp ? new Date(lastSyncTimestamp).toLocaleTimeString('es-ES') : '';
+        statusElement.title = lastSync ? `${message} · ${lastSync}` : message;
         
         // Si está syncing, iniciar temporizador
         if (syncStatus === 'syncing') {
@@ -2684,6 +2680,186 @@ async function randomizeDesserts() {
     } else {
         showNotification('✅ Postres aleatorios asignados (sin repeticiones por día)', 'success');
     }
+}
+
+// ====================================
+// GENERADOR DE MENÚ ALEATORIO BALANCEADO
+// ====================================
+
+function getSeason() {
+    const m = new Date().getMonth(); // 0-indexed
+    if (m >= 5 && m <= 8) return 'verano';   // jun–sep
+    if (m === 11 || m <= 1) return 'invierno'; // dic–feb (marzo = primavera)
+    return 'todo';
+}
+
+function plateMatchesSeason(plate, season) {
+    const ps = plate?.meta?.temporada || plate?.temporada || 'todo';
+    if (season === 'verano'   && ps === 'invierno') return false;
+    if (season === 'invierno' && ps === 'verano')   return false;
+    return true;
+}
+
+// Pollo y pavo son la misma categoría nutricional
+const AVE_VARIANTS = new Set(['ave', 'pollo', 'pavo']);
+function normalizeProteina(p) {
+    return AVE_VARIANTS.has(p) ? 'ave' : (p || null);
+}
+
+function getPlateProteina(plate) {
+    const raw = plate?.meta?.proteina || plate?.proteina || null;
+    return normalizeProteina(raw);
+}
+
+function getPlatePeso(plate) {
+    return plate?.meta?.peso || plate?.peso || null;
+}
+
+function getPlateSubtipo(plate) {
+    return plate?.meta?.subtipo || plate?.subtipo || '';
+}
+
+function isAnimalProteina(proteina) {
+    return proteina && !['ninguna', 'vegetal', 'lacteo'].includes(proteina);
+}
+
+const getPlateNameStr = p => p ? (typeof p === 'string' ? p : p.name) : '';
+
+function pickFiltered(pool, usedNames, season, avoidProteina, preferPeso) {
+    const available = pool.filter(p => {
+        return !usedNames.has(getPlateNameStr(p)) && plateMatchesSeason(p, season);
+    });
+
+    const withoutProteina = avoidProteina
+        ? available.filter(p => {
+              const pr = getPlateProteina(p);
+              return !pr || pr === 'ninguna' || pr !== avoidProteina;
+          })
+        : available;
+
+    // Si se pide preferencia de peso, intentar cumplirla sin descartar el resto
+    const candidates = preferPeso
+        ? withoutProteina.filter(p => getPlatePeso(p) === preferPeso)
+        : withoutProteina;
+
+    const src = candidates.length > 0 ? candidates
+              : withoutProteina.length > 0 ? withoutProteina
+              : available.length > 0 ? available
+              : pool;
+    return src[Math.floor(Math.random() * src.length)] || null;
+}
+
+async function generateRandomMenu() {
+    if (isCopyMode) {
+        showNotification('No disponible en modo copia', 'error');
+        return;
+    }
+
+    const season = getSeason();
+    const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+
+    const primeros = customFoodsGlobal.primeros || [];
+    const segundos = customFoodsGlobal.segundos || [];
+    const postres  = customFoodsGlobal.postres  || [];
+    const cenas    = customFoodsGlobal.cenas    || [];
+
+    if (!primeros.length && !segundos.length) {
+        showNotification('No hay platos en el banco de comidas', 'error');
+        return;
+    }
+
+    const usedPrimeros   = new Set();
+    const usedSegundos   = new Set();
+    const usedPostres    = new Set();
+    const usedCenas      = new Set();
+    const usedCenaPostres = new Set();
+
+    let prevProteinaPrimero = null;
+    let prevProteinaSegundo = null;
+
+    const ligeroPosPool = postres.filter(p => {
+        const st = getPlateSubtipo(p);
+        return st === 'fruta_fresca' || st === 'lacteo';
+    });
+    const postresComida = ligeroPosPool.length ? ligeroPosPool : postres;
+    const postresParaCena = ligeroPosPool.length ? ligeroPosPool : postres;
+
+    const assignments = [];
+
+    for (const day of days) {
+        // Primero: evitar proteína del día anterior
+        const primero = pickFiltered(primeros, usedPrimeros, season, prevProteinaPrimero, null);
+        const proteinaPrimero = getPlateProteina(primero);
+        const pesoPrimero = getPlatePeso(primero);
+
+        // Segundo: evitar proteína del primero de hoy y del segundo de ayer
+        // Si el primero es contundente, preferir segundo ligero
+        const avoidSegundo = proteinaPrimero || prevProteinaSegundo;
+        const preferPesoSegundo = pesoPrimero === 'contundente' ? 'ligero' : null;
+        const segundo = pickFiltered(segundos, usedSegundos, season, avoidSegundo, preferPesoSegundo);
+        const proteinaSegundo = getPlateProteina(segundo);
+
+        // Postre comida
+        if (postres.length > 0 && usedPostres.size >= postresComida.length) usedPostres.clear();
+        const postre = pickFiltered(postresComida, usedPostres, season, null, null);
+
+        // Reset usedCenas si el pool es pequeño
+        if (cenas.length > 0 && usedCenas.size >= cenas.length) usedCenas.clear();
+
+        // Cena1: sin restricciones extra
+        const cena1 = pickFiltered(cenas, usedCenas, season, null, null);
+        const proteinaCena1 = getPlateProteina(cena1);
+
+        // Cena2: si cena1 tiene proteína animal, preferir cena2 ligera
+        // además de evitar la misma proteína
+        const usedForCena2 = new Set([...usedCenas, ...(cena1 ? [getPlateNameStr(cena1)] : [])]);
+        if (cenas.length > 0 && usedForCena2.size >= cenas.length) usedForCena2.clear();
+        const preferPesoCena2 = isAnimalProteina(proteinaCena1) ? 'ligero' : null;
+        const cena2 = pickFiltered(cenas, usedForCena2, season, proteinaCena1, preferPesoCena2);
+
+        // Postre cena: usa su propio set para no repetir dentro de la semana
+        if (postres.length > 0 && usedCenaPostres.size >= postresParaCena.length) usedCenaPostres.clear();
+        const cenaPostre = pickFiltered(postresParaCena, usedCenaPostres, season, null);
+
+        assignments.push({ day, slots: {
+            comida1:    getPlateNameStr(primero),
+            comida2:    getPlateNameStr(segundo),
+            postre:     getPlateNameStr(postre),
+            cena1:      getPlateNameStr(cena1),
+            cena2:      getPlateNameStr(cena2),
+            cenaPostre: getPlateNameStr(cenaPostre)
+        }});
+
+        if (primero)    usedPrimeros.add(getPlateNameStr(primero));
+        if (segundo)    usedSegundos.add(getPlateNameStr(segundo));
+        if (postre)     usedPostres.add(getPlateNameStr(postre));
+        if (cena1)      usedCenas.add(getPlateNameStr(cena1));
+        if (cena2)      usedCenas.add(getPlateNameStr(cena2));
+        if (cenaPostre) usedCenaPostres.add(getPlateNameStr(cenaPostre));
+
+        prevProteinaPrimero = proteinaPrimero;
+        prevProteinaSegundo = proteinaSegundo;
+    }
+
+    // Aplicar al calendario actual
+    let saved = 0;
+    for (const { day, slots } of assignments) {
+        for (const [meal, value] of Object.entries(slots)) {
+            if (!value) continue;
+            try {
+                const slot = document.querySelector(
+                    `#weekTable .meal-slot[data-day="${day}"][data-meal="${meal}"]`
+                );
+                await saveMenu(day, meal, value, currentCalendar, null, { silent: true });
+                if (slot) updateSlotWithArray(slot, [value]);
+                saved++;
+            } catch (err) {
+                console.error(`Error guardando ${day}/${meal}:`, err);
+            }
+        }
+    }
+
+    showNotification(`✅ Menú generado (${season === 'todo' ? 'temporada mixta' : season})`, 'success');
 }
 
 // Añadir comida personalizada
