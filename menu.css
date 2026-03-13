@@ -304,6 +304,63 @@ body.theme-dark .manage-plates-btn {
     white-space: nowrap;
 }
 
+/* ===== OVERLAY GENERACIÓN MENÚ ===== */
+.generation-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.generation-overlay.hidden {
+    display: none;
+}
+
+.generation-box {
+    background: var(--surface-main);
+    border: 1px solid var(--border-main);
+    border-radius: 14px;
+    padding: 28px 36px;
+    min-width: 280px;
+    max-width: 360px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.generation-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 18px;
+}
+
+.generation-bar-track {
+    height: 8px;
+    background: var(--surface-soft);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.generation-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: #16a34a;
+    border-radius: 99px;
+    transition: width 0.25s ease;
+}
+
+.generation-label {
+    font-size: 0.82em;
+    color: var(--text-soft);
+    min-height: 1.2em;
+}
+
 /* ===== COMBO RATING FLOAT ===== */
 .combo-float {
     position: absolute;
