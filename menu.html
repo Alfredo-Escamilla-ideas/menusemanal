@@ -65,6 +65,17 @@
         </div>
     </div>
 
+    <!-- Overlay: generando menú aleatorio -->
+    <div id="generationOverlay" class="generation-overlay hidden">
+        <div class="generation-box">
+            <div class="generation-title">🎲 Generando menú...</div>
+            <div class="generation-bar-track">
+                <div class="generation-bar-fill" id="generationBarFill"></div>
+            </div>
+            <div class="generation-label" id="generationLabel">Preparando...</div>
+        </div>
+    </div>
+
     <!-- Modal: motivo de valoración negativa -->
     <div id="ratingReasonModal" class="food-modal" onclick="if(event.target===this)closeRatingReasonModal()">
         <div class="food-modal-content rating-reason-content">
