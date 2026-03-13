@@ -227,82 +227,178 @@ body.theme-dark .manage-plates-btn {
 
 .calendar-action-buttons {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
+    border-left: 1px solid var(--border-main);
+    padding-left: 14px;
+    margin-left: 4px;
 }
 
-.reset-btn {
-    padding: 10px 20px;
-    background: var(--control-active-bg);
-    color: var(--control-active-text);
-    border: 1px solid var(--control-active-border);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9em;
-    font-weight: 600;
-    transition: all 0.3s;
-    white-space: nowrap;
-}
-
-.pdf-btn {
-    padding: 10px 18px;
-    background: var(--surface-soft);
-    color: var(--text-main);
-    border: 1px solid var(--border-main);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9em;
-    font-weight: 600;
-    transition: all 0.3s;
-    white-space: nowrap;
-}
-
-.copy-btn {
-    padding: 10px 18px;
-    background: var(--surface-soft);
-    color: var(--text-main);
-    border: 1px solid var(--border-main);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9em;
-    font-weight: 600;
-    transition: all 0.3s;
-    white-space: nowrap;
-    display: none;
-}
-
-.copy-btn:hover {
-    transform: translateY(-1px);
-}
-
+/* Acción principal: Aleatorio */
 .random-btn {
-    padding: 10px 18px;
-    background: var(--surface-soft);
-    color: var(--text-main);
-    border: 1px solid var(--border-main);
+    padding: 8px 16px;
+    background: #16a34a;
+    color: #ffffff;
+    border: 1px solid #15803d;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.9em;
+    font-size: 0.85em;
     font-weight: 600;
     font-family: inherit;
-    transition: all 0.3s;
+    transition: all 0.2s;
     white-space: nowrap;
 }
 
 .random-btn:hover {
-    border-color: var(--table-grid);
+    background: #15803d;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.35);
+}
+
+/* Acciones secundarias: PDF y Copia — outline neutro */
+.pdf-btn {
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--text-soft);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.copy-btn {
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--text-soft);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: none;
+}
+
+.copy-btn:hover,
+.pdf-btn:hover {
+    color: var(--text-main);
+    border-color: var(--text-soft);
     transform: translateY(-1px);
 }
 
-.pdf-btn:hover {
-    border-color: var(--table-grid);
-    transform: translateY(-1px);
+/* Reiniciar — outline rojo discreto, se activa al hover */
+.reset-btn {
+    padding: 8px 14px;
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #ef4444;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+/* ===== COMBO RATING FLOAT ===== */
+.combo-float {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    gap: 1px;
+    background: var(--surface-main);
+    border: 1px solid var(--border-main);
+    border-radius: 20px;
+    padding: 1px 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.12);
+    pointer-events: auto;
+}
+
+.combo-float-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.72em;
+    padding: 1px 3px;
+    border-radius: 10px;
+    line-height: 1.5;
+    transition: transform 0.12s;
+    color: var(--text-soft);
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.combo-float-btn:hover {
+    transform: scale(1.25);
+}
+
+.combo-score {
+    font-size: 0.75em;
+    font-weight: 700;
+    min-width: 16px;
+    text-align: center;
+    line-height: 1;
+    padding: 0 1px;
+}
+
+.combo-score.score-pos { color: #16a34a; }
+.combo-score.score-neg { color: #ef4444; }
+
+/* Modal de motivos */
+.rating-reason-content {
+    max-width: 360px;
+    width: 90%;
+}
+
+.rating-combo-desc {
+    font-size: 0.88em;
+    color: var(--text-soft);
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    background: var(--surface-soft);
+    border-radius: 6px;
+    border-left: 3px solid #ef4444;
+}
+
+.reason-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.reason-btn {
+    padding: 10px 14px;
+    background: transparent;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.88em;
+    color: var(--text-main);
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.reason-btn:hover {
+    background: var(--surface-soft);
+    border-color: #ef4444;
+    color: #ef4444;
 }
 
 .reset-btn:hover {
-    background: #ff4444;
+    background: #ef4444;
+    color: #ffffff;
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(255, 68, 68, 0.3);
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
 .main-container {
@@ -1438,9 +1534,10 @@ body.daily-view .meal-content .meal-text {
 }
 
 .view-btn.active {
-    background: var(--control-active-bg);
-    color: var(--control-active-text);
-    border-color: var(--control-active-border);
+    background: transparent;
+    color: #4a90d9;
+    border-color: #4a90d9;
+    font-weight: 700;
 }
 
 /* Ocultar columnas en modo día/3días */
@@ -1568,9 +1665,10 @@ body.daily-view .meal-content .meal-text {
 }
 
 .calendar-indicator.active {
-    background: var(--control-active-bg);
-    color: var(--control-active-text);
-    border-color: var(--control-active-border);
+    background: transparent;
+    color: #4a90d9;
+    border-color: #4a90d9;
+    font-weight: 700;
 }
 
 .add-calendar-btn {
