@@ -2812,11 +2812,23 @@ function pickFilteredWeighted(pool, usedNames, season, avoidProteina, preferPeso
     return src[src.length - 1];
 }
 
+function showGenerationProgress(pct, label) {
+    document.getElementById('generationOverlay').classList.remove('hidden');
+    document.getElementById('generationBarFill').style.width = `${pct}%`;
+    document.getElementById('generationLabel').textContent = label;
+}
+
+function hideGenerationProgress() {
+    document.getElementById('generationOverlay').classList.add('hidden');
+}
+
 async function generateRandomMenu() {
     if (isCopyMode) {
         showNotification('No disponible en modo copia', 'error');
         return;
     }
+
+    try {
 
     const season = getSeason();
     const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
@@ -2930,8 +2942,15 @@ async function generateRandomMenu() {
     }
 
     // Aplicar al calendario actual
+    const DAY_LABELS = { lunes:'Lunes', martes:'Martes', miercoles:'Miércoles', jueves:'Jueves', viernes:'Viernes', sabado:'Sábado', domingo:'Domingo' };
+    const totalOps = assignments.length * 6;
+    let op = 0;
     let saved = 0;
+
+    showGenerationProgress(0, 'Calculando...');
+
     for (const { day, slots } of assignments) {
+        showGenerationProgress(Math.round((op / totalOps) * 95), DAY_LABELS[day] || day);
         for (const [meal, value] of Object.entries(slots)) {
             try {
                 const slot = document.querySelector(
@@ -2943,10 +2962,21 @@ async function generateRandomMenu() {
             } catch (err) {
                 console.error(`Error guardando ${day}/${meal}:`, err);
             }
+            op++;
         }
     }
 
+    showGenerationProgress(100, '¡Listo!');
+    await new Promise(r => setTimeout(r, 500));
+    hideGenerationProgress();
+
     showNotification(`✅ Menú generado (${season === 'todo' ? 'temporada mixta' : season})`, 'success');
+
+    } catch (err) {
+        hideGenerationProgress();
+        showNotification('Error al generar el menú', 'error');
+        console.error('generateRandomMenu error:', err);
+    }
 }
 
 // ====================================
