@@ -65,7 +65,19 @@
         </div>
     </div>
 
-    <!-- (mover a) eliminado -->
+    <!-- Modal: motivo de valoración negativa -->
+    <div id="ratingReasonModal" class="food-modal" onclick="if(event.target===this)closeRatingReasonModal()">
+        <div class="food-modal-content rating-reason-content">
+            <div class="modal-header">
+                <span>¿Por qué no funcionó esta combinación?</span>
+                <button class="modal-tab-close" onclick="closeRatingReasonModal()" aria-label="Cerrar">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="ratingComboDesc" class="rating-combo-desc"></p>
+                <div class="reason-list" id="reasonList"></div>
+            </div>
+        </div>
+    </div>
 
     <div class="main-container">
         <div class="sidebar">
