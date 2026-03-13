@@ -17,3 +17,5 @@ desktop.ini
 # Configuración local (si decides usar Firebase y no quieres compartir credenciales)
 # Descomenta la siguiente línea si prefieres no compartir tu config de Firebase
 # firebase-config.js
+
+node_modules
