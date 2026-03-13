@@ -760,73 +760,75 @@ body {
 
 .auth-login-btn {
     display: block;
-    background: var(--control-active-bg);
-    color: var(--control-active-text);
-    border: 1px solid var(--control-active-border);
-    padding: 10px 18px;
+    background: transparent;
+    color: var(--text-soft);
+    border: 1px solid var(--border-main);
+    padding: 7px 14px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.88em;
+    font-size: 0.85em;
     font-family: inherit;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(63, 79, 111, 0.25);
+    font-weight: 500;
     transition: all 0.2s ease;
     user-select: none;
 }
 
 .auth-login-btn:hover {
-    background: var(--control-active-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(63, 79, 111, 0.35);
+    background: var(--surface-soft);
+    color: var(--text-main);
+    border-color: var(--text-soft);
 }
 
 .auth-trigger {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: var(--control-active-bg);
-    color: var(--control-active-text);
-    border: 1px solid var(--control-active-border);
-    padding: 7px 12px 7px 8px;
+    background: var(--surface-soft);
+    color: var(--text-main);
+    border: 1px solid var(--border-main);
+    padding: 5px 10px 5px 6px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.88em;
+    font-size: 0.85em;
     font-family: inherit;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(63, 79, 111, 0.25);
+    font-weight: 500;
     transition: all 0.2s ease;
     user-select: none;
     white-space: nowrap;
 }
 
 .auth-trigger:hover {
-    background: var(--control-active-hover);
-    box-shadow: 0 4px 12px rgba(63, 79, 111, 0.35);
+    background: var(--category-hover-bg);
+    border-color: var(--text-soft);
 }
 
 .auth-trigger.active {
-    background: #1a4731;
-    color: #6ee7b7;
-    border-color: #065f46;
+    background: var(--surface-soft);
+    color: var(--text-main);
+    border-color: var(--border-main);
 }
 
-.auth-trigger.active:hover { background: #1e5438; }
+.auth-trigger.active:hover {
+    border-color: var(--text-soft);
+}
 
 .auth-trigger.no-access {
-    background: #3b1a0e;
-    color: #fca07a;
-    border-color: #7c2d12;
+    background: var(--surface-soft);
+    color: var(--text-soft);
+    border-color: var(--border-main);
 }
 
-.auth-trigger.no-access:hover { background: #4a200f; }
+.auth-trigger.no-access:hover {
+    border-color: var(--text-soft);
+}
 
 .auth-avatar {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
-    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    border: 1.5px solid var(--border-main);
 }
 
 .auth-avatar-ph { font-size: 1.1em; }
