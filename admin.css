@@ -705,3 +705,47 @@ body.theme-dark .auth-floating-btn.no-access {
     background: var(--danger-hover);
     transform: translateY(-1px);
 }
+
+/* ====================================
+   MIGRATION CARD
+   ==================================== */
+
+.card-description {
+    font-size: 0.88em;
+    color: var(--text-soft);
+    margin-bottom: 18px;
+    line-height: 1.6;
+}
+
+.card-description code {
+    font-family: inherit;
+    background: var(--surface-soft);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.95em;
+}
+
+.migrate-actions {
+    margin-bottom: 16px;
+}
+
+.migrate-log {
+    background: var(--surface-soft);
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    padding: 14px 16px;
+    max-height: 320px;
+    overflow-y: auto;
+    font-size: 0.82em;
+    line-height: 1.8;
+    color: var(--text-main);
+}
+
+.migrate-log.hidden { display: none; }
+
+.mlog-line { word-break: break-word; }
+
+.mlog-success { color: var(--success-text); }
+.mlog-error   { color: var(--danger-text); }
+
