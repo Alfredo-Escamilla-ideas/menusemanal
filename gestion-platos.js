@@ -172,7 +172,7 @@ function searchInDirectoAlPaladar(context = 'add') {
 const CUSTOM_FOODS_DOC_ID = 'custom-foods';
 let editingPlateContext = null;
 let confirmResolver = null;
-const THEME_STORAGE_KEY = 'gestion-platos-theme-mode';
+const THEME_STORAGE_KEY = 'app-theme-mode';
 let cachedCustomFoods = null;
 
 function applyThemeMode(mode) {
