@@ -22,6 +22,7 @@
         <div class="topbar-left">
             <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
             <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+            <div id="sync-status" class="sync-status" title="Estado de sincronización"></div>
         </div>
         <div class="topbar-center">🍴 Menú Semanal</div>
         <div class="topbar-right">
@@ -31,9 +32,6 @@
     </nav>
 
 
-    <div class="header">
-        <div id="sync-status" class="sync-status" title="Estado de sincronización">⚪ Checking connection...</div>
-    </div>
     <!-- Modal para seleccionar comidas en móvil -->
     <div id="foodModal" class="food-modal">
         <div class="food-modal-content">
@@ -149,8 +147,8 @@
                     <button class="pdf-btn" onclick="downloadMenuPDF()" title="Descargar menú en PDF horizontal">📄 PDF</button>
                     <button class="copy-btn" id="createCopyBtn" onclick="createCopyCalendar()" title="Crear copia del calendario actual">🧩 Copia</button>
                     <button class="copy-btn" id="applyCopyBtn" onclick="applyCopyToOfficial()" title="Aplicar copia al calendario oficial">✅ Aplicar</button>
+                    <button class="random-btn" onclick="generateRandomMenu()" title="Generar menú semanal aleatorio balanceado">🎲 Aleatorio</button>
                     <button class="reset-btn" onclick="resetAllMeals()" title="Vacía solo el calendario actual">🔄 Reiniciar</button>
-                    
                 </div>
             </div>
 
