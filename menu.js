@@ -2140,9 +2140,18 @@ function updateSlotWithArray(slot, foodsArray) {
         
         // NO añadir listener aquí - ya hay listeners globales en setupSlotClickHandlers
         // que manejan los clicks en .meal-slot
-        
+
         slot.appendChild(tag);
     });
+
+    // Actualizar valoración del combo si el slot modificado es relevante
+    const day  = slot.dataset?.day;
+    const meal = slot.dataset?.meal;
+    if (day && (meal === 'comida1' || meal === 'comida2')) {
+        refreshComboRating(day, 'comida');
+    } else if (day && (meal === 'cena1' || meal === 'cena2')) {
+        refreshComboRating(day, 'cena');
+    }
 }
 
 // Obtener array de comidas de un slot
@@ -2559,6 +2568,7 @@ function loadCustomFoodsFromLocal() {
 
 // Log comprobatorio al inicio para depuración rápida
 document.addEventListener('DOMContentLoaded', () => {
+    loadComboRatings();
     console.log('menu.js: DOMContentLoaded - checking randomize button...');
     const btn = document.getElementById('randomizeDessertsBtn');
     console.log('menu.js: randomizeDessertsBtn exists:', !!btn, btn);
@@ -2725,6 +2735,26 @@ function isAnimalProteina(proteina) {
 
 const getPlateNameStr = p => p ? (typeof p === 'string' ? p : p.name) : '';
 
+function isPlatoUnico(plate) {
+    return !!(plate?.meta?.plato_unico || plate?.plato_unico);
+}
+
+function getPlateComponentes(plate) {
+    return plate?.meta?.componentes || plate?.componentes || [];
+}
+
+function hasProteinaComponente(plate) {
+    return getPlateComponentes(plate).includes('proteina');
+}
+
+// Filtra platos ocasionales con 30% de probabilidad (para reducir su frecuencia semanal)
+function buildPool(plates) {
+    return plates.filter(p => {
+        const freq = p?.meta?.frecuencia || p?.frecuencia || 'normal';
+        return freq !== 'ocasional' || Math.random() < 0.3;
+    });
+}
+
 function pickFiltered(pool, usedNames, season, avoidProteina, preferPeso) {
     const available = pool.filter(p => {
         return !usedNames.has(getPlateNameStr(p)) && plateMatchesSeason(p, season);
@@ -2749,6 +2779,39 @@ function pickFiltered(pool, usedNames, season, avoidProteina, preferPeso) {
     return src[Math.floor(Math.random() * src.length)] || null;
 }
 
+// Selección aleatoria ponderada por puntuación de combinación.
+// pairedWith: nombre del plato ya elegido (primero/cena1) para consultar el score.
+// score +N → más probabilidad, score -N → menos (mínimo 0.1, nunca bloqueado).
+function pickFilteredWeighted(pool, usedNames, season, avoidProteina, preferPeso, pairedWith) {
+    const available = pool.filter(p =>
+        !usedNames.has(getPlateNameStr(p)) && plateMatchesSeason(p, season)
+    );
+    const withoutProteina = avoidProteina
+        ? available.filter(p => { const pr = getPlateProteina(p); return !pr || pr === 'ninguna' || pr !== avoidProteina; })
+        : available;
+    const candidates = preferPeso
+        ? withoutProteina.filter(p => getPlatePeso(p) === preferPeso)
+        : withoutProteina;
+    const src = candidates.length > 0 ? candidates
+              : withoutProteina.length > 0 ? withoutProteina
+              : available.length > 0 ? available
+              : pool;
+
+    if (!pairedWith || src.length === 0) {
+        return src[Math.floor(Math.random() * src.length)] || null;
+    }
+
+    // Peso = 1 + score * 0.5, mínimo 0.1 (nunca se bloquea)
+    const weights = src.map(p => Math.max(0.1, 1 + getComboScore(pairedWith, getPlateNameStr(p)).score * 0.5));
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < src.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return src[i];
+    }
+    return src[src.length - 1];
+}
+
 async function generateRandomMenu() {
     if (isCopyMode) {
         showNotification('No disponible en modo copia', 'error');
@@ -2758,10 +2821,10 @@ async function generateRandomMenu() {
     const season = getSeason();
     const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
 
-    const primeros = customFoodsGlobal.primeros || [];
-    const segundos = customFoodsGlobal.segundos || [];
+    const primeros = buildPool(customFoodsGlobal.primeros || []);
+    const segundos = buildPool(customFoodsGlobal.segundos || []);
     const postres  = customFoodsGlobal.postres  || [];
-    const cenas    = customFoodsGlobal.cenas    || [];
+    const cenas    = buildPool(customFoodsGlobal.cenas    || []);
 
     if (!primeros.length && !segundos.length) {
         showNotification('No hay platos en el banco de comidas', 'error');
@@ -2792,12 +2855,25 @@ async function generateRandomMenu() {
         const proteinaPrimero = getPlateProteina(primero);
         const pesoPrimero = getPlatePeso(primero);
 
-        // Segundo: evitar proteína del primero de hoy y del segundo de ayer
-        // Si el primero es contundente, preferir segundo ligero
-        const avoidSegundo = proteinaPrimero || prevProteinaSegundo;
-        const preferPesoSegundo = pesoPrimero === 'contundente' ? 'ligero' : null;
-        const segundo = pickFiltered(segundos, usedSegundos, season, avoidSegundo, preferPesoSegundo);
-        const proteinaSegundo = getPlateProteina(segundo);
+        // Segundo: saltar si el primero es plato único
+        let segundo = null;
+        let proteinaSegundo = null;
+        if (!isPlatoUnico(primero)) {
+            const avoidSegundo = proteinaPrimero || prevProteinaSegundo;
+            const preferPesoSegundo = pesoPrimero === 'contundente' ? 'ligero' : null;
+            const nombrePrimero = getPlateNameStr(primero);
+            // Si el primero no aporta proteína, intentar que el segundo la aporte
+            if (!hasProteinaComponente(primero)) {
+                const conProt = segundos.filter(p => hasProteinaComponente(p));
+                if (conProt.length) {
+                    segundo = pickFilteredWeighted(conProt, usedSegundos, season, avoidSegundo, preferPesoSegundo, nombrePrimero);
+                }
+            }
+            if (!segundo) {
+                segundo = pickFilteredWeighted(segundos, usedSegundos, season, avoidSegundo, preferPesoSegundo, nombrePrimero);
+            }
+            proteinaSegundo = getPlateProteina(segundo);
+        }
 
         // Postre comida
         if (postres.length > 0 && usedPostres.size >= postresComida.length) usedPostres.clear();
@@ -2810,12 +2886,24 @@ async function generateRandomMenu() {
         const cena1 = pickFiltered(cenas, usedCenas, season, null, null);
         const proteinaCena1 = getPlateProteina(cena1);
 
-        // Cena2: si cena1 tiene proteína animal, preferir cena2 ligera
-        // además de evitar la misma proteína
-        const usedForCena2 = new Set([...usedCenas, ...(cena1 ? [getPlateNameStr(cena1)] : [])]);
-        if (cenas.length > 0 && usedForCena2.size >= cenas.length) usedForCena2.clear();
-        const preferPesoCena2 = isAnimalProteina(proteinaCena1) ? 'ligero' : null;
-        const cena2 = pickFiltered(cenas, usedForCena2, season, proteinaCena1, preferPesoCena2);
+        // Cena2: saltar si cena1 es plato único
+        let cena2 = null;
+        if (!isPlatoUnico(cena1)) {
+            const nombreCena1 = getPlateNameStr(cena1);
+            const usedForCena2 = new Set([...usedCenas, ...(cena1 ? [nombreCena1] : [])]);
+            if (cenas.length > 0 && usedForCena2.size >= cenas.length) usedForCena2.clear();
+            const preferPesoCena2 = isAnimalProteina(proteinaCena1) ? 'ligero' : null;
+            // Si cena1 no aporta proteína, intentar que cena2 la aporte
+            if (!hasProteinaComponente(cena1)) {
+                const cenasConProt = cenas.filter(p => hasProteinaComponente(p));
+                if (cenasConProt.length) {
+                    cena2 = pickFilteredWeighted(cenasConProt, usedForCena2, season, proteinaCena1, preferPesoCena2, nombreCena1);
+                }
+            }
+            if (!cena2) {
+                cena2 = pickFilteredWeighted(cenas, usedForCena2, season, proteinaCena1, preferPesoCena2, nombreCena1);
+            }
+        }
 
         // Postre cena: usa su propio set para no repetir dentro de la semana
         if (postres.length > 0 && usedCenaPostres.size >= postresParaCena.length) usedCenaPostres.clear();
@@ -2823,10 +2911,10 @@ async function generateRandomMenu() {
 
         assignments.push({ day, slots: {
             comida1:    getPlateNameStr(primero),
-            comida2:    getPlateNameStr(segundo),
+            comida2:    segundo ? getPlateNameStr(segundo) : '',
             postre:     getPlateNameStr(postre),
             cena1:      getPlateNameStr(cena1),
-            cena2:      getPlateNameStr(cena2),
+            cena2:      cena2 ? getPlateNameStr(cena2) : '',
             cenaPostre: getPlateNameStr(cenaPostre)
         }});
 
@@ -2845,14 +2933,13 @@ async function generateRandomMenu() {
     let saved = 0;
     for (const { day, slots } of assignments) {
         for (const [meal, value] of Object.entries(slots)) {
-            if (!value) continue;
             try {
                 const slot = document.querySelector(
                     `#weekTable .meal-slot[data-day="${day}"][data-meal="${meal}"]`
                 );
-                await saveMenu(day, meal, value, currentCalendar, null, { silent: true });
-                if (slot) updateSlotWithArray(slot, [value]);
-                saved++;
+                await saveMenu(day, meal, value || '', currentCalendar, null, { silent: true });
+                if (slot) updateSlotWithArray(slot, value ? [value] : []);
+                if (value) saved++;
             } catch (err) {
                 console.error(`Error guardando ${day}/${meal}:`, err);
             }
@@ -2860,6 +2947,168 @@ async function generateRandomMenu() {
     }
 
     showNotification(`✅ Menú generado (${season === 'todo' ? 'temporada mixta' : season})`, 'success');
+}
+
+// ====================================
+// VALORACIÓN DE COMBINACIONES (puntuación neta)
+// ====================================
+
+// { "Plato A|||Plato B": { score: N, lastReason: "..." } }
+let comboScores = {};
+let pendingRatingCtx = null;
+
+const COMBO_REASONS = [
+    '2 verduras juntas',
+    '2 proteínas',
+    'Muy contundente',
+    'Sabores que no combinan',
+    'No gusta',
+    'Mejor como plato único',
+];
+
+function comboKey(primero, segundo) {
+    return `${primero}|||${segundo}`;
+}
+
+async function loadComboRatings() {
+    if (!db) return;
+    try {
+        const snap = await db.collection('combinations').doc('scores').get();
+        if (snap.exists) {
+            comboScores = snap.data().pairs || {};
+        }
+        refreshAllComboRatings();
+    } catch (e) {
+        console.warn('loadComboRatings error:', e);
+    }
+}
+
+async function updateComboScore(primero, segundo, delta, reason) {
+    const key = comboKey(primero, segundo);
+    const current = comboScores[key] || { score: 0, lastReason: null };
+    comboScores[key] = {
+        score: current.score + delta,
+        lastReason: reason || (delta < 0 ? current.lastReason : null),
+        lastUpdated: Date.now(),
+    };
+    if (!db) return;
+    try {
+        // set+merge para evitar problemas con puntos en nombres de platos
+        await db.collection('combinations').doc('scores').set(
+            { pairs: { [key]: comboScores[key] } },
+            { merge: true }
+        );
+    } catch (e) {
+        console.warn('updateComboScore error:', e);
+    }
+}
+
+function getComboScore(primero, segundo) {
+    return comboScores[comboKey(primero, segundo)] || { score: 0, lastReason: null };
+}
+
+function getSlotText(day, meal) {
+    const slot = document.querySelector(`#weekTable .meal-slot[data-day="${day}"][data-meal="${meal}"]`);
+    return slot?.querySelector('.meal-text')?.textContent?.trim() || '';
+}
+
+function refreshComboRating(day, mealType) {
+    const meal1 = mealType === 'comida' ? 'comida1' : 'cena1';
+    const meal2 = mealType === 'comida' ? 'comida2' : 'cena2';
+
+    const slot2El = document.querySelector(`#weekTable .meal-slot[data-day="${day}"][data-meal="${meal2}"]`);
+    if (!slot2El) return;
+
+    const td = slot2El.closest('td');
+    if (!td) return;
+
+    td.querySelector('.combo-float')?.remove();
+
+    const name1 = getSlotText(day, meal1);
+    const name2 = getSlotText(day, meal2);
+
+    if (!name1 || !name2) return;
+
+    const { score } = getComboScore(name1, name2);
+
+    const float = document.createElement('div');
+    float.className = 'combo-float';
+
+    const upBtn = document.createElement('button');
+    upBtn.className = 'combo-float-btn';
+    upBtn.textContent = '👍';
+    upBtn.title = 'Buena combinación (+1)';
+    upBtn.addEventListener('click', e => { e.stopPropagation(); handleComboUp(day, mealType, name1, name2); });
+
+    const downBtn = document.createElement('button');
+    downBtn.className = 'combo-float-btn';
+    downBtn.textContent = '👎';
+    downBtn.title = 'No funcionó bien (−1)';
+    downBtn.addEventListener('click', e => { e.stopPropagation(); handleComboDown(day, mealType, name1, name2); });
+
+    float.appendChild(upBtn);
+
+    if (score !== 0) {
+        const scoreEl = document.createElement('span');
+        scoreEl.className = `combo-score ${score > 0 ? 'score-pos' : 'score-neg'}`;
+        scoreEl.textContent = score > 0 ? `+${score}` : `${score}`;
+        float.appendChild(scoreEl);
+    }
+
+    float.appendChild(downBtn);
+
+    td.style.position = 'relative';
+    td.appendChild(float);
+}
+
+function refreshAllComboRatings() {
+    const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+    days.forEach(day => {
+        refreshComboRating(day, 'comida');
+        refreshComboRating(day, 'cena');
+    });
+}
+
+async function handleComboUp(day, mealType, name1, name2) {
+    await updateComboScore(name1, name2, +1, null);
+    refreshComboRating(day, mealType);
+    const { score } = getComboScore(name1, name2);
+    showNotification(`👍 Puntuación: ${score > 0 ? '+' : ''}${score}`, 'success');
+}
+
+function handleComboDown(day, mealType, name1, name2) {
+    pendingRatingCtx = { day, mealType, name1, name2 };
+    const modal = document.getElementById('ratingReasonModal');
+    const desc  = document.getElementById('ratingComboDesc');
+    const list  = document.getElementById('reasonList');
+
+    desc.textContent = `${name1}  +  ${name2}`;
+    list.innerHTML = '';
+    COMBO_REASONS.forEach(reason => {
+        const btn = document.createElement('button');
+        btn.className   = 'reason-btn';
+        btn.textContent = reason;
+        btn.addEventListener('click', () => confirmComboRating(reason));
+        list.appendChild(btn);
+    });
+
+    modal.style.display = 'block';
+}
+
+async function confirmComboRating(reason) {
+    if (!pendingRatingCtx) return;
+    const { day, mealType, name1, name2 } = pendingRatingCtx;
+    closeRatingReasonModal();
+    await updateComboScore(name1, name2, -1, reason);
+    refreshComboRating(day, mealType);
+    const { score } = getComboScore(name1, name2);
+    showNotification(`👎 "${reason}" — Puntuación: ${score > 0 ? '+' : ''}${score}`, 'success');
+}
+
+function closeRatingReasonModal() {
+    const modal = document.getElementById('ratingReasonModal');
+    if (modal) modal.style.display = 'none';
+    pendingRatingCtx = null;
 }
 
 // Añadir comida personalizada
@@ -3131,6 +3380,9 @@ async function downloadMenuPDF() {
 
         tableClone.querySelectorAll('.remove-btn, .meal-description-link, .daily-recipe-link, .daily-recipe-placeholder, .daily-comments-block, .daily-recipe-block').forEach(element => {
             element.style.setProperty('display', 'none', 'important');
+        });
+        tableClone.querySelectorAll('.combo-float').forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
         });
 
         const canvas = await window.html2canvas(exportWrapper, {
