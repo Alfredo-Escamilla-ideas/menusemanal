@@ -466,7 +466,7 @@ body.theme-dark .manage-plates-btn {
 .main-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 0 15px 15px;
+    padding: 16px 15px 15px;
 }
 
 .sidebar {
