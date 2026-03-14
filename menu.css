@@ -2094,6 +2094,14 @@ body.theme-dark .auth-dropdown-logout:hover {
 .meal-slot.auth-locked { cursor: not-allowed !important; }
 .meal-slot.auth-locked .remove-btn { pointer-events: none; }
 
+/* Plato único: comida2 bloqueada */
+.meal-slot.slot-unico-blocked {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    pointer-events: none;
+}
+.meal-slot.slot-unico-blocked .remove-btn { display: none; }
+
 /* Botones de edición en modo solo-lectura */
 body.view-only .reset-btn,
 body.view-only .random-btn,
