@@ -1,7 +1,6 @@
 // ====================================
 // CONFIGURACIÓN DE FIREBASE
 // ====================================
-// (funcionalidad de desplazamiento +1/-1 eliminada por solicitud del usuario)
 
 const firebaseConfig = {
     apiKey: "AIzaSyDPxRwlqftP-RoeJILhw_PsM3fsqCFIfqo",
