@@ -179,7 +179,7 @@ let draggedFood = null;
 let currentCalendar = 1; // Calendario actual (1-4)
 let currentView = 'week'; // 'day', 'three-days', 'week' (móvil) o 'single-week', 'four-weeks' (desktop)
 let currentDayIndex = new Date().getDay(); // 0=Domingo, 1=Lunes, ...
-let customFoodsGlobal = { primeros: [], segundos: [], postres: [], cenas: [] }; // Base de datos de platos
+let customFoodsGlobal = { primeros: [], segundos: [], postres: [], cenas: [], unico: [] }; // Base de datos de platos
 const MENU_DOC_ID = 'weekly-menu';
 const CUSTOM_FOODS_DOC_ID = 'custom-foods';
 const CATEGORY_MAP = {
@@ -555,7 +555,7 @@ function getInvalidFoodChars(name) {
 }
 
 function sanitizeCustomFoodsMap(customFoods = {}) {
-    const categories = ['primeros', 'segundos', 'postres', 'cenas'];
+    const categories = ['primeros', 'segundos', 'postres', 'cenas', 'unico'];
     const sanitizedFoods = {};
     let changed = false;
 
@@ -2242,6 +2242,19 @@ async function removeFoodTag(btn) {
     // Actualizar UI
     updateSlotWithArray(slot, foodsArray);
 
+    // Si era plato único en comida1/cena1 → también limpiar el segundo slot
+    const slotMeal = slot.dataset.meal;
+    if (findPlateCategory(foodName) === 'unico' && (slotMeal === 'comida1' || slotMeal === 'cena1')) {
+        const cal = slot.dataset.calendar;
+        const slot2Key = slotMeal === 'comida1' ? 'comida2' : 'cena2';
+        const slot2 = document.querySelector(`.meal-slot[data-day="${slot.dataset.day}"][data-meal="${slot2Key}"]${cal ? `[data-calendar="${cal}"]` : ''}`);
+        if (slot2) {
+            slot2.classList.remove('slot-unico-blocked');
+            updateSlotWithArray(slot2, []);
+            await saveMenu(slot.dataset.day, slot2Key, [], cal ? Number(cal) : null, date);
+        }
+    }
+
     // Guardar
     await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
 
@@ -2537,6 +2550,17 @@ function findPlateByName(name) {
     }
     // Si no se encuentra, devolver objeto con solo el nombre
     return { name: name, description: '' };
+}
+
+function findPlateCategory(name) {
+    for (const category in customFoodsGlobal) {
+        const found = customFoodsGlobal[category].find(p => {
+            const n = typeof p === 'string' ? p : p.name;
+            return n === name;
+        });
+        if (found) return category;
+    }
+    return null;
 }
 
 // Normalizar nombre para comparación (clave simple)
@@ -3912,8 +3936,7 @@ async function openFoodModal(slot, replaceFoodName = null) {
     let categoriesToShow = [];
 
     if (meal === 'comida1') {
-        // Solo primeros platos para el primer plato de la comida
-        categoriesToShow = ['primeros'];
+        categoriesToShow = ['primeros', 'unico'];
     } else if (meal === 'comida2') {
         // Solo segundos platos para el segundo plato de la comida
         categoriesToShow = ['segundos'];
@@ -3921,8 +3944,7 @@ async function openFoodModal(slot, replaceFoodName = null) {
         // Solo postres
         categoriesToShow = ['postres'];
     } else if (meal === 'cena1') {
-        // Primeros platos + cenas ligeras para el primer plato de cena
-        categoriesToShow = ['primeros', 'cenas'];
+        categoriesToShow = ['primeros', 'cenas', 'unico'];
     } else if (meal === 'cena2') {
         // Segundos platos + cenas ligeras para el segundo plato de cena
         categoriesToShow = ['segundos', 'cenas'];
@@ -4162,6 +4184,22 @@ async function selectFood(foodName) {
 
         updateSlotWithArray(currentSlot, foodsArray);
         await saveMenu(currentSlot.dataset.day, currentSlot.dataset.meal, foodsArray, null, date);
+
+        // Si es plato único → ocupa ambos slots del turno y bloquea el segundo
+        const slotMeal = currentSlot.dataset.meal;
+        if (findPlateCategory(foodName) === 'unico' && (slotMeal === 'comida1' || slotMeal === 'cena1')) {
+            const day = currentSlot.dataset.day;
+            const cal = currentSlot.dataset.calendar;
+            const isPair = slotMeal === 'comida1';
+            const slot1Key = isPair ? 'comida1' : 'cena1';
+            const slot2Key = isPair ? 'comida2' : 'cena2';
+            const slot1 = document.querySelector(`.meal-slot[data-day="${day}"][data-meal="${slot1Key}"]${cal ? `[data-calendar="${cal}"]` : ''}`);
+            const slot2 = document.querySelector(`.meal-slot[data-day="${day}"][data-meal="${slot2Key}"]${cal ? `[data-calendar="${cal}"]` : ''}`);
+            const platoUnicoArray = [fullPlate];
+            if (slot1) { updateSlotWithArray(slot1, platoUnicoArray); await saveMenu(day, slot1Key, platoUnicoArray, cal ? Number(cal) : null, date); }
+            if (slot2) { updateSlotWithArray(slot2, platoUnicoArray); slot2.classList.add('slot-unico-blocked'); await saveMenu(day, slot2Key, platoUnicoArray, cal ? Number(cal) : null, date); }
+        }
+
         closeFoodModal();
     }
 }
