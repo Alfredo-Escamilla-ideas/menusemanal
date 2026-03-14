@@ -4283,8 +4283,8 @@ function initViewControls() {
             <button class="view-btn" data-view="three-days" onclick="changeView('three-days')">3 Días</button>
           `
         : `
-            <button class="view-btn active" data-view="single-week" onclick="changeView('single-week')">1 Semana</button>
-                        <button class="view-btn" data-view="daily" onclick="changeView('daily')">1 Día</button>
+            <button class="view-btn active" data-view="single-week" onclick="changeView('single-week')">Semanal</button>
+                        <button class="view-btn" data-view="daily" onclick="changeView('daily')">Diario</button>
           `;
 
     viewControls.innerHTML = '<span class="view-controls-label">Vista:</span>' + controlsHTML;

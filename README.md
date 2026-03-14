@@ -57,7 +57,7 @@ Una aplicación web minimalista para planificar tu menú semanal de forma visual
    - Confirma para borrar todo el menú
 
 6. **Cambiar vista**
-   - **Web:** "1 Semana" o "1 Día"
+   - **Web:** "Semanal" o "Diario"
    - **Móvil:** "Hoy" o "3 Días"
 
 ## 🌐 Sincronización Multi-Dispositivo (Opcional)
