@@ -1190,92 +1190,16 @@ body.daily-view .meal-content .meal-text {
 
 @media (max-width: 768px) {
     body {
-        padding: 5px;
-    }
-
-    .manage-plates-btn {
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        width: auto;
-        margin: 0;
-        font-size: 0.9em;
-        padding: 9px 14px;
-        z-index: 1300;
-    }
-
-    .theme-switcher {
-        top: 10px;
-        left: 10px;
-        padding: 5px;
-        gap: 5px;
-    }
-
-    .theme-toggle-btn {
-        padding: 5px 8px;
-        font-size: 0.75em;
-    }
-
-    .header h1 {
-        font-size: 1.6em;
-        margin-bottom: 6px;
-    }
-
-    .header p {
-        font-size: 0.8em;
+        padding: 0;
     }
 
     .main-container {
         gap: 10px;
+        padding-top: 10px;
     }
 
     .meal-description {
         font-size: 0.8em;
-    }
-
-    .sidebar {
-        padding: 12px;
-        border-radius: 8px;
-        max-height: none;
-    }
-
-    .sidebar h2 {
-        font-size: 1em;
-        margin-bottom: 12px;
-    }
-
-    .category-header {
-        padding: 8px;
-        font-size: 0.85em;
-        margin-bottom: 6px;
-    }
-
-    .food-item {
-        padding: 8px 10px;
-        font-size: 0.8em;
-        margin-bottom: 6px;
-    }
-
-    .delete-food-btn {
-        opacity: 1;
-        margin-left: 8px;
-    }
-
-    .add-custom {
-        margin-top: 15px;
-        padding-top: 15px;
-    }
-
-    .add-custom h3 {
-        font-size: 0.9em;
-        margin-bottom: 10px;
-    }
-
-    .add-custom input,
-    .add-custom select,
-    .add-custom button {
-        padding: 10px;
-        font-size: 0.85em;
     }
 
     /* Ocultar botón Nuevo en móvil */
@@ -1369,9 +1293,11 @@ body.daily-view .meal-content .meal-text {
     }
 
     .calendar-navigation {
-        grid-template-columns: auto 1fr;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 8px;
-        padding: 8px;
+        padding: 8px 10px;
         margin-bottom: 8px;
     }
 
@@ -1379,17 +1305,7 @@ body.daily-view .meal-content .meal-text {
         display: none;
     }
 
-    .current-calendar-label {
-        display: none;
-    }
-
-    .nav-arrow {
-        display: none;
-    }
-
     .calendar-indicators {
-        justify-content: flex-start;
-        order: 1;
         gap: 6px;
     }
 
@@ -1400,49 +1316,29 @@ body.daily-view .meal-content .meal-text {
     }
 
     .calendar-action-buttons {
-        width: auto;
-        order: 2;
-        gap: 8px;
-        justify-content: flex-end;
+        border-left: none;
+        padding-left: 0;
+        margin-left: 0;
+        gap: 6px;
     }
 
+    .random-btn,
     .reset-btn,
     .pdf-btn {
-        flex: 0;
-        font-size: 0.85em;
-        padding: 10px 20px;
+        font-size: 0.8em;
+        padding: 8px 10px;
     }
 }
 
 @media (max-width: 480px) {
     body {
-        padding: 3px;
+        padding: 0;
     }
 
-    .header h1 {
-        font-size: 1.4em;
-    }
-
-    .header p {
-        font-size: 0.75em;
-    }
-
-    .sidebar {
-        padding: 10px;
-    }
-
-    .sidebar h2 {
-        font-size: 0.95em;
-    }
-
-    .category-header {
-        padding: 7px;
-        font-size: 0.8em;
-    }
-
-    .food-item {
-        padding: 7px 8px;
-        font-size: 0.75em;
+    /* En pantallas muy pequeñas ocultar botones secundarios */
+    .random-btn,
+    .pdf-btn {
+        display: none;
     }
 
     .table-container {
@@ -1510,30 +1406,15 @@ body.daily-view .meal-content .meal-text {
         gap: 6px;
     }
 
-    .current-calendar-label {
-        display: none;
-    }
-
-    .nav-arrow {
-        width: 32px;
-        height: 32px;
-        font-size: 1em;
-    }
-
     .calendar-indicator {
         width: 30px;
         height: 30px;
         font-size: 0.85em;
     }
 
-    .reset-btn,
-    .pdf-btn {
-        padding: 8px 15px;
+    .reset-btn {
+        padding: 8px 12px;
         font-size: 0.8em;
-    }
-
-    .pdf-btn {
-        display: none;
     }
 }
 
