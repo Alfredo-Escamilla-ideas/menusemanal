@@ -440,17 +440,19 @@ function renderPlates(customFoods) {
         const section = document.createElement('div');
         section.className = 'category-section';
 
+        const startExpanded = !!query;
+
         const categoryHeader = document.createElement('button');
         categoryHeader.type = 'button';
         categoryHeader.className = 'category-toggle';
-        categoryHeader.setAttribute('aria-expanded', 'false');
+        categoryHeader.setAttribute('aria-expanded', String(startExpanded));
         categoryHeader.innerHTML = `
             <span class="category-title">${title} <span class="category-count">(${filteredIndexedPlates.length})</span></span>
-            <span class="category-arrow">▼</span>
+            <span class="category-arrow">${startExpanded ? '▲' : '▼'}</span>
         `;
 
         const categoryContent = document.createElement('div');
-        categoryContent.className = 'category-content collapsed';
+        categoryContent.className = startExpanded ? 'category-content' : 'category-content collapsed';
 
         categoryHeader.addEventListener('click', () => {
             const isCollapsed = categoryContent.classList.toggle('collapsed');
@@ -645,27 +647,10 @@ async function deletePlate(category, index) {
     const confirmed = await showConfirmModal(`¿Estás seguro de eliminar "${name}"?`, 'Eliminar plato');
     if (!confirmed) return;
 
-    // Soft-delete: mark the item as deleted instead of removing it
-    try {
-        if (!customFoods[category][index]) {
-            // fallback: remove if not found
-            customFoods[category].splice(index, 1);
-        } else {
-            const item = customFoods[category][index];
-            if (typeof item === 'object' && item !== null) {
-                item.deleted = true;
-            } else {
-                // convert simple string into an object with deleted flag
-                customFoods[category][index] = { name: item, deleted: true };
-            }
-        }
-    } catch (e) {
-        // fallback to removal
-        customFoods[category].splice(index, 1);
-    }
-
+    customFoods[category].splice(index, 1);
     await savePlates(customFoods);
     renderPlates(customFoods);
+    showNotification(`Plato "${name}" eliminado correctamente`, 'success');
 }
 
 function closeEditModal() {
