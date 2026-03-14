@@ -1169,13 +1169,18 @@ body.daily-view .meal-content .meal-text {
         margin-bottom: 8px;
     }
 
-    .calendar-indicators,
     .calendar-action-buttons {
         display: none !important;
     }
 
     .calendar-nav-left {
         display: flex;
+    }
+}
+
+@media (max-width: 600px) {
+    .calendar-indicators {
+        display: none !important;
     }
 }
 
