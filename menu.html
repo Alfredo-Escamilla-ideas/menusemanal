@@ -143,6 +143,15 @@
                 </div>
             </div>
 
+            <div class="food-category">
+                <div class="category-header collapsed" onclick="toggleCategory(this)">
+                    <div class="category-title">🍲 Plato Único</div>
+                    <span class="category-arrow">▼</span>
+                </div>
+                <div class="category-items collapsed" data-category="unico">
+                </div>
+            </div>
+
             <div class="add-custom">
                 <h3>➕ Añadir Nuevo Plato</h3>
                 <select id="categorySelect" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; font-size: 0.9em;">
@@ -150,6 +159,7 @@
                     <option value="segundos">🍗 Segundos Platos</option>
                     <option value="postres">🍮 Postres</option>
                     <option value="cenas">🌙 Cenas Ligeras</option>
+                    <option value="unico">🍲 Plato Único</option>
                 </select>
                 <input type="text" id="customFood" placeholder="Escribe el nombre del plato...">
                 <button onclick="addCustomFood()">Añadir Plato</button>
