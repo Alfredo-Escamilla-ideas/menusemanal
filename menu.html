@@ -65,6 +65,16 @@
         </div>
     </div>
 
+    <!-- Auth gate: bloquea la app hasta que el usuario inicie sesión -->
+    <div id="authGate" class="auth-gate">
+        <div class="auth-gate-card">
+            <div class="auth-gate-icon">🍴</div>
+            <h2 class="auth-gate-title">Menú Semanal</h2>
+            <p class="auth-gate-msg">Inicia sesión para acceder</p>
+            <button class="auth-gate-btn" onclick="handleAuthClick()">🔑 Entrar con Google</button>
+        </div>
+    </div>
+
     <!-- Overlay: generando menú aleatorio -->
     <div id="generationOverlay" class="generation-overlay hidden">
         <div class="generation-box">
@@ -170,7 +180,7 @@
                     <button class="pdf-btn" onclick="downloadMenuPDF()" title="Descargar menú en PDF horizontal">📄 PDF</button>
                     <button class="copy-btn" id="createCopyBtn" onclick="createCopyCalendar()" title="Crear copia del calendario actual">🧩 Copia</button>
                     <button class="copy-btn" id="applyCopyBtn" onclick="applyCopyToOfficial()" title="Aplicar copia al calendario oficial">✅ Aplicar</button>
-                    <button class="random-btn" onclick="generateRandomMenu()" title="Generar menú semanal aleatorio balanceado">🎲 Aleatorio</button>
+                    <button class="random-btn" id="randomBtn" onclick="generateRandomMenu()" title="Generar menú semanal aleatorio balanceado">🎲 Aleatorio</button>
                     <button class="reset-btn" onclick="resetAllMeals()" title="Vacía solo el calendario actual">🔄 Reiniciar</button>
                 </div>
             </div>
