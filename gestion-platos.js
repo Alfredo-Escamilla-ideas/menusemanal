@@ -252,7 +252,7 @@ function getInvalidFoodChars(name) {
 }
 
 function sanitizeCustomFoodsMap(customFoods = {}) {
-    const categories = ['primeros', 'segundos', 'postres', 'cenas'];
+    const categories = ['primeros', 'segundos', 'postres', 'cenas', 'unico'];
     const sanitizedFoods = {};
     let changed = false;
 
@@ -611,7 +611,7 @@ async function editPlate(category, index) {
     let description = typeof plate === 'object' ? plate.description : '';
     const { comments, link } = parsePlateMeta(description);
 
-    const categories = ['primeros', 'segundos', 'postres', 'cenas'];
+    const categories = ['primeros', 'segundos', 'postres', 'cenas', 'unico'];
     const existingCategories = categories.filter(cat => {
         return (customFoods[cat] || []).some(item => {
             const itemName = typeof item === 'string' ? item : item.name;
@@ -695,7 +695,7 @@ async function savePlateEdit() {
     const customFoods = await loadPlates();
     const { originalName, originalDescription } = editingPlateContext;
 
-    ['primeros', 'segundos', 'postres', 'cenas'].forEach(category => {
+    ['primeros', 'segundos', 'postres', 'cenas', 'unico'].forEach(category => {
         const list = customFoods[category] || [];
         const removeIndex = list.findIndex(item => {
             const itemName = typeof item === 'string' ? item : item.name;
