@@ -43,11 +43,6 @@ input, textarea, select {
     cursor: text;
 }
 
-@media (max-width: 768px) {
-    body {
-        font-size: 1.40em;
-    }
-}
 
 body.theme-dark {
     --bg-main: #12151d;
@@ -72,22 +67,7 @@ body.theme-dark {
     --control-active-text: #e2ecff;
 }
 
-.theme-switcher {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    z-index: 1400;
-    display: flex;
-    gap: 6px;
-    padding: 6px;
-    border-radius: 12px;
-    background: var(--surface-main);
-    border: 1px solid var(--border-main);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
-}
-
 .theme-toggle-btn {
-    border: 1px solid var(--border-main);
     border: 1px solid var(--border-main);
     background: var(--surface-soft);
     color: var(--text-main);
@@ -109,12 +89,6 @@ body.theme-dark {
     transform: translateY(-1px);
 }
 
-.header {
-    text-align: center;
-    color: #333;
-    margin-bottom: 10px;
-    padding: 10px 15px 0;
-}
 
 .sync-status {
     width: 7px;
@@ -140,41 +114,6 @@ body.theme-dark {
     50%       { opacity: 0.3; }
 }
 
-.manage-plates-btn {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: var(--control-active-bg);
-    color: var(--control-active-text);
-    border: 1px solid var(--control-active-border);
-    padding: 12px 24px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.95em;
-    font-family: inherit;
-    box-shadow: 0 2px 8px rgba(63, 79, 111, 0.25);
-    transition: all 0.3s ease;
-    z-index: 1000;
-}
-
-.manage-plates-btn:hover {
-    background: var(--control-active-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(63, 79, 111, 0.35);
-}
-
-.header h1 {
-    font-size: 2.2em;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-.header p {
-    color: var(--text-soft);
-    font-size: 0.95em;
-}
-
-body .header,
 body .sidebar h2,
 body .category-title,
 body .day-header,
@@ -221,9 +160,6 @@ body.theme-dark .modal-header {
     color: #e8edf7;
 }
 
-body.theme-dark .manage-plates-btn {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-}
 
 .calendar-action-buttons {
     display: flex;
@@ -1075,74 +1011,11 @@ th.current-day {
     filter: none;
 }
 
-/* Estilos para la imagen del plato en vista diaria */
-.meal-image {
-    width: 55px;
-    height: 55px;
-    object-fit: cover;
-    border-radius: 10px;
-    margin-right: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    flex-shrink: 0;
-    border: 2px solid var(--surface-main);
-    transition: all 0.3s ease;
-}
-
-.meal-image:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
-}
 
 body.daily-view .meal-content .meal-text {
     margin-left: 0;
 }
 
-.add-custom {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 2px solid #e0e0e0;
-}
-
-.add-custom h3 {
-    font-size: 1em;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 15px;
-}
-
-.add-custom input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    margin-bottom: 10px;
-    font-size: 0.9em;
-    transition: border 0.3s;
-}
-
-.add-custom input:focus {
-    outline: none;
-    border-color: #333;
-}
-
-.add-custom button {
-    width: 100%;
-    padding: 12px;
-    background: #333;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9em;
-    transition: all 0.3s;
-}
-
-.add-custom button:hover {
-    background: #000;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
 
 /* Ajustes para desktop */
 @media (min-width: 769px) {
@@ -1161,11 +1034,6 @@ body.daily-view .meal-content .meal-text {
 @media (max-width: 1200px) {
     .main-container {
         flex-direction: column;
-    }
-
-    .sidebar {
-        flex: 0 0 auto;
-        max-height: none;
     }
 
     .table-container {
@@ -1295,38 +1163,19 @@ body.daily-view .meal-content .meal-text {
     .calendar-navigation {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         gap: 8px;
         padding: 8px 10px;
         margin-bottom: 8px;
     }
 
-    .calendar-nav-left {
-        display: none;
-    }
-
-    .calendar-indicators {
-        gap: 6px;
-    }
-
-    .calendar-indicator {
-        width: 35px;
-        height: 35px;
-        font-size: 0.95em;
-    }
-
+    .calendar-indicators,
     .calendar-action-buttons {
-        border-left: none;
-        padding-left: 0;
-        margin-left: 0;
-        gap: 6px;
+        display: none !important;
     }
 
-    .random-btn,
-    .reset-btn,
-    .pdf-btn {
-        font-size: 0.8em;
-        padding: 8px 10px;
+    .calendar-nav-left {
+        display: flex;
     }
 }
 
