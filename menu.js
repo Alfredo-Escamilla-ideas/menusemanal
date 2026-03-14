@@ -145,6 +145,23 @@ function handleFirebaseError(error) {
     return false;
 }
 
+function applyEditorState() {
+    // Login gate: visible hasta que el usuario inicia sesión
+    const gate = document.getElementById('authGate');
+    if (gate) gate.classList.toggle('hidden', !!currentUser);
+
+    // Clase en body para estilizar botones bloqueados via CSS
+    document.body.classList.toggle('view-only', !isEditorUser);
+
+    // Slots: marcar como bloqueados para no-editores
+    document.querySelectorAll('.meal-slot').forEach(slot => {
+        slot.classList.toggle('auth-locked', !isEditorUser);
+    });
+
+    // Botón aleatorio respeta además la lógica de semana vacía
+    updateRandomBtnState();
+}
+
 if (auth) {
     auth.onAuthStateChanged(async (user) => {
         currentUser = user;
@@ -154,6 +171,7 @@ if (auth) {
             isEditorUser = false;
         }
         renderAuthWidget(user, isEditorUser);
+        applyEditorState();
     });
 }
 
@@ -435,6 +453,7 @@ function parseMenuKey(key) {
 }
 
 async function createCopyCalendar() {
+    if (!isEditorUser) { showNotification('Sin permiso de edición', 'error'); return; }
     if (isMobileDevice || !isSingleWeekView()) {
         return;
     }
@@ -445,6 +464,7 @@ async function createCopyCalendar() {
 }
 
 async function applyCopyToOfficial() {
+    if (!isEditorUser) { showNotification('Sin permiso de edición', 'error'); return; }
     if (!isCopyMode || isMobileDevice || !isSingleWeekView()) {
         return;
     }
@@ -2163,7 +2183,7 @@ function getSlotFoods(slot) {
 // Eliminar etiqueta individual de comida
 async function removeFoodTag(btn) {
     const slot = btn.closest('.meal-slot');
-    if (slot.classList.contains('slot-disabled')) {
+    if (slot.classList.contains('slot-disabled') || !isEditorUser) {
         return;
     }
 
@@ -2822,9 +2842,31 @@ function hideGenerationProgress() {
     document.getElementById('generationOverlay').classList.add('hidden');
 }
 
+function updateRandomBtnState() {
+    const btn = document.getElementById('randomBtn');
+    if (!btn) return;
+    if (!isEditorUser) {
+        btn.disabled = true;
+        return;
+    }
+    const slots = document.querySelectorAll('#weekTable .meal-slot');
+    const hasContent = Array.from(slots).some(s => s.querySelector('.meal-content'));
+    btn.disabled = hasContent;
+    btn.title = hasContent
+        ? 'Reinicia el calendario para generar un menú aleatorio'
+        : 'Generar menú semanal aleatorio balanceado';
+}
+
 async function generateRandomMenu() {
     if (isCopyMode) {
         showNotification('No disponible en modo copia', 'error');
+        return;
+    }
+
+    const slots = document.querySelectorAll('#weekTable .meal-slot');
+    const hasContent = Array.from(slots).some(s => s.querySelector('.meal-content'));
+    if (hasContent) {
+        showNotification('La semana ya tiene platos. Reinicia primero para usar el menú aleatorio.', 'error');
         return;
     }
 
@@ -3602,6 +3644,10 @@ async function addNewCalendar(autoShift = false) {
 
 // Reiniciar calendario actual
 async function resetAllMeals() {
+    if (!isEditorUser) {
+        showNotification('Sin permiso de edición', 'error');
+        return;
+    }
     const confirmed = await showCustomConfirm(
         `¿Quieres limpiar el Calendario ${currentCalendar}?`,
         `Limpiar Calendario ${currentCalendar}`
@@ -3747,6 +3793,13 @@ async function openFoodModal(slot, replaceFoodName = null) {
             });
 
             category.classList.toggle('hidden-by-search', visibleCount === 0);
+
+            // Auto-expandir categorías con resultados al buscar
+            if (normalizedQuery.length > 0 && visibleCount > 0) {
+                category.classList.remove('collapsed');
+                const arrow = category.querySelector('.category-arrow');
+                if (arrow) arrow.textContent = '▲';
+            }
         });
 
         updateFixedCategoryTitle();
@@ -4163,7 +4216,7 @@ function setupSlotClickHandlers() {
         const slot = e.target.closest('.meal-slot');
         
         if (slot) {
-            if (slot.classList.contains('slot-disabled')) {
+            if (slot.classList.contains('slot-disabled') || !isEditorUser) {
                 return;
             }
 
@@ -4196,7 +4249,7 @@ function setupSlotClickHandlers() {
         const slot = e.target.closest('.meal-slot');
         
         if (slot) {
-            if (slot.classList.contains('slot-disabled')) {
+            if (slot.classList.contains('slot-disabled') || !isEditorUser) {
                 return;
             }
 
@@ -4256,6 +4309,12 @@ updateCopyButtonsVisibility();
 
 // Inicializar eventos de click DESPUÉS de que todo esté cargado
 setupSlotClickHandlers();
+
+// Estado del botón aleatorio: se actualiza cuando cambia el contenido de la tabla
+const weekTableEl = document.getElementById('weekTable');
+if (weekTableEl) {
+    new MutationObserver(updateRandomBtnState).observe(weekTableEl, { childList: true, subtree: true });
+}
 
 // Initialize sync status
 updateSyncStatusUI();
