@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combos de Platos | Planificador de Comidas</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔗</text></svg>">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="utils.js?v=2"></script>
+    <link rel="stylesheet" href="combos.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<nav class="topbar">
+    <div class="topbar-left">
+        <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
+        <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+    </div>
+
+    <span class="topbar-brand">Gestor de Menús</span>
+
+    <div class="topbar-right">
+        <button class="topbar-nav-btn" onclick="location.href='menu.html'" title="Menú Semanal">⬅ <span>Menú</span></button>
+        <button class="topbar-nav-btn" onclick="location.href='gestion-platos.html'" title="Mis Platos">🍽️ <span>Mis Platos</span></button>
+        <div id="authWidget" class="auth-widget"></div>
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleHamburger()" title="Menú">☰</button>
+    </div>
+</nav>
+<div class="hamburger-menu" id="hamburgerMenu">
+    <div class="ham-section">
+        <button class="ham-item" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
+        <button class="ham-item" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
+    </div>
+    <div class="ham-divider"></div>
+    <button class="ham-item" onclick="location.href='menu.html'">⬅ Menú Semanal</button>
+    <button class="ham-item" onclick="location.href='gestion-platos.html'">🍽️ Gestionar Platos</button>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar">
+    <div class="stat">
+        <span class="stat-val" id="statTotal">—</span>
+        <span class="stat-lbl">Pares totales</span>
+    </div>
+    <div class="stat">
+        <span class="stat-val" id="statReviewed">0</span>
+        <span class="stat-lbl">Revisados</span>
+    </div>
+    <div class="stat stat-yes">
+        <span class="stat-val" id="statYes">0</span>
+        <span class="stat-lbl">✅ Combos</span>
+    </div>
+    <div class="stat stat-no">
+        <span class="stat-val" id="statNo">0</span>
+        <span class="stat-lbl">❌ Rechazados</span>
+    </div>
+    <div class="stat progress-wrap">
+        <span class="progress-label" id="progressLabel">0 de — revisados</span>
+        <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- App -->
+<div class="main">
+    <div id="app"><div class="loading">Cargando…</div></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="combos.js"></script>
+</body>
+</html>

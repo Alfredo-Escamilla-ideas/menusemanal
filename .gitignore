@@ -1,21 +1,22 @@
-# Archivos del sistema operativo
-.DS_Store
-Thumbs.db
-desktop.ini
+# Archivos temporales y de despliegue
+*.zip
+*-temp.html
+*.server_backup
+*.Zone.Identifier
 
-# Archivos temporales
-*.tmp
-*.bak
-*.swp
-*~
+# Archivos de otros agentes/herramientas
+.openclaw/
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
 
-# IDE y editores
-.vscode/
-.idea/
-*.sublime-*
+# Imágenes y recursos no esenciales del proyecto
+*.jpeg
+*.jpg
+*.png
 
-# Configuración local (si decides usar Firebase y no quieres compartir credenciales)
-# Descomenta la siguiente línea si prefieres no compartir tu config de Firebase
-# firebase-config.js
-
-node_modules
+# Claude
+.claude/

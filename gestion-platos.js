@@ -1,223 +1,164 @@
 // ====================================
-// CONFIGURACIÓN FIREBASE
-// ====================================
-let db = null;
-
-try {
-    const firebaseConfig = {
-        apiKey: "AIzaSyDPxRwlqftP-RoeJILhw_PsM3fsqCFIfqo",
-        authDomain: "comidas-33dba.firebaseapp.com",
-        projectId: "comidas-33dba",
-        storageBucket: "comidas-33dba.firebasestorage.app",
-        messagingSenderId: "627965464872",
-        appId: "1:627965464872:web:5a921a070a3f4d8afbc01d"
-    };
-
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        try {
-            // Enable IndexedDB persistence so data is kept offline and synced
-            firebase.firestore().enablePersistence({ synchronizeTabs: true });
-            console.log('✅ Firestore persistence enabled');
-        } catch (err) {
-            console.warn('⚠️ Firestore persistence not enabled:', err && err.code ? err.code : err);
-        }
-        console.log("✅ Firebase conectado correctamente");
-    }
-} catch (error) {
-    console.log("⚠️ Error al conectar Firebase - Usando localStorage", error);
-}
-
-// ====================================
-// AUTENTICACIÓN
-// ====================================
-let auth = null;
-let currentUser = null;
-let isEditorUser = false;
-let authDropdownOpen = false;
-const ADMIN_EMAIL = 'daniel.escamilla.bq@gmail.com';
-
-try {
-    auth = firebase.auth();
-} catch (e) {
-    console.warn('⚠️ Auth no disponible', e);
-}
-
-// Mostrar botón de entrada inmediatamente (antes de que Firebase responda)
-document.addEventListener('DOMContentLoaded', () => renderAuthWidget(null, false));
-
-function handleAuthClick() {
-    if (!auth) return;
-    if (!currentUser) {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        auth.signInWithPopup(provider).catch(err => {
-            console.warn('Login cancelado o error', err);
-        });
-    } else {
-        toggleAuthDropdown();
-    }
-}
-
-function logoutAuth() {
-    if (auth) auth.signOut();
-    closeAuthDropdown();
-}
-
-function toggleAuthDropdown() {
-    authDropdownOpen = !authDropdownOpen;
-    const dropdown = document.getElementById('authDropdown');
-    if (dropdown) dropdown.classList.toggle('hidden', !authDropdownOpen);
-}
-
-function closeAuthDropdown() {
-    authDropdownOpen = false;
-    const dropdown = document.getElementById('authDropdown');
-    if (dropdown) dropdown.classList.add('hidden');
-}
-
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('#authWidget')) closeAuthDropdown();
-});
-
-async function checkIfEditor(user) {
-    if (!user || !db) return false;
-    try {
-        const doc = await db.collection('editors').doc('allowed').get();
-        if (!doc.exists) return false;
-        const emails = doc.data().emails || [];
-        return emails.map(e => e.toLowerCase()).includes(user.email.toLowerCase());
-    } catch (e) {
-        return false;
-    }
-}
-
-function renderAuthWidget(user, isEditor) {
-    const widget = document.getElementById('authWidget');
-    if (!widget) return;
-
-    if (!user) {
-        widget.innerHTML = `<div class="auth-login-btn" onclick="handleAuthClick()" title="Iniciar sesión para editar">🔑 Entrar</div>`;
-        return;
-    }
-
-    const isAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    const name = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
-    const avatar = user.photoURL
-        ? `<img class="auth-avatar" src="${user.photoURL}" alt="">`
-        : `<span class="auth-avatar-ph">👤</span>`;
-    const statusClass = isEditor ? 'active' : 'no-access';
-    const adminLink = isAdmin
-        ? `<a class="auth-dropdown-item auth-dropdown-admin" href="admin.html">⚙️ Gestionar editores</a>`
-        : '';
-
-    widget.innerHTML = `
-        <div class="auth-trigger ${statusClass}" onclick="handleAuthClick()"
-             title="${isEditor ? 'Editor activo: ' + user.email : user.email + ' — sin permiso de edición'}">
-            ${avatar}
-            <span class="auth-name">${name}</span>
-            <span class="auth-chevron">▾</span>
-        </div>
-        <div id="authDropdown" class="auth-dropdown hidden">
-            ${adminLink}
-            <button class="auth-dropdown-item auth-dropdown-logout" onclick="logoutAuth()">🚪 Cerrar sesión</button>
-        </div>`;
-}
-
-function isPermissionDeniedError(error) {
-    return error && (
-        error.code === 'permission-denied' ||
-        (error.message && error.message.toLowerCase().includes('permission'))
-    );
-}
-
-function handleFirebaseError(error) {
-    if (isPermissionDeniedError(error)) {
-        if (!currentUser) {
-            showNotification('🔒 Inicia sesión para poder editar los platos', 'warning');
-        } else {
-            showNotification('⛔ Tu cuenta no tiene permiso de edición', 'error');
-        }
-        return true;
-    }
-    return false;
-}
-
-if (auth) {
-    auth.onAuthStateChanged(async (user) => {
-        currentUser = user;
-        if (user) {
-            isEditorUser = await checkIfEditor(user);
-        } else {
-            isEditorUser = false;
-        }
-        renderAuthWidget(user, isEditorUser);
-    });
-}
-
-// ====================================
 // BUSCADOR DIRECTOALPALADAR
 // ====================================
-function searchInDirectoAlPaladar(context = 'add') {
-    const inputId = context === 'edit' ? 'editPlateName' : 'plateName';
-    const name = document.getElementById(inputId)?.value?.trim();
-    if (!name) {
-        showNotification('Escribe el nombre del plato primero', 'warning');
-        return;
-    }
+function searchInDirectoAlPaladar() {
+    const name = document.getElementById('pmName')?.value?.trim();
+    if (!name) { showNotification('Escribe el nombre del alimento primero', 'warning'); return; }
     const query = encodeURIComponent(name.toLowerCase()).replace(/%20/g, '+');
     window.open(`https://www.directoalpaladar.com/?s=${query}`, '_blank', 'noopener');
 }
 
 const CUSTOM_FOODS_DOC_ID = 'custom-foods';
+
+const ALL_CATEGORIES = [
+    'primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras',
+    'segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos',
+    'unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta',
+    'postres_fruta','postres_lacteo','postres_dulce'
+];
+
+const ALERGENOS_EU = [
+    { id: 'gluten',       label: 'Gluten' },
+    { id: 'crustaceos',   label: 'Crustáceos' },
+    { id: 'huevos',       label: 'Huevos' },
+    { id: 'pescado',      label: 'Pescado' },
+    { id: 'cacahuetes',   label: 'Cacahuetes' },
+    { id: 'soja',         label: 'Soja' },
+    { id: 'lacteos',      label: 'Lácteos' },
+    { id: 'frutos_secos', label: 'Frutos secos' },
+    { id: 'apio',         label: 'Apio' },
+    { id: 'mostaza',      label: 'Mostaza' },
+    { id: 'sesamo',       label: 'Sésamo' },
+    { id: 'sulfitos',     label: 'Sulfitos' },
+    { id: 'moluscos',     label: 'Moluscos' },
+    { id: 'altramuz',     label: 'Altramuz' },
+];
+
+// Configuración de tipos (primera ventana del asistente)
+const TYPE_CONFIG = {
+    primeros: {
+        label: 'Primero',
+        icon: '🥣',
+        subcats: [
+            { key: 'primeros_sopa',      label: 'Sopa / Crema' },
+            { key: 'primeros_ensalada',  label: 'Ensalada' },
+            { key: 'primeros_pasta',     label: 'Pasta' },
+            { key: 'primeros_arroz',     label: 'Arroz' },
+            { key: 'primeros_legumbres', label: 'Legumbres' },
+            { key: 'primeros_verduras',  label: 'Verduras' },
+        ]
+    },
+    segundos: {
+        label: 'Segundo',
+        icon: '🍗',
+        subcats: [
+            { key: 'segundos_carne',    label: 'Carne' },
+            { key: 'segundos_pescado',  label: 'Pescado' },
+            { key: 'segundos_marisco',  label: 'Marisco' },
+            { key: 'segundos_huevos',   label: 'Huevos' },
+        ]
+    },
+    postres: {
+        label: 'Postre',
+        icon: '🍰',
+        subcats: [
+            { key: 'postres_fruta',   label: 'Fruta' },
+            { key: 'postres_lacteo',  label: 'Lácteo' },
+            { key: 'postres_dulce',   label: 'Dulce' },
+        ]
+    },
+    unico: {
+        label: 'Acompañamiento',
+        icon: '🥘',
+        subcats: [
+            { key: 'unico_potaje',      label: 'Potaje' },
+            { key: 'unico_guiso',       label: 'Guiso' },
+            { key: 'unico_combinado',   label: 'Combinado' },
+            { key: 'unico_arroz_pasta', label: 'Arroz / Pasta' },
+        ]
+    },
+};
+
+const CATEGORY_GROUPS = [
+    { group: '🥣 Primeros', cats: [
+        { key: 'primeros_sopa',      label: 'Sopa / Crema' },
+        { key: 'primeros_ensalada',  label: 'Ensalada' },
+        { key: 'primeros_pasta',     label: 'Pasta' },
+        { key: 'primeros_arroz',     label: 'Arroz' },
+        { key: 'primeros_legumbres', label: 'Legumbres' },
+        { key: 'primeros_verduras',  label: 'Verduras' },
+    ]},
+    { group: '🍗 Segundos', cats: [
+        { key: 'segundos_carne',    label: 'Carne' },
+        { key: 'segundos_pescado',  label: 'Pescado' },
+        { key: 'segundos_marisco',  label: 'Marisco' },
+        { key: 'segundos_huevos',   label: 'Huevos' },
+    ]},
+    { group: '🥘 Acompañamiento', cats: [
+        { key: 'unico_potaje',      label: 'Potaje' },
+        { key: 'unico_guiso',       label: 'Guiso' },
+        { key: 'unico_combinado',   label: 'Combinado' },
+        { key: 'unico_arroz_pasta', label: 'Arroz / Pasta' },
+    ]},
+    { group: '🍰 Postres', cats: [
+        { key: 'postres_fruta',   label: 'Fruta' },
+        { key: 'postres_lacteo',  label: 'Lácteo' },
+        { key: 'postres_dulce',   label: 'Dulce' },
+    ]},
+];
+
 let editingPlateContext = null;
 let confirmResolver = null;
-const THEME_STORAGE_KEY = 'app-theme-mode';
 let cachedCustomFoods = null;
+let selectedType = null;
 
-function applyThemeMode(mode) {
-    const normalizedMode = ['light', 'dark'].includes(mode) ? mode : 'light';
-
-    document.body.classList.remove('theme-light', 'theme-dark');
-    if (normalizedMode !== 'light') {
-        document.body.classList.add('theme-dark');
-    }
-
-    document.querySelectorAll('.theme-toggle-btn').forEach(button => {
-        button.classList.remove('active');
-    });
-
-    const activeButton = document.querySelector(`.mode-${normalizedMode}`);
-    if (activeButton) {
-        activeButton.classList.add('active');
-    }
-}
-
-function setThemeMode(mode) {
-    applyThemeMode(mode);
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
-}
-
-function initThemeMode() {
-    const savedMode = localStorage.getItem(THEME_STORAGE_KEY) || 'light';
-    applyThemeMode(savedMode);
-}
+// ====================================
+// DATA HELPERS
+// ====================================
 
 function parsePlateMeta(description) {
-    let comments = '';
-    let link = '';
+    let comments = '', link = '', allergens = [];
+    let unit = '', season = 'todo';
+    let useComida = false, useCena = false;
+    let vegetariano = false, vegano = false, sinGluten = false, sinLactosa = false;
 
     try {
         if (description) {
-            const parsed = JSON.parse(description);
-            comments = parsed.comments || '';
-            link = parsed.link || '';
+            const p = JSON.parse(description);
+            comments    = p.comments  || '';
+            link        = p.link      || '';
+            unit        = p.unit      || '';
+            season      = p.season    || 'todo';
+            useComida   = !!p.useComida;
+            useCena     = !!p.useCena;
+            vegetariano = !!p.vegetariano;
+            vegano      = !!p.vegano;
+            sinGluten   = !!p.sinGluten;
+            sinLactosa  = !!p.sinLactosa;
+            // Map old allergen IDs to 14-UE
+            const raw = Array.isArray(p.allergens) ? p.allergens : [];
+            allergens = raw.map(id => {
+                if (id === 'lactosa') return 'lacteos';
+                if (id === 'mariscos') return 'crustaceos';
+                return id;
+            }).filter(id => ALERGENOS_EU.some(a => a.id === id));
         }
     } catch (e) {
         comments = description || '';
     }
 
-    return { comments, link };
+    return { comments, link, allergens, unit, season, useComida, useCena, vegetariano, vegano, sinGluten, sinLactosa };
+}
+
+function buildDescription(meta) {
+    return JSON.stringify({
+        comments: meta.comments || '', link: meta.link || '',
+        allergens: meta.allergens || [],
+        unit: meta.unit || '', season: meta.season || 'todo',
+        useComida: !!meta.useComida, useCena: !!meta.useCena,
+        vegetariano: !!meta.vegetariano, vegano: !!meta.vegano,
+        sinGluten: !!meta.sinGluten, sinLactosa: !!meta.sinLactosa,
+    });
 }
 
 function getPlateName(plate) {
@@ -240,10 +181,7 @@ function isValidFoodName(name) {
 }
 
 function normalizeSearchText(text) {
-    return String(text || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
+    return String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function getInvalidFoodChars(name) {
@@ -252,106 +190,53 @@ function getInvalidFoodChars(name) {
 }
 
 function sanitizeCustomFoodsMap(customFoods = {}) {
-    const categories = ['primeros', 'segundos', 'postres', 'cenas', 'unico'];
     const sanitizedFoods = {};
     let changed = false;
 
-    categories.forEach(category => {
+    ALL_CATEGORIES.forEach(category => {
         const sourceFoods = Array.isArray(customFoods[category]) ? customFoods[category] : [];
         const dedupe = new Map();
 
         sourceFoods.forEach(plate => {
             const originalName = getPlateName(plate);
             const cleanedName = normalizeFoodName(originalName);
-
-            if (!cleanedName || !isValidFoodName(cleanedName)) {
-                if (originalName) {
-                    changed = true;
-                }
-                return;
-            }
+            if (!cleanedName || !isValidFoodName(cleanedName)) { if (originalName) changed = true; return; }
 
             const normalizedPlate = typeof plate === 'object' && plate !== null
-                ? { ...plate, name: cleanedName }
-                : cleanedName;
-
-            if (cleanedName !== originalName) {
-                changed = true;
-            }
+                ? { ...plate, name: cleanedName } : cleanedName;
+            if (cleanedName !== originalName) changed = true;
 
             const dedupeKey = cleanedName.toLocaleLowerCase('es');
             if (!dedupe.has(dedupeKey)) {
                 dedupe.set(dedupeKey, normalizedPlate);
             } else {
                 changed = true;
-                const existing = dedupe.get(dedupeKey);
-                if (typeof existing === 'string' && typeof normalizedPlate === 'object') {
+                if (typeof dedupe.get(dedupeKey) === 'string' && typeof normalizedPlate === 'object') {
                     dedupe.set(dedupeKey, normalizedPlate);
                 }
             }
         });
 
         sanitizedFoods[category] = Array.from(dedupe.values());
-
-        if (sourceFoods.length !== sanitizedFoods[category].length) {
-            changed = true;
-        }
+        if (sourceFoods.length !== sanitizedFoods[category].length) changed = true;
     });
 
     return { sanitizedFoods, changed };
 }
 
 // ====================================
-// SISTEMA DE NOTIFICACIONES
-// ====================================
-function showNotification(message, type = 'success') {
-    // Eliminar notificación anterior si existe
-    const existingNotification = document.querySelector('.notification');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-
-    // Crear nueva notificación
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    // Mostrar notificación
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-
-    // Ocultar y eliminar después de 3 segundos
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            notification.remove();
-        }, 400);
-    }, 3000);
-}
-
-// ====================================
-// FUNCIONES DE BASE DE DATOS
+// BASE DE DATOS
 // ====================================
 
-// Cargar platos desde Firebase o localStorage
 async function loadPlates() {
-    let customFoods = {
-        primeros: [],
-        segundos: [],
-        postres: [],
-        cenas: []
-    };
-
-    if (db) {
+    let customFoods = Object.fromEntries(ALL_CATEGORIES.map(c => [c, []]));
+    const ref = userFoodsRef();
+    if (db && ref) {
         try {
-            const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
-            if (doc.exists && doc.data().customFoods) {
-                customFoods = doc.data().customFoods;
-            }
+            await bootstrapUserFoods();
+            const doc = await ref.get();
+            if (doc.exists && doc.data().customFoods) customFoods = doc.data().customFoods;
         } catch (error) {
-            console.log("Error cargando desde Firebase, usando localStorage", error);
             const stored = localStorage.getItem('customFoods');
             if (stored) customFoods = JSON.parse(stored);
         }
@@ -361,459 +246,356 @@ async function loadPlates() {
     }
 
     const { sanitizedFoods, changed } = sanitizeCustomFoodsMap(customFoods);
-
-    if (changed) {
-        await savePlates(sanitizedFoods);
-    }
-
+    if (changed) await savePlates(sanitizedFoods);
     cachedCustomFoods = sanitizedFoods;
     renderPlates(sanitizedFoods);
     return sanitizedFoods;
 }
 
-// Guardar platos en Firebase y localStorage
 async function savePlates(customFoods) {
-    // Guardar en localStorage
     localStorage.setItem('customFoods', JSON.stringify(customFoods));
-
-    // Guardar en Firebase con la estructura correcta
-    if (db) {
-        try {
-            await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods: customFoods });
-            console.log("✅ Platos guardados en Firebase");
-        } catch (error) {
-            console.log("⚠️ Error guardando en Firebase", error);
-        }
+    const ref = userFoodsRef();
+    if (db && ref) {
+        try { await ref.set({ customFoods }); } catch (e) { console.log('⚠️ Error Firebase', e); }
     }
 }
 
 // ====================================
-// FUNCIONES DE UI
+// LISTA DE ALIMENTOS
 // ====================================
 
-// Renderizar lista de platos
+function _searchText(plate) {
+    const name = getPlateName(plate);
+    const description = typeof plate === 'object' ? plate.description : '';
+    const meta = parsePlateMeta(description);
+    const allergenText = meta.allergens.map(id => ALERGENOS_EU.find(a => a.id === id)?.label || '').join(' ');
+    const dietaryText = [
+        meta.vegetariano ? 'vegetariano' : '',
+        meta.vegano ? 'vegano' : '',
+        meta.sinGluten ? 'sin gluten' : '',
+        meta.sinLactosa ? 'sin lactosa' : '',
+    ].join(' ');
+    return `${name} ${meta.comments} ${allergenText} ${dietaryText}`;
+}
+
 function renderPlates(customFoods) {
     cachedCustomFoods = customFoods;
     const container = document.getElementById('platesList');
-    const searchInput = document.getElementById('platesSearchInput');
-    const query = normalizeSearchText(searchInput ? searchInput.value.trim() : '');
+    const query = normalizeSearchText(document.getElementById('platesSearchInput')?.value?.trim() || '');
     container.innerHTML = '';
-
-    const categories = {
-        primeros: '🥗 Primeros Platos',
-        segundos: '🍗 Segundos Platos',
-        postres: '🍮 Postres',
-        cenas: '🌙 Cenas Ligeras'
-    };
 
     let hasPlates = false;
     let hasVisiblePlates = false;
 
-    for (const [category, title] of Object.entries(categories)) {
-        const indexedPlates = (customFoods[category] || []).map((plate, originalIndex) => ({
-            plate,
-            originalIndex
-        })).sort((a, b) => {
-            const nameA = (typeof a.plate === 'string' ? a.plate : a.plate.name).toLowerCase();
-            const nameB = (typeof b.plate === 'string' ? b.plate : b.plate.name).toLowerCase();
-            return nameA.localeCompare(nameB, 'es');
+    for (const { group, cats } of CATEGORY_GROUPS) {
+        const groupHasVisible = cats.some(({ key }) => {
+            const plates = customFoods[key] || [];
+            return !query ? plates.length > 0 : plates.some(p => normalizeSearchText(_searchText(p)).includes(query));
         });
-
-        if (indexedPlates.length > 0) {
-            hasPlates = true;
-        }
-
-        const filteredIndexedPlates = indexedPlates.filter(({ plate }) => {
-            if (!query) return true;
-
-            const name = typeof plate === 'string' ? plate : plate.name;
-            const description = typeof plate === 'object' ? plate.description : '';
-            const { comments, link } = parsePlateMeta(description);
-            const searchableText = `${name} ${comments} ${link}`;
-            return normalizeSearchText(searchableText).includes(query);
-        });
-
-        if (filteredIndexedPlates.length === 0) continue;
-
+        if (!groupHasVisible) continue;
         hasVisiblePlates = true;
 
-        const section = document.createElement('div');
-        section.className = 'category-section';
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'category-group-header';
+        groupHeader.textContent = group;
+        container.appendChild(groupHeader);
 
-        const startExpanded = !!query;
+        for (const { key: category, label } of cats) {
+            const indexedPlates = (customFoods[category] || []).map((plate, originalIndex) => ({ plate, originalIndex }))
+                .sort((a, b) => getPlateName(a.plate).toLowerCase().localeCompare(getPlateName(b.plate).toLowerCase(), 'es'));
 
-        const categoryHeader = document.createElement('button');
-        categoryHeader.type = 'button';
-        categoryHeader.className = 'category-toggle';
-        categoryHeader.setAttribute('aria-expanded', String(startExpanded));
-        categoryHeader.innerHTML = `
-            <span class="category-title">${title} <span class="category-count">(${filteredIndexedPlates.length})</span></span>
-            <span class="category-arrow">${startExpanded ? '▲' : '▼'}</span>
-        `;
+            if (indexedPlates.length > 0) hasPlates = true;
 
-        const categoryContent = document.createElement('div');
-        categoryContent.className = startExpanded ? 'category-content' : 'category-content collapsed';
+            const filtered = indexedPlates.filter(({ plate }) =>
+                !query || normalizeSearchText(_searchText(plate)).includes(query)
+            );
+            if (filtered.length === 0) continue;
 
-        categoryHeader.addEventListener('click', () => {
-            const isCollapsed = categoryContent.classList.toggle('collapsed');
-            categoryHeader.setAttribute('aria-expanded', String(!isCollapsed));
-            const arrow = categoryHeader.querySelector('.category-arrow');
-            if (arrow) {
-                arrow.textContent = isCollapsed ? '▼' : '▲';
-            }
-        });
+            const section = document.createElement('div');
+            section.className = 'category-section';
+            const startExpanded = !!query;
 
-        section.appendChild(categoryHeader);
+            const catHeader = document.createElement('button');
+            catHeader.type = 'button';
+            catHeader.className = 'category-toggle';
+            catHeader.setAttribute('aria-expanded', String(startExpanded));
+            catHeader.innerHTML = `
+                <span class="category-title">${label} <span class="category-count">(${filtered.length})</span></span>
+                <span class="category-arrow">${startExpanded ? '▲' : '▼'}</span>`;
 
-        filteredIndexedPlates.forEach(({ plate, originalIndex }) => {
-            const plateDiv = document.createElement('div');
-            plateDiv.className = 'plate-item';
+            const catContent = document.createElement('div');
+            catContent.className = startExpanded ? 'category-content' : 'category-content collapsed';
 
-            const name = typeof plate === 'string' ? plate : plate.name;
-            let description = typeof plate === 'object' ? plate.description : '';
-            const { comments, link } = parsePlateMeta(description);
+            catHeader.addEventListener('click', () => {
+                const collapsed = catContent.classList.toggle('collapsed');
+                catHeader.setAttribute('aria-expanded', String(!collapsed));
+                catHeader.querySelector('.category-arrow').textContent = collapsed ? '▼' : '▲';
+            });
 
-            let descriptionHTML = '';
-            if (comments) {
-                descriptionHTML += `<div class="plate-description">💬 ${comments}</div>`;
-            }
-            if (link) {
-                descriptionHTML += `<div class="plate-link">🔗 <a href="${link}" target="_blank">${link}</a></div>`;
-            }
+            section.appendChild(catHeader);
 
-            plateDiv.innerHTML = `
-                <div class="plate-info">
-                    <div class="plate-name">${name}</div>
-                    ${descriptionHTML}
-                </div>
-                <div class="plate-actions">
-                    <button class="btn-edit" onclick="editPlate('${category}', ${originalIndex})">✏️ Editar</button>
-                    <button class="btn-delete" onclick="deletePlate('${category}', ${originalIndex})">🗑️ Eliminar</button>
-                </div>
-            `;
-            categoryContent.appendChild(plateDiv);
-        });
+            filtered.forEach(({ plate, originalIndex }) => {
+                const div = document.createElement('div');
+                div.className = 'plate-item';
+                const name = getPlateName(plate);
+                const meta = parsePlateMeta(typeof plate === 'object' ? plate.description : '');
 
-        section.appendChild(categoryContent);
+                let badges = '';
+                if (meta.allergens.length > 0) {
+                    badges += `<div class="plate-allergens">${meta.allergens.map(id => {
+                        const a = ALERGENOS_EU.find(x => x.id === id);
+                        return a ? `<span class="allergen-badge">${a.label}</span>` : '';
+                    }).join('')}</div>`;
+                }
+                const dietary = [
+                    meta.vegetariano ? '🥗 Vegetariano' : null,
+                    meta.vegano      ? '🌱 Vegano' : null,
+                    meta.sinGluten   ? 'Sin gluten' : null,
+                    meta.sinLactosa  ? 'Sin lactosa' : null,
+                ].filter(Boolean);
+                if (dietary.length) {
+                    badges += `<div class="plate-dietary">${dietary.map(l => `<span class="dietary-badge">${l}</span>`).join('')}</div>`;
+                }
+                const seasonLabel = { primavera:'Primavera', verano:'Verano', otono:'Otoño', invierno:'Invierno' }[meta.season] || '';
+                const parts = [meta.unit, seasonLabel].filter(Boolean);
+                const metaLine = parts.length ? `<div class="plate-meta2">${parts.join(' · ')}</div>` : '';
 
-        container.appendChild(section);
+                div.innerHTML = `
+                    <div class="plate-info">
+                        <div class="plate-name">${name}</div>
+                        ${badges}${metaLine}
+                    </div>
+                    <div class="plate-actions">
+                        <button class="btn-edit" onclick="openEditModal('${category}', ${originalIndex})">✏️ Editar</button>
+                        <button class="btn-delete" onclick="deletePlate('${category}', ${originalIndex})">🗑️</button>
+                    </div>`;
+                catContent.appendChild(div);
+            });
+
+            section.appendChild(catContent);
+            container.appendChild(section);
+        }
     }
 
-    if (!hasPlates) {
-        container.innerHTML = '<div class="empty-message">No hay platos creados. ¡Añade tu primer plato!</div>';
-        return;
-    }
-
-    if (!hasVisiblePlates) {
-        container.innerHTML = '<div class="empty-message">No hay resultados para esa búsqueda.</div>';
-    }
+    if (!hasPlates) { container.innerHTML = '<div class="empty-message">No hay alimentos creados. Pulsa "+ Nuevo alimento" para empezar.</div>'; return; }
+    if (!hasVisiblePlates) { container.innerHTML = '<div class="empty-message">No hay resultados para esa búsqueda.</div>'; }
 }
 
 function initPlatesSearch() {
-    const searchInput = document.getElementById('platesSearchInput');
-    if (!searchInput) return;
-
-    searchInput.addEventListener('input', () => {
-        if (cachedCustomFoods) {
-            renderPlates(cachedCustomFoods);
-        }
-    });
+    const input = document.getElementById('platesSearchInput');
+    if (input) input.addEventListener('input', () => { if (cachedCustomFoods) renderPlates(cachedCustomFoods); });
 }
 
-// Añadir nuevo plato
-async function addPlate() {
-    const rawName = document.getElementById('plateName').value.trim();
+// ====================================
+// ASISTENTE — PRIMERA VENTANA (tipo)
+// ====================================
+
+function selectType(type) {
+    selectedType = type;
+    const config = TYPE_CONFIG[type];
+    document.getElementById('plateModalTitle').textContent = `Nuevo ${config.label}`;
+    _buildSubcatChips(config.subcats, null);
+    document.getElementById('typeSelectPanel').classList.add('hidden');
+    document.getElementById('detailPanel').classList.remove('hidden');
+    setTimeout(() => document.getElementById('pmName')?.focus(), 80);
+}
+
+function _buildSubcatChips(subcats, activeKey) {
+    const container = document.getElementById('subcatChips');
+    container.innerHTML = subcats.map(s =>
+        `<button type="button" class="subcat-chip${s.key === activeKey ? ' active' : ''}" data-key="${s.key}" onclick="selectSubcat(this)">${s.label}</button>`
+    ).join('');
+    if (subcats.length === 1) container.querySelector('.subcat-chip')?.classList.add('active');
+}
+
+function selectSubcat(chipEl) {
+    document.querySelectorAll('.subcat-chip').forEach(c => c.classList.remove('active'));
+    chipEl.classList.add('active');
+}
+
+function goBackToTypeSelect() {
+    document.getElementById('typeSelectPanel').classList.remove('hidden');
+    document.getElementById('detailPanel').classList.add('hidden');
+    selectedType = null;
+}
+
+// ====================================
+// MODAL: ABRIR / CERRAR
+// ====================================
+
+function _resetForm() {
+    document.getElementById('pmName').value = '';
+    document.getElementById('pmUnit').value = '';
+    document.getElementById('pmSeason').value = 'todo';
+    document.querySelectorAll('input[name="pmAllergen"]').forEach(cb => { cb.checked = false; });
+    ['pmUseComida','pmUseCena','pmVegetariano','pmVegano','pmSinGluten','pmSinLactosa']
+        .forEach(id => { document.getElementById(id).checked = false; });
+}
+
+function openAddModal() {
+    editingPlateContext = null;
+    selectedType = null;
+    _resetForm();
+    document.getElementById('backBtn').style.display = '';
+    document.getElementById('typeSelectPanel').classList.remove('hidden');
+    document.getElementById('detailPanel').classList.add('hidden');
+    document.getElementById('plateModal').classList.add('show');
+}
+
+function openEditModal(category, index) {
+    const plate = cachedCustomFoods?.[category]?.[index];
+    if (!plate) return;
+
+    const typeKey = category.split('_')[0]; // primeros | segundos | postres | unico
+    selectedType = typeKey;
+    const config = TYPE_CONFIG[typeKey];
+    if (!config) return;
+
+    const name = getPlateName(plate);
+    const description = typeof plate === 'object' ? plate.description : '';
+    const meta = parsePlateMeta(description);
+
+    editingPlateContext = { originalName: name, originalDescription: description, originalCategory: category };
+
+    _resetForm();
+    document.getElementById('plateModalTitle').textContent = `Editar ${config.label}`;
+    _buildSubcatChips(config.subcats, category);
+
+    document.getElementById('pmName').value = name;
+    document.getElementById('pmUnit').value = meta.unit || '';
+    document.getElementById('pmSeason').value = meta.season || 'todo';
+    meta.allergens.forEach(id => {
+        const cb = document.querySelector(`input[name="pmAllergen"][value="${id}"]`);
+        if (cb) cb.checked = true;
+    });
+    document.getElementById('pmUseComida').checked  = meta.useComida;
+    document.getElementById('pmUseCena').checked    = meta.useCena;
+    document.getElementById('pmVegetariano').checked = meta.vegetariano;
+    document.getElementById('pmVegano').checked      = meta.vegano;
+    document.getElementById('pmSinGluten').checked   = meta.sinGluten;
+    document.getElementById('pmSinLactosa').checked  = meta.sinLactosa;
+
+    document.getElementById('backBtn').style.display = 'none';
+    document.getElementById('typeSelectPanel').classList.add('hidden');
+    document.getElementById('detailPanel').classList.remove('hidden');
+    document.getElementById('plateModal').classList.add('show');
+    setTimeout(() => document.getElementById('pmName')?.focus(), 80);
+}
+
+function closePlateModal() {
+    document.getElementById('plateModal').classList.remove('show');
+    editingPlateContext = null;
+    selectedType = null;
+}
+
+// ====================================
+// GUARDAR / ELIMINAR
+// ====================================
+
+async function savePlate() {
+    const rawName = document.getElementById('pmName').value.trim();
     const name = normalizeFoodName(rawName);
-    const comments = document.getElementById('plateComments').value.trim();
-    const link = document.getElementById('plateLink').value.trim();
-    
-    // Obtener todas las categorías seleccionadas
-    const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
-        .map(checkbox => checkbox.value);
+    const subcatEl = document.querySelector('.subcat-chip.active');
+    const category = subcatEl ? subcatEl.dataset.key : '';
 
-    if (!rawName) {
-        showNotification('Por favor, introduce el nombre del plato', 'error');
-        return;
-    }
+    if (!rawName) { showNotification('El nombre es obligatorio', 'error'); return; }
+    const inv = getInvalidFoodChars(rawName);
+    if (inv.length) { showNotification(`Símbolos no permitidos: ${inv.join(' ')}`, 'error'); return; }
+    if (!name || !isValidFoodName(name)) { showNotification('Nombre inválido: solo letras, espacios y guion (-)', 'error'); return; }
+    if (!category) { showNotification('Selecciona el tipo específico', 'error'); return; }
 
-    const invalidChars = getInvalidFoodChars(rawName);
-    if (invalidChars.length > 0) {
-        showNotification(`Símbolos no permitidos: ${invalidChars.join(' ')}. Solo se permiten letras, espacios y guion (-)`, 'error');
-        return;
-    }
-
-    if (!name || !isValidFoodName(name)) {
-        showNotification('Nombre inválido: solo letras, espacios y guion (-)', 'error');
-        return;
-    }
-
-    if (selectedCategories.length === 0) {
-        showNotification('Por favor, selecciona al menos una categoría', 'error');
-        return;
-    }
+    const description = buildDescription({
+        allergens:   Array.from(document.querySelectorAll('input[name="pmAllergen"]:checked')).map(cb => cb.value),
+        unit:        document.getElementById('pmUnit').value,
+        season:      document.getElementById('pmSeason').value,
+        useComida:   document.getElementById('pmUseComida').checked,
+        useCena:     document.getElementById('pmUseCena').checked,
+        vegetariano: document.getElementById('pmVegetariano').checked,
+        vegano:      document.getElementById('pmVegano').checked,
+        sinGluten:   document.getElementById('pmSinGluten').checked,
+        sinLactosa:  document.getElementById('pmSinLactosa').checked,
+    });
 
     const customFoods = await loadPlates();
 
-    const alreadyExists = selectedCategories.some(category => {
-        const categoryPlates = customFoods[category] || [];
-        return categoryPlates.some(item => {
-            const existingName = normalizeFoodName(getPlateName(item));
-            return existingName.toLocaleLowerCase('es') === name.toLocaleLowerCase('es');
+    if (editingPlateContext) {
+        const { originalName, originalDescription } = editingPlateContext;
+        ALL_CATEGORIES.forEach(cat => {
+            const list = customFoods[cat] || [];
+            const idx = list.findIndex(item => getPlateName(item) === originalName && (typeof item === 'object' ? item.description : '') === originalDescription);
+            if (idx !== -1) list.splice(idx, 1);
+            customFoods[cat] = list;
         });
-    });
-
-    if (alreadyExists) {
-        showNotification('Ese plato ya existe en una categoría seleccionada', 'error');
-        return;
+    } else {
+        const exists = (customFoods[category] || []).some(item =>
+            normalizeFoodName(getPlateName(item)).toLocaleLowerCase('es') === name.toLocaleLowerCase('es')
+        );
+        if (exists) { showNotification('Ese alimento ya existe en esa categoría', 'error'); return; }
     }
 
-    // Crear objeto de plato con nombre y descripción estructurada
-    const plate = {
-        name: name,
-        description: JSON.stringify({ comments: comments || '', link: link || '' })
-    };
-
-    // Añadir el plato a todas las categorías seleccionadas
-    selectedCategories.forEach(category => {
-        if (!customFoods[category]) {
-            customFoods[category] = [];
-        }
-        customFoods[category].push(plate);
-    });
+    if (!customFoods[category]) customFoods[category] = [];
+    customFoods[category].push({ name, description });
 
     await savePlates(customFoods);
-
-    // Limpiar formulario
-    document.getElementById('plateName').value = '';
-    document.getElementById('plateComments').value = '';
-    document.getElementById('plateLink').value = '';
-    
-    // Desmarcar todos los checkboxes
-    document.querySelectorAll('input[name="category"]:checked').forEach(checkbox => {
-        checkbox.checked = false;
-    });
-
-    // Recargar lista
     renderPlates(customFoods);
-
-    const categoriesText = selectedCategories.length > 1 
-        ? `${selectedCategories.length} categorías` 
-        : '1 categoría';
-    showNotification(`Plato "${name}" añadido en ${categoriesText}`, 'success');
+    closePlateModal();
+    showNotification(editingPlateContext ? 'Alimento actualizado' : `"${name}" añadido`, 'success');
 }
 
-// Editar plato
-async function editPlate(category, index) {
-    const customFoods = await loadPlates();
-    const plate = customFoods[category][index];
-
-    const name = typeof plate === 'string' ? plate : plate.name;
-    let description = typeof plate === 'object' ? plate.description : '';
-    const { comments, link } = parsePlateMeta(description);
-
-    const categories = ['primeros', 'segundos', 'postres', 'cenas', 'unico'];
-    const existingCategories = categories.filter(cat => {
-        return (customFoods[cat] || []).some(item => {
-            const itemName = typeof item === 'string' ? item : item.name;
-            const itemDescription = typeof item === 'object' ? item.description : '';
-            return itemName === name && itemDescription === description;
-        });
-    });
-
-    editingPlateContext = {
-        originalName: name,
-        originalDescription: description,
-        originalCategory: category,
-        originalIndex: index
-    };
-
-    document.getElementById('editPlateName').value = name;
-    document.getElementById('editPlateComments').value = comments;
-    document.getElementById('editPlateLink').value = link;
-
-    document.querySelectorAll('input[name="editCategory"]').forEach(checkbox => {
-        checkbox.checked = existingCategories.includes(checkbox.value);
-    });
-
-    document.getElementById('editPlateModal').classList.add('show');
-}
-
-// Eliminar plato
 async function deletePlate(category, index) {
     const customFoods = await loadPlates();
-    const plate = customFoods[category][index];
-    const name = typeof plate === 'string' ? plate : plate.name;
-
-    const confirmed = await showConfirmModal(`¿Estás seguro de eliminar "${name}"?`, 'Eliminar plato');
-    if (!confirmed) return;
-
+    const name = getPlateName(customFoods[category][index]);
+    if (!await showConfirmModal(`¿Eliminar "${name}"?`, 'Eliminar alimento')) return;
     customFoods[category].splice(index, 1);
     await savePlates(customFoods);
     renderPlates(customFoods);
-    showNotification(`Plato "${name}" eliminado correctamente`, 'success');
+    showNotification(`"${name}" eliminado`, 'success');
 }
 
-function closeEditModal() {
-    const modal = document.getElementById('editPlateModal');
-    modal.classList.remove('show');
-    editingPlateContext = null;
-}
-
-async function savePlateEdit() {
-    if (!editingPlateContext) {
-        return;
-    }
-
-    const rawNewName = document.getElementById('editPlateName').value.trim();
-    const newName = normalizeFoodName(rawNewName);
-    const newComments = document.getElementById('editPlateComments').value.trim();
-    const newLink = document.getElementById('editPlateLink').value.trim();
-    const selectedCategories = Array.from(document.querySelectorAll('input[name="editCategory"]:checked'))
-        .map(checkbox => checkbox.value);
-
-    if (!rawNewName) {
-        showNotification('El nombre del plato es obligatorio', 'error');
-        return;
-    }
-
-    const invalidChars = getInvalidFoodChars(rawNewName);
-    if (invalidChars.length > 0) {
-        showNotification(`Símbolos no permitidos: ${invalidChars.join(' ')}. Solo se permiten letras, espacios y guion (-)`, 'error');
-        return;
-    }
-
-    if (!newName || !isValidFoodName(newName)) {
-        showNotification('Nombre inválido: solo letras, espacios y guion (-)', 'error');
-        return;
-    }
-
-    if (selectedCategories.length === 0) {
-        showNotification('Selecciona al menos una categoría', 'error');
-        return;
-    }
-
-    const customFoods = await loadPlates();
-    const { originalName, originalDescription } = editingPlateContext;
-
-    ['primeros', 'segundos', 'postres', 'cenas', 'unico'].forEach(category => {
-        const list = customFoods[category] || [];
-        const removeIndex = list.findIndex(item => {
-            const itemName = typeof item === 'string' ? item : item.name;
-            const itemDescription = typeof item === 'object' ? item.description : '';
-            return itemName === originalName && itemDescription === originalDescription;
-        });
-
-        if (removeIndex !== -1) {
-            list.splice(removeIndex, 1);
-        }
-
-        customFoods[category] = list;
-    });
-
-    const duplicateInSelection = selectedCategories.some(category => {
-        const list = customFoods[category] || [];
-        return list.some(item => {
-            const existingName = normalizeFoodName(getPlateName(item));
-            return existingName.toLocaleLowerCase('es') === newName.toLocaleLowerCase('es');
-        });
-    });
-
-    if (duplicateInSelection) {
-        showNotification('Ya existe un plato con ese nombre en una categoría seleccionada', 'error');
-        return;
-    }
-
-    const updatedPlate = {
-        name: newName,
-        description: JSON.stringify({
-            comments: newComments,
-            link: newLink
-        })
-    };
-
-    selectedCategories.forEach(category => {
-        if (!customFoods[category]) {
-            customFoods[category] = [];
-        }
-        customFoods[category].push(updatedPlate);
-    });
-
-    await savePlates(customFoods);
-    renderPlates(customFoods);
-    closeEditModal();
-    showNotification('Plato editado correctamente', 'success');
-}
+// ====================================
+// CONFIRM MODAL
+// ====================================
 
 function showConfirmModal(message, title = 'Confirmar acción') {
-    const modal = document.getElementById('confirmModal');
     document.getElementById('confirmTitle').textContent = title;
     document.getElementById('confirmMessage').textContent = message;
-    modal.classList.add('show');
-
-    return new Promise(resolve => {
-        confirmResolver = resolve;
-    });
+    document.getElementById('confirmModal').classList.add('show');
+    return new Promise(resolve => { confirmResolver = resolve; });
 }
 
 function resolveConfirm(value) {
-    const modal = document.getElementById('confirmModal');
-    modal.classList.remove('show');
-
-    if (confirmResolver) {
-        confirmResolver(value);
-        confirmResolver = null;
-    }
+    document.getElementById('confirmModal').classList.remove('show');
+    if (confirmResolver) { confirmResolver(value); confirmResolver = null; }
 }
 
-window.addEventListener('click', function(event) {
-    const editModal = document.getElementById('editPlateModal');
-    const confirmModal = document.getElementById('confirmModal');
+// ====================================
+// EVENTS
+// ====================================
 
-    if (event.target === editModal) {
-        closeEditModal();
-    }
-
-    if (event.target === confirmModal) {
-        resolveConfirm(false);
-    }
+window.addEventListener('click', e => {
+    if (e.target === document.getElementById('plateModal')) closePlateModal();
+    if (e.target === document.getElementById('confirmModal')) resolveConfirm(false);
 });
 
-document.addEventListener('keydown', function(event) {
-    if (event.key !== 'Enter' && event.key !== 'NumpadEnter') {
-        return;
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePlateModal(); resolveConfirm(false); return; }
+    if (e.key !== 'Enter' && e.key !== 'NumpadEnter') return;
+    if (e.target.tagName === 'TEXTAREA') return;
+    const modal = document.getElementById('plateModal');
+    if (modal?.classList.contains('show') && document.getElementById('detailPanel')?.classList.contains('hidden') === false) {
+        const active = document.activeElement;
+        if (active && active.tagName === 'INPUT' && active.type !== 'checkbox') {
+            e.preventDefault();
+            savePlate();
+        }
     }
-
-    const target = event.target;
-    const isInsideAddForm = target.closest('.add-form');
-    const editModal = document.getElementById('editPlateModal');
-    const isEditModalOpen = editModal && editModal.classList.contains('show');
-    const activeElement = document.activeElement;
-    const isInsideEditModal = target.closest('#editPlateModal') || (activeElement && activeElement.closest('#editPlateModal'));
-    const isEditableControl = activeElement && ['INPUT', 'SELECT'].includes(activeElement.tagName);
-    const isTextarea = target.tagName === 'TEXTAREA';
-
-    if (isTextarea) {
-        return;
-    }
-
-    if (isEditModalOpen && isInsideEditModal && isEditableControl) {
-        event.preventDefault();
-        savePlateEdit();
-        return;
-    }
-
-    if (!isInsideAddForm) {
-        return;
-    }
-
-    event.preventDefault();
-    addPlate();
 });
 
 // ====================================
 // INICIALIZACIÓN
 // ====================================
 
+function onAuthReady(user, isEditor) { loadPlates(); }
+
 initThemeMode();
 initPlatesSearch();
-loadPlates();

@@ -1,147 +1,12 @@
-// ====================================
-// CONFIGURACIÓN DE FIREBASE
-// ====================================
-
-const firebaseConfig = {
-    apiKey: "AIzaSyDPxRwlqftP-RoeJILhw_PsM3fsqCFIfqo",
-    authDomain: "comidas-33dba.firebaseapp.com",
-    projectId: "comidas-33dba",
-    storageBucket: "comidas-33dba.firebasestorage.app",
-    messagingSenderId: "627965464872",
-    appId: "1:627965464872:web:5a921a070a3f4d8afbc01d"
-};
-
-// Inicializar Firebase
-let db;
-let isFirebaseConfigured = false;
-
-try {
-    if (firebaseConfig.apiKey !== "TU_API_KEY") {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        isFirebaseConfigured = true;
-        console.log("✅ Firebase conectado - Sincronización multi-dispositivo activada");
+// ── Auth: gestionado por utils.js ────────────────────────────
+function onAuthReady(user, isEditor) {
+    applyEditorState();
+    _setupFirebaseListeners();
+    if (user) {
+        bootstrapUserFoods().then(() => loadCustomFoodsFromDB());
     } else {
-        console.log("⚠️ Firebase no configurado - Usando localStorage (solo este dispositivo)");
+        loadCustomFoodsFromLocal();
     }
-} catch (error) {
-    console.log("⚠️ Error al conectar Firebase - Usando localStorage", error);
-}
-
-// ====================================
-// AUTENTICACIÓN
-// ====================================
-let auth = null;
-let currentUser = null;
-let isEditorUser = false;
-let authDropdownOpen = false;
-const ADMIN_EMAIL = 'daniel.escamilla.bq@gmail.com';
-
-if (isFirebaseConfigured) {
-    try {
-        auth = firebase.auth();
-    } catch (e) {
-        console.warn('⚠️ Auth no disponible', e);
-    }
-}
-
-// Mostrar botón de entrada inmediatamente (antes de que Firebase responda)
-document.addEventListener('DOMContentLoaded', () => renderAuthWidget(null, false));
-
-function handleAuthClick() {
-    if (!auth) return;
-    if (!currentUser) {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        auth.signInWithPopup(provider).catch(err => {
-            console.warn('Login cancelado o error', err);
-        });
-    } else {
-        toggleAuthDropdown();
-    }
-}
-
-function logoutAuth() {
-    if (auth) auth.signOut();
-    closeAuthDropdown();
-}
-
-function toggleAuthDropdown() {
-    authDropdownOpen = !authDropdownOpen;
-    const dropdown = document.getElementById('authDropdown');
-    if (dropdown) dropdown.classList.toggle('hidden', !authDropdownOpen);
-}
-
-function closeAuthDropdown() {
-    authDropdownOpen = false;
-    const dropdown = document.getElementById('authDropdown');
-    if (dropdown) dropdown.classList.add('hidden');
-}
-
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('#authWidget')) closeAuthDropdown();
-});
-
-async function checkIfEditor(user) {
-    if (!user || !db) return false;
-    try {
-        const doc = await db.collection('editors').doc('allowed').get();
-        if (!doc.exists) return false;
-        const emails = doc.data().emails || [];
-        return emails.map(e => e.toLowerCase()).includes(user.email.toLowerCase());
-    } catch (e) {
-        return false;
-    }
-}
-
-function renderAuthWidget(user, isEditor) {
-    const widget = document.getElementById('authWidget');
-    if (!widget) return;
-
-    if (!user) {
-        widget.innerHTML = `<div class="auth-login-btn" onclick="handleAuthClick()" title="Iniciar sesión para editar">🔑 Entrar</div>`;
-        return;
-    }
-
-    const isAdmin = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    const name = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
-    const avatar = user.photoURL
-        ? `<img class="auth-avatar" src="${user.photoURL}" alt="">`
-        : `<span class="auth-avatar-ph">👤</span>`;
-    const statusClass = isEditor ? 'active' : 'no-access';
-    const adminLink = isAdmin
-        ? `<a class="auth-dropdown-item auth-dropdown-admin" href="admin.html">⚙️ Gestionar editores</a>`
-        : '';
-
-    widget.innerHTML = `
-        <div class="auth-trigger ${statusClass}" onclick="handleAuthClick()"
-             title="${isEditor ? 'Editor activo: ' + user.email : user.email + ' — sin permiso de edición'}">
-            ${avatar}
-            <span class="auth-name">${name}</span>
-            <span class="auth-chevron">▾</span>
-        </div>
-        <div id="authDropdown" class="auth-dropdown hidden">
-            ${adminLink}
-            <button class="auth-dropdown-item auth-dropdown-logout" onclick="logoutAuth()">🚪 Cerrar sesión</button>
-        </div>`;
-}
-
-function isPermissionDeniedError(error) {
-    return error && (
-        error.code === 'permission-denied' ||
-        (error.message && error.message.toLowerCase().includes('permission'))
-    );
-}
-
-function handleFirebaseError(error) {
-    if (isPermissionDeniedError(error)) {
-        if (!currentUser) {
-            showNotification('🔒 Inicia sesión para poder editar el menú', 'warning');
-        } else {
-            showNotification('⛔ Tu cuenta no tiene permiso de edición', 'error');
-        }
-        return true;
-    }
-    return false;
 }
 
 function applyEditorState() {
@@ -150,28 +15,15 @@ function applyEditorState() {
     if (gate) gate.classList.toggle('hidden', !!currentUser);
 
     // Clase en body para estilizar botones bloqueados via CSS
-    document.body.classList.toggle('view-only', !isEditorUser);
+    document.body.classList.toggle('view-only', !currentUser);
 
     // Slots: marcar como bloqueados para no-editores
     document.querySelectorAll('.meal-slot').forEach(slot => {
-        slot.classList.toggle('auth-locked', !isEditorUser);
+        slot.classList.toggle('auth-locked', !currentUser);
     });
 
     // Botón aleatorio respeta además la lógica de semana vacía
     updateRandomBtnState();
-}
-
-if (auth) {
-    auth.onAuthStateChanged(async (user) => {
-        currentUser = user;
-        if (user) {
-            isEditorUser = await checkIfEditor(user);
-        } else {
-            isEditorUser = false;
-        }
-        renderAuthWidget(user, isEditorUser);
-        applyEditorState();
-    });
 }
 
 // Variables globales
@@ -179,18 +31,47 @@ let draggedFood = null;
 let currentCalendar = 1; // Calendario actual (1-4)
 let currentView = 'week'; // 'day', 'three-days', 'week' (móvil) o 'single-week', 'four-weeks' (desktop)
 let currentDayIndex = new Date().getDay(); // 0=Domingo, 1=Lunes, ...
-let customFoodsGlobal = { primeros: [], segundos: [], postres: [], cenas: [], unico: [] }; // Base de datos de platos
+const ALL_CATEGORIES = [
+    'primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras',
+    'segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos',
+    'unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta',
+    'postres_fruta','postres_lacteo','postres_dulce'
+];
+const SUBCATEGORY_LABELS = {
+    'primeros_sopa':'Sopa / Crema','primeros_ensalada':'Ensalada','primeros_pasta':'Pasta',
+    'primeros_arroz':'Arroz','primeros_legumbres':'Legumbres','primeros_verduras':'Verduras',
+    'segundos_carne':'Carne','segundos_pescado':'Pescado','segundos_marisco':'Marisco','segundos_huevos':'Huevos',
+    'unico_potaje':'Potaje','unico_guiso':'Guiso','unico_combinado':'Fast Food','unico_arroz_pasta':'Arroz / Pasta completo',
+    'postres_fruta':'Fruta','postres_lacteo':'Lácteo','postres_dulce':'Dulce',
+};
+// Índice de contenedor en sidebar: Primeros=0, Segundos=1, Plato Único=2, Postres=3
+const CATEGORY_MAP = {
+    'primeros_sopa':0,'primeros_ensalada':0,'primeros_pasta':0,'primeros_arroz':0,'primeros_legumbres':0,'primeros_verduras':0,
+    'segundos_carne':1,'segundos_pescado':1,'segundos_marisco':1,'segundos_huevos':1,
+    'unico_potaje':2,'unico_guiso':2,'unico_combinado':2,'unico_arroz_pasta':2,
+    'postres_fruta':3,'postres_lacteo':3,'postres_dulce':3,
+};
+const PARENT_GROUP_SUBCATS = [
+    ['primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras'],
+    ['segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos'],
+    ['unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta'],
+    ['postres_fruta','postres_lacteo','postres_dulce'],
+];
+const MODAL_GROUPS_BY_MEAL = {
+    comida1:    [{ key:'primeros', title:'🥗 Primeros',     cats:['primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras'] },
+                 { key:'unico',    title:'🍲 Plato Único',  cats:['unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta'] }],
+    comida2:    [{ key:'segundos', title:'🍗 Segundos',     cats:['segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos'] }],
+    postre:     [{ key:'postres',  title:'🍮 Postres',      cats:['postres_fruta','postres_lacteo','postres_dulce'] }],
+    cena1:      [{ key:'primeros', title:'🥗 Primeros',     cats:['primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras'] },
+                 { key:'unico',    title:'🍲 Plato Único',  cats:['unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta'] }],
+    cena2:      [{ key:'segundos', title:'🍗 Segundos',     cats:['segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos'] }],
+    cenaPostre: [{ key:'postres',  title:'🍮 Postres',      cats:['postres_fruta','postres_lacteo','postres_dulce'] }],
+};
+let customFoodsGlobal = Object.fromEntries(ALL_CATEGORIES.map(c => [c, []]));
 const MENU_DOC_ID = 'weekly-menu';
 const CUSTOM_FOODS_DOC_ID = 'custom-foods';
-const CATEGORY_MAP = {
-    'primeros': 0,
-    'segundos': 1,
-    'postres': 2,
-    'cenas': 3
-};
 let isResetting = false; // Flag para evitar conflictos durante el reset
 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-const THEME_STORAGE_KEY = 'app-theme-mode';
 // Move modal state (removed)
 
 // ====================================
@@ -452,7 +333,7 @@ function parseMenuKey(key) {
 }
 
 async function createCopyCalendar() {
-    if (!isEditorUser) { showNotification('Sin permiso de edición', 'error'); return; }
+    if (!currentUser) { showNotification('Sin permiso de edición', 'error'); return; }
     if (isMobileDevice || !isSingleWeekView()) {
         return;
     }
@@ -463,7 +344,7 @@ async function createCopyCalendar() {
 }
 
 async function applyCopyToOfficial() {
-    if (!isEditorUser) { showNotification('Sin permiso de edición', 'error'); return; }
+    if (!currentUser) { showNotification('Sin permiso de edición', 'error'); return; }
     if (!isCopyMode || isMobileDevice || !isSingleWeekView()) {
         return;
     }
@@ -500,33 +381,6 @@ const MAX_BACKUP_COUNT = 7;
 let connectionRetryCount = 0;
 let maxConnectionRetries = 5;
 
-function applyThemeMode(mode) {
-    const normalizedMode = ['light', 'dark'].includes(mode) ? mode : 'light';
-
-    document.body.classList.remove('theme-light', 'theme-dark');
-    if (normalizedMode !== 'light') {
-        document.body.classList.add(`theme-${normalizedMode}`);
-    }
-
-    document.querySelectorAll('.theme-toggle-btn').forEach(button => {
-        button.classList.remove('active');
-    });
-
-    const activeButton = document.querySelector(`.mode-${normalizedMode}`);
-    if (activeButton) {
-        activeButton.classList.add('active');
-    }
-}
-
-function setThemeMode(mode) {
-    applyThemeMode(mode);
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
-}
-
-function initThemeMode() {
-    const savedMode = localStorage.getItem(THEME_STORAGE_KEY) || 'light';
-    applyThemeMode(savedMode);
-}
 
 function getPlateName(item) {
     return typeof item === 'string' ? item : (item?.name || '');
@@ -555,7 +409,7 @@ function getInvalidFoodChars(name) {
 }
 
 function sanitizeCustomFoodsMap(customFoods = {}) {
-    const categories = ['primeros', 'segundos', 'postres', 'cenas', 'unico'];
+    const categories = ALL_CATEGORIES;
     const sanitizedFoods = {};
     let changed = false;
 
@@ -604,35 +458,6 @@ function sanitizeCustomFoodsMap(customFoods = {}) {
     return { sanitizedFoods, changed };
 }
 
-// ====================================
-// SISTEMA DE NOTIFICACIONES
-// ====================================
-function showNotification(message, type = 'success') {
-    // Eliminar notificación anterior si existe
-    const existingNotification = document.querySelector('.notification');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-
-    // Crear nueva notificación
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    // Mostrar notificación
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-
-    // Ocultar y eliminar después de 3 segundos
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            notification.remove();
-        }, 400);
-    }, 3000);
-}
 
 let customConfirmResolver = null;
 
@@ -1536,9 +1361,10 @@ function renderFourWeeksView() {
 }
 
 async function loadAllWeeksData() {
-    if (isFirebaseConfigured) {
+    const menuRef = userMenuRef();
+    if (isFirebaseConfigured && menuRef) {
         try {
-            const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+            const doc = await menuRef.get();
             if (doc.exists) {
                 const data = doc.data();
                 document.querySelectorAll('.four-week-view .meal-slot').forEach(slot => {
@@ -1596,9 +1422,10 @@ function setupDragAndDropForFourWeeks() {
                 let foodsArray = [];
 
                 // Cargar array actual
-                if (isFirebaseConfigured) {
+                const _dragMenuRef = userMenuRef();
+                if (isFirebaseConfigured && _dragMenuRef) {
                     try {
-                        const doc = await db.collection('menus').doc(MENU_DOC_ID).get();
+                        const doc = await _dragMenuRef.get();
                         if (doc.exists && doc.data()[key]) {
                             foodsArray = doc.data()[key];
                         }
@@ -1703,20 +1530,21 @@ async function saveMenu(day, meal, foodsArray, calendarOverride = null, dateOver
         lastModified: timestamp
     };
 
-    if (isFirebaseConfigured) {
+    const _saveMenuRef = userMenuRef();
+    if (isFirebaseConfigured && _saveMenuRef) {
         try {
             syncStatus = 'syncing';
             updateSyncStatusUI();
-            
+
             // Save with timestamp using retry logic
             await retryOperation(async () => {
-                await db.collection('menus').doc(MENU_DOC_ID).set({
+                await _saveMenuRef.set({
                     [key]: dataWithTimestamp
                 }, { merge: true });
             });
-            
+
             // Verify the save was successful
-            const verifyDoc = await db.collection('menus').doc(MENU_DOC_ID).get();
+            const verifyDoc = await _saveMenuRef.get();
             if (verifyDoc.exists && verifyDoc.data()[key]) {
                 const saved = verifyDoc.data()[key];
                 const savedData = saved.data || saved; // Handle both formats
@@ -1751,14 +1579,15 @@ async function loadMenu() {
         updateCopyButtonsVisibility();
         return;
     }
-    if (isFirebaseConfigured) {
+    const _loadMenuRef = userMenuRef();
+    if (isFirebaseConfigured && _loadMenuRef) {
         try {
             syncStatus = 'syncing';
             updateSyncStatusUI();
-            
+
             // Add 10 second timeout
             const doc = await withTimeout(
-                db.collection('menus').doc(MENU_DOC_ID).get(),
+                _loadMenuRef.get(),
                 10000, // 10 seconds
                 null
             );
@@ -1994,80 +1823,63 @@ function loadFromLocalStorage() {
     console.log('📦 Loaded menu from localStorage cache');
 }
 
-// Sincronización en tiempo real del menú (solo con Firebase)
-if (isFirebaseConfigured) {
-    db.collection('menus').doc(MENU_DOC_ID).onSnapshot((doc) => {
-        // During rotation, we handle updates manually to avoid conflicts
-        // But we still accept updates from other users
+// Sincronización en tiempo real del menú — gestionada por _setupFirebaseListeners()
+let _menuUnsub = null;
+let _foodsUnsub = null;
+
+function _setupFirebaseListeners() {
+    if (_menuUnsub) { _menuUnsub(); _menuUnsub = null; }
+    if (_foodsUnsub) { _foodsUnsub(); _foodsUnsub = null; }
+
+    if (!isFirebaseConfigured) return;
+    const menuRef = userMenuRef();
+    const foodsRef = userFoodsRef();
+    if (!menuRef || !foodsRef) return; // usuario no identificado
+
+    _menuUnsub = menuRef.onSnapshot((doc) => {
         if (isResetting) {
             console.log('⏸️ Snapshot update during reset, will process after completion');
             return;
         }
-
-        if (isCopyMode) {
-            return;
-        }
+        if (isCopyMode) return;
 
         const slots = document.querySelectorAll('.meal-slot');
         if (doc.exists) {
             const data = doc.data();
             let updatesApplied = 0;
-            
             slots.forEach(slot => {
                 const candidates = getMenuKeyCandidatesFromSlot(slot);
                 const foundKey = candidates.find(candidateKey => data[candidateKey]);
-                
                 if (foundKey) {
                     const menuData = data[foundKey];
-                    
-                    // Handle both old format (array) and new format (object with timestamp)
                     if (Array.isArray(menuData)) {
-                        // Old format - migrate to new format on next save
                         updateSlotWithArray(slot, menuData);
                         updatesApplied++;
                     } else if (menuData && menuData.data) {
-                        // New format with timestamp - check if newer than local
                         const firebaseTimestamp = menuData.lastModified || 0;
-                        
-                        // Check localStorage for comparison
                         const localData = localStorage.getItem(foundKey);
                         let shouldUpdate = true;
-                        
                         if (localData) {
                             try {
                                 const parsed = JSON.parse(localData);
-                                const localTimestamp = parsed.lastModified || 0;
-                                
-                                // Only update if Firebase data is newer or equal
-                                if (firebaseTimestamp < localTimestamp) {
-                                    console.log(`⚠️ Local data newer for ${foundKey}, keeping local`);
+                                if (firebaseTimestamp < (parsed.lastModified || 0)) {
                                     shouldUpdate = false;
                                 }
-                            } catch (e) {
-                                // Invalid local data, accept Firebase data
-                            }
+                            } catch(e) {}
                         }
-                        
                         if (shouldUpdate) {
                             updateSlotWithArray(slot, menuData.data);
                             updatesApplied++;
-                            
-                            // Clear outdated localStorage
                             localStorage.removeItem(foundKey);
                         }
                     } else {
                         slot.innerHTML = '';
                     }
                 } else {
-                    // No data for this slot in Firebase
-                    // Check if we have local data that should be uploaded
                     const localData = localStorage.getItem(candidates[0]);
-                    if (!localData || localData === '[]') {
-                        slot.innerHTML = '';
-                    }
+                    if (!localData || localData === '[]') slot.innerHTML = '';
                 }
             });
-            
             if (updatesApplied > 0) {
                 console.log(`🔄 Applied ${updatesApplied} remote updates from Firebase`);
                 syncStatus = 'firebase';
@@ -2075,22 +1887,15 @@ if (isFirebaseConfigured) {
                 updateSyncStatusUI();
             }
         } else {
-            // Si el documento no existe, limpiar todas las casillas
-            slots.forEach(slot => {
-                slot.innerHTML = '';
-            });
+            document.querySelectorAll('.meal-slot').forEach(slot => { slot.innerHTML = ''; });
             console.log('⚠️ Firebase document deleted or does not exist');
         }
     });
 
-    // Sincronización en tiempo real de platos personalizados
-    db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).onSnapshot((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
-            if (data.customFoods) {
-                loadCustomFoods(data.customFoods);
-                console.log('🔄 Custom foods updated from Firebase');
-            }
+    _foodsUnsub = foodsRef.onSnapshot((doc) => {
+        if (doc.exists && doc.data().customFoods) {
+            loadCustomFoods(doc.data().customFoods);
+            console.log('🔄 Custom foods updated from Firebase');
         }
     });
 }
@@ -2103,6 +1908,16 @@ function updateSlotWithArray(slot, foodsArray) {
 
     if (slot?.dataset) {
         slot.dataset.foods = JSON.stringify(foodsArray);
+    }
+
+    // Aplicar/quitar clase de bloqueo para slots comida2/cena2 con plato único
+    const meal = slot?.dataset?.meal;
+    if (meal === 'comida2' || meal === 'cena2') {
+        const isUnico = foodsArray.length > 0 && foodsArray.some(f => {
+            const name = typeof f === 'string' ? f : f?.name;
+            return findPlateCategory(name)?.startsWith('unico_');
+        });
+        slot.classList.toggle('slot-unico-blocked', isUnico);
     }
 
     slot.innerHTML = '';
@@ -2182,7 +1997,7 @@ function getSlotFoods(slot) {
 // Eliminar etiqueta individual de comida
 async function removeFoodTag(btn) {
     const slot = btn.closest('.meal-slot');
-    if (slot.classList.contains('slot-disabled') || !isEditorUser) {
+    if (slot.classList.contains('slot-disabled') || !currentUser) {
         return;
     }
 
@@ -2244,7 +2059,7 @@ async function removeFoodTag(btn) {
 
     // Si era plato único en comida1/cena1 → también limpiar el segundo slot
     const slotMeal = slot.dataset.meal;
-    if (findPlateCategory(foodName) === 'unico' && (slotMeal === 'comida1' || slotMeal === 'cena1')) {
+    if (findPlateCategory(foodName)?.startsWith('unico_') && (slotMeal === 'comida1' || slotMeal === 'cena1')) {
         const cal = slot.dataset.calendar;
         const slot2Key = slotMeal === 'comida1' ? 'comida2' : 'cena2';
         const slot2 = document.querySelector(`.meal-slot[data-day="${slot.dataset.day}"][data-meal="${slot2Key}"]${cal ? `[data-calendar="${cal}"]` : ''}`);
@@ -2353,9 +2168,10 @@ async function saveCustomFood(foodName, category) {
         return;
     }
 
-    if (isFirebaseConfigured) {
+    const _saveFoodRef = userFoodsRef();
+    if (isFirebaseConfigured && _saveFoodRef) {
         try {
-            const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
+            const doc = await _saveFoodRef.get();
             const data = doc.exists ? doc.data() : {};
             const customFoods = data.customFoods || {};
 
@@ -2370,7 +2186,7 @@ async function saveCustomFood(foodName, category) {
 
             if (!alreadyExists) {
                 customFoods[category].push(normalizedFoodName);
-                await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
+                await _saveFoodRef.set({ customFoods });
             }
         } catch (error) {
             console.error("Error guardando plato en Firebase:", error);
@@ -2408,9 +2224,10 @@ function saveCustomFoodLocal(foodName, category) {
 async function removeCustomFood(foodName, category) {
     const normalizedFoodName = normalizeFoodName(foodName);
 
-    if (isFirebaseConfigured) {
+    const _removeFoodRef = userFoodsRef();
+    if (isFirebaseConfigured && _removeFoodRef) {
         try {
-            const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
+            const doc = await _removeFoodRef.get();
             if (doc.exists && doc.data().customFoods) {
                 const customFoods = doc.data().customFoods;
                 if (customFoods[category]) {
@@ -2418,7 +2235,7 @@ async function removeCustomFood(foodName, category) {
                         const existingName = normalizeFoodName(getPlateName(item));
                         return existingName.toLocaleLowerCase('es') !== normalizedFoodName.toLocaleLowerCase('es');
                     });
-                    await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods });
+                    await _removeFoodRef.set({ customFoods });
                 }
             }
         } catch (error) {
@@ -2501,27 +2318,32 @@ function loadCustomFoods(customFoods) {
     // Guardar en variable global (ya limpio)
     customFoodsGlobal = cleanedFoods;
 
-    // Limpiar todas las categorías primero
-    // -> Solo eliminar los elementos de tipo `food-item` (platos) para preservar controles añadidos manualmente
+    // Limpiar food-item y subcategory-labels (preservar controles como el botón aleatorizar)
     categoryContainers.forEach(cat => {
-        const children = Array.from(cat.children);
-        children.forEach(child => {
-            if (child.classList && child.classList.contains('food-item')) {
+        Array.from(cat.children).forEach(child => {
+            if (child.classList && (child.classList.contains('food-item') || child.classList.contains('food-subcategory-label'))) {
                 child.remove();
             }
         });
     });
 
-    // Cargar platos en sus respectivas categorías
-    Object.keys(cleanedFoods).forEach(category => {
-        const categoryIndex = CATEGORY_MAP[category];
-        if (categoryIndex !== undefined) {
-            const categoryContainer = categoryContainers[categoryIndex];
-            cleanedFoods[category].forEach(food => {
-                const foodName = typeof food === 'string' ? food : food.name;
-                categoryContainer.appendChild(createFoodItemElement(food));
+    // Cargar platos agrupados por subcategoría dentro de cada contenedor padre
+    PARENT_GROUP_SUBCATS.forEach((subcats, groupIdx) => {
+        const container = categoryContainers[groupIdx];
+        if (!container) return;
+        const controlsEl = container.querySelector('.category-controls');
+        subcats.forEach(subcat => {
+            const foods = cleanedFoods[subcat] || [];
+            if (foods.length === 0) return;
+            const subLabel = document.createElement('div');
+            subLabel.className = 'food-subcategory-label';
+            subLabel.textContent = SUBCATEGORY_LABELS[subcat];
+            controlsEl ? container.insertBefore(subLabel, controlsEl) : container.appendChild(subLabel);
+            foods.forEach(food => {
+                const el = createFoodItemElement(food);
+                controlsEl ? container.insertBefore(el, controlsEl) : container.appendChild(el);
             });
-        }
+        });
     });
 
     // Logs para depuración: comprobar que los controles personalizados (ej. botón Aleatorizar) existen
@@ -2575,14 +2397,15 @@ async function loadCustomFoodsFromDB() {
     if (document.querySelectorAll('.category-items').length === 0) {
         return;
     }
-    if (isFirebaseConfigured) {
+    const _loadFoodRef = userFoodsRef();
+    if (isFirebaseConfigured && _loadFoodRef) {
         try {
-            const doc = await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).get();
+            const doc = await _loadFoodRef.get();
             if (doc.exists && doc.data().customFoods) {
                 const { sanitizedFoods, changed } = sanitizeCustomFoodsMap(doc.data().customFoods);
 
                 if (changed) {
-                    await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods: sanitizedFoods });
+                    await _loadFoodRef.set({ customFoods: sanitizedFoods });
                     localStorage.setItem('customFoods', JSON.stringify(sanitizedFoods));
                 }
 
@@ -2868,7 +2691,7 @@ function hideGenerationProgress() {
 function updateRandomBtnState() {
     const btn = document.getElementById('randomBtn');
     if (!btn) return;
-    if (!isEditorUser) {
+    if (!currentUser) {
         btn.disabled = true;
         return;
     }
@@ -2898,112 +2721,159 @@ async function generateRandomMenu() {
     const season = getSeason();
     const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
 
-    const primeros = buildPool(customFoodsGlobal.primeros || []);
-    const segundos = buildPool(customFoodsGlobal.segundos || []);
-    const postres  = customFoodsGlobal.postres  || [];
-    const cenas    = buildPool(customFoodsGlobal.cenas    || []);
+    // ── Pools por etiqueta macro ──────────────────────────────────────────────
+    // Hidrato: primeros sin legumbres (legumbres = proteína+hidrato → plato único)
+    const hidratoPool = buildPool([
+        ...(customFoodsGlobal.primeros_sopa      ||[]),
+        ...(customFoodsGlobal.primeros_ensalada  ||[]),
+        ...(customFoodsGlobal.primeros_pasta     ||[]),
+        ...(customFoodsGlobal.primeros_arroz     ||[]),
+        ...(customFoodsGlobal.primeros_verduras  ||[]),
+    ]);
 
-    if (!primeros.length && !segundos.length) {
+    // Proteína: pools por categoría para garantizar rotación real (carne / pescado+marisco / huevos)
+    const _carnePool    = buildPool(customFoodsGlobal.segundos_carne   ||[]);
+    const _pescadoPool  = buildPool([
+        ...(customFoodsGlobal.segundos_pescado  ||[]),
+        ...(customFoodsGlobal.segundos_marisco  ||[]),
+    ]);
+    const _huevosPool   = buildPool(customFoodsGlobal.segundos_huevos  ||[]);
+    // Lista de categorías disponibles (las que tengan al menos 1 plato)
+    const protCatPools  = [_carnePool, _pescadoPool, _huevosPool].filter(p => p.length > 0);
+    // Pool plano de fallback
+    const proteinaPool  = [..._carnePool, ..._pescadoPool, ..._huevosPool];
+
+    // Plato único: legumbres + categorías unico_*
+    const unicoPool = buildPool([
+        ...(customFoodsGlobal.primeros_legumbres ||[]),
+        ...(customFoodsGlobal.unico_potaje       ||[]),
+        ...(customFoodsGlobal.unico_guiso        ||[]),
+        ...(customFoodsGlobal.unico_combinado    ||[]),
+        ...(customFoodsGlobal.unico_arroz_pasta  ||[]),
+    ]);
+    // Postres
+    const postresPool = [
+        ...(customFoodsGlobal.postres_fruta  ||[]),
+        ...(customFoodsGlobal.postres_lacteo ||[]),
+        ...(customFoodsGlobal.postres_dulce  ||[]),
+    ];
+
+    if (!hidratoPool.length && !proteinaPool.length && !unicoPool.length) {
         showNotification('No hay platos en el banco de comidas', 'error');
         return;
     }
 
-    const usedPrimeros   = new Set();
-    const usedSegundos   = new Set();
-    const usedPostres    = new Set();
-    const usedCenas      = new Set();
-    const usedCenaPostres = new Set();
+    // ── Elegir 2-3 días aleatorios con plato único para comida ───────────────
+    const unicoDaysCount = unicoPool.length >= 2 ? (Math.random() < 0.5 ? 2 : 3) : unicoPool.length;
+    const dayIndices = days.map((_, i) => i);
+    for (let i = dayIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [dayIndices[i], dayIndices[j]] = [dayIndices[j], dayIndices[i]];
+    }
+    const unicoDaySet = new Set(dayIndices.slice(0, unicoDaysCount));
 
-    let prevProteinaPrimero = null;
-    let prevProteinaSegundo = null;
+    // Cena: sin pasta, arroz ni legumbres — priorizar ensalada y verduras
+    const cenaLigeroPool = buildPool([
+        ...(customFoodsGlobal.primeros_ensalada ||[]),
+        ...(customFoodsGlobal.primeros_verduras  ||[]),
+    ]);
+    const cenaHidratoPool = buildPool([
+        ...(customFoodsGlobal.primeros_ensalada  ||[]),
+        ...(customFoodsGlobal.primeros_verduras  ||[]),
+        ...(customFoodsGlobal.primeros_sopa      ||[]),
+    ]);
 
-    const ligeroPosPool = postres.filter(p => {
+    // ── Sets de usados ────────────────────────────────────────────────────────
+    const usedHidratos      = new Set();
+    const usedUnicos        = new Set();
+    const usedPostres       = new Set();
+    const usedCenaHidratos  = new Set();
+    const usedCenaPostres   = new Set();
+    // Un set de usados por categoría de proteína (comida y cena independientes)
+    const usedComidaProt = protCatPools.map(() => new Set());
+    const usedCenaProt   = protCatPools.map(() => new Set());
+    // Índice de categoría actual para rotación (comida y cena desfasadas)
+    let comidaCatIdx = 0;
+    let cenaCatIdx   = protCatPools.length > 1 ? 1 : 0;
+
+    // Helper: elegir proteína de la categoría indicada por idx, con fallback al pool plano
+    function pickProtein(catPools, usedSets, idx, pairedWith) {
+        if (!catPools.length) return null;
+        const catIdx = idx % catPools.length;
+        const pool   = catPools[catIdx];
+        const used   = usedSets[catIdx];
+        if (used.size >= pool.length) used.clear();
+        const pick = pickFilteredWeighted(pool, used, season, null, null, pairedWith);
+        if (pick) { used.add(getPlateNameStr(pick)); return pick; }
+        // Fallback: cualquier categoría disponible
+        for (let k = 0; k < catPools.length; k++) {
+            const fb = pickFilteredWeighted(catPools[k], usedSets[k], season, null, null, pairedWith);
+            if (fb) { usedSets[k].add(getPlateNameStr(fb)); return fb; }
+        }
+        return null;
+    }
+
+    const ligeroPosPool = postresPool.filter(p => {
         const st = getPlateSubtipo(p);
         return st === 'fruta_fresca' || st === 'lacteo';
     });
-    const postresComida = ligeroPosPool.length ? ligeroPosPool : postres;
-    const postresParaCena = ligeroPosPool.length ? ligeroPosPool : postres;
+    const postresComida   = ligeroPosPool.length ? ligeroPosPool : postresPool;
+    const postresParaCena = ligeroPosPool.length ? ligeroPosPool : postresPool;
 
     const assignments = [];
 
-    for (const day of days) {
-        // Primero: evitar proteína del día anterior
-        const primero = pickFiltered(primeros, usedPrimeros, season, prevProteinaPrimero, null);
-        const proteinaPrimero = getPlateProteina(primero);
-        const pesoPrimero = getPlatePeso(primero);
+    for (let i = 0; i < days.length; i++) {
+        const day = days[i];
+        const usarUnico = unicoDaySet.has(i) && unicoPool.length > 0;
 
-        // Segundo: saltar si el primero es plato único
-        let segundo = null;
-        let proteinaSegundo = null;
-        if (!isPlatoUnico(primero)) {
-            const avoidSegundo = proteinaPrimero || prevProteinaSegundo;
-            const preferPesoSegundo = pesoPrimero === 'contundente' ? 'ligero' : null;
-            const nombrePrimero = getPlateNameStr(primero);
-            // Si el primero no aporta proteína, intentar que el segundo la aporte
-            if (!hasProteinaComponente(primero)) {
-                const conProt = segundos.filter(p => hasProteinaComponente(p));
-                if (conProt.length) {
-                    segundo = pickFilteredWeighted(conProt, usedSegundos, season, avoidSegundo, preferPesoSegundo, nombrePrimero);
-                }
-            }
-            if (!segundo) {
-                segundo = pickFilteredWeighted(segundos, usedSegundos, season, avoidSegundo, preferPesoSegundo, nombrePrimero);
-            }
-            proteinaSegundo = getPlateProteina(segundo);
+        // ── Comida ───────────────────────────────────────────────────────────
+        let comida1, comida2;
+
+        if (usarUnico) {
+            // Ruta A: plato único + postre (sin segundo)
+            if (usedUnicos.size >= unicoPool.length) usedUnicos.clear();
+            comida1 = pickFiltered(unicoPool, usedUnicos, season, null, null);
+            comida2 = null;
+        } else {
+            // Ruta B: hidrato + proteína rotada + postre
+            if (usedHidratos.size >= hidratoPool.length) usedHidratos.clear();
+            comida1 = pickFiltered(hidratoPool, usedHidratos, season, null, null);
+            comida2 = pickProtein(protCatPools, usedComidaProt, comidaCatIdx, getPlateNameStr(comida1));
+            comidaCatIdx = (comidaCatIdx + 1) % Math.max(1, protCatPools.length);
         }
 
         // Postre comida
-        if (postres.length > 0 && usedPostres.size >= postresComida.length) usedPostres.clear();
+        if (postresPool.length > 0 && usedPostres.size >= postresComida.length) usedPostres.clear();
         const postre = pickFiltered(postresComida, usedPostres, season, null, null);
 
-        // Reset usedCenas si el pool es pequeño
-        if (cenas.length > 0 && usedCenas.size >= cenas.length) usedCenas.clear();
+        // ── Cena: hidrato ligero + proteína rotada (desfasada respecto a comida) ──
+        const ligerosSinUsar = cenaLigeroPool.filter(p => !usedCenaHidratos.has(getPlateNameStr(p)));
+        const poolActivoCena = ligerosSinUsar.length > 0 ? cenaLigeroPool : cenaHidratoPool;
+        if (usedCenaHidratos.size >= poolActivoCena.length) usedCenaHidratos.clear();
+        const cena1 = pickFiltered(poolActivoCena, usedCenaHidratos, season, null, null);
 
-        // Cena1: sin restricciones extra
-        const cena1 = pickFiltered(cenas, usedCenas, season, null, null);
-        const proteinaCena1 = getPlateProteina(cena1);
+        const cena2 = pickProtein(protCatPools, usedCenaProt, cenaCatIdx, getPlateNameStr(cena1));
+        cenaCatIdx = (cenaCatIdx + 1) % Math.max(1, protCatPools.length);
 
-        // Cena2: saltar si cena1 es plato único
-        let cena2 = null;
-        if (!isPlatoUnico(cena1)) {
-            const nombreCena1 = getPlateNameStr(cena1);
-            const usedForCena2 = new Set([...usedCenas, ...(cena1 ? [nombreCena1] : [])]);
-            if (cenas.length > 0 && usedForCena2.size >= cenas.length) usedForCena2.clear();
-            const preferPesoCena2 = isAnimalProteina(proteinaCena1) ? 'ligero' : null;
-            // Si cena1 no aporta proteína, intentar que cena2 la aporte
-            if (!hasProteinaComponente(cena1)) {
-                const cenasConProt = cenas.filter(p => hasProteinaComponente(p));
-                if (cenasConProt.length) {
-                    cena2 = pickFilteredWeighted(cenasConProt, usedForCena2, season, proteinaCena1, preferPesoCena2, nombreCena1);
-                }
-            }
-            if (!cena2) {
-                cena2 = pickFilteredWeighted(cenas, usedForCena2, season, proteinaCena1, preferPesoCena2, nombreCena1);
-            }
-        }
+        // Postre cena
+        if (postresPool.length > 0 && usedCenaPostres.size >= postresParaCena.length) usedCenaPostres.clear();
+        const cenaPostre = pickFiltered(postresParaCena, usedCenaPostres, season, null, null);
 
-        // Postre cena: usa su propio set para no repetir dentro de la semana
-        if (postres.length > 0 && usedCenaPostres.size >= postresParaCena.length) usedCenaPostres.clear();
-        const cenaPostre = pickFiltered(postresParaCena, usedCenaPostres, season, null);
-
+        const comida1Str = getPlateNameStr(comida1);
         assignments.push({ day, slots: {
-            comida1:    getPlateNameStr(primero),
-            comida2:    segundo ? getPlateNameStr(segundo) : '',
+            comida1:    comida1Str,
+            comida2:    usarUnico ? comida1Str : (comida2 ? getPlateNameStr(comida2) : ''),
             postre:     getPlateNameStr(postre),
             cena1:      getPlateNameStr(cena1),
             cena2:      cena2 ? getPlateNameStr(cena2) : '',
-            cenaPostre: getPlateNameStr(cenaPostre)
+            cenaPostre: getPlateNameStr(cenaPostre),
         }});
 
-        if (primero)    usedPrimeros.add(getPlateNameStr(primero));
-        if (segundo)    usedSegundos.add(getPlateNameStr(segundo));
+        if (usarUnico && comida1) usedUnicos.add(getPlateNameStr(comida1));
+        if (!usarUnico && comida1) usedHidratos.add(getPlateNameStr(comida1));
         if (postre)     usedPostres.add(getPlateNameStr(postre));
-        if (cena1)      usedCenas.add(getPlateNameStr(cena1));
-        if (cena2)      usedCenas.add(getPlateNameStr(cena2));
+        if (cena1)      usedCenaHidratos.add(getPlateNameStr(cena1));
         if (cenaPostre) usedCenaPostres.add(getPlateNameStr(cenaPostre));
-
-        prevProteinaPrimero = proteinaPrimero;
-        prevProteinaSegundo = proteinaSegundo;
     }
 
     // Aplicar al calendario actual
@@ -3667,7 +3537,7 @@ async function addNewCalendar(autoShift = false) {
 
 // Reiniciar calendario actual
 async function resetAllMeals() {
-    if (!isEditorUser) {
+    if (!currentUser) {
         showNotification('Sin permiso de edición', 'error');
         return;
     }
@@ -3768,10 +3638,9 @@ async function openFoodModal(slot, replaceFoodName = null) {
         const modalFixedCategoryTitle = document.getElementById('modalFixedCategoryTitle');
         const clearSlotBtn = document.getElementById('modalClearSlotBtn');
         const categoryTitles = {
-            'primeros': '🥗 Primeros Platos',
-            'segundos': '🍗 Segundos Platos',
-            'postres': '🍮 Postres',
-            'cenas': '🌙 Cenas Ligeras'
+            'primeros': '🥗 Primeros', 'segundos': '🍗 Segundos',
+            'unico': '🍲 Plato Único', 'postres': '🍮 Postres',
+            ...SUBCATEGORY_LABELS
         };
 
     function normalizeText(text) {
@@ -3932,91 +3801,71 @@ async function openFoodModal(slot, replaceFoodName = null) {
         clearSlotBtn.disabled = existingPlates.length === 0;
     }
 
-    // Determinar qué categorías mostrar según el tipo de comida
-    let categoriesToShow = [];
-
-    if (meal === 'comida1') {
-        categoriesToShow = ['primeros', 'unico'];
-    } else if (meal === 'comida2') {
-        // Solo segundos platos para el segundo plato de la comida
-        categoriesToShow = ['segundos'];
-    } else if (meal === 'postre' || meal === 'cenaPostre') {
-        // Solo postres
-        categoriesToShow = ['postres'];
-    } else if (meal === 'cena1') {
-        categoriesToShow = ['primeros', 'cenas', 'unico'];
-    } else if (meal === 'cena2') {
-        // Segundos platos + cenas ligeras para el segundo plato de cena
-        categoriesToShow = ['segundos', 'cenas'];
-    }
+    // Determinar grupos a mostrar según tipo de comida
+    const modalGroups = MODAL_GROUPS_BY_MEAL[meal] || [];
+    const hasMultipleGroups = modalGroups.length > 1;
 
     let hasPlates = false;
-    const availableCategoryKeys = [];
-    const hasMultipleCategories = categoriesToShow.length > 1;
-    const keepCategoriesExpanded = meal === 'cena1';
+    const visibleGroupTitles = [];
 
-    categoriesToShow.forEach((category, index) => {
-        const plates = customFoodsGlobal[category] || [];
-
-        // Filtrar platos ya añadidos
-        const availablePlates = plates.filter(plate => {
-            const plateName = typeof plate === 'string' ? plate : plate.name;
-            if (!existingPlates.includes(plateName)) {
-                return true;
+    modalGroups.forEach((group, groupIndex) => {
+        // Recoger platos de todas las subcategorías del grupo
+        const groupPlates = [];
+        group.cats.forEach(subcat => {
+            const subcatPlates = (customFoodsGlobal[subcat] || [])
+                .filter(plate => {
+                    const plateName = typeof plate === 'string' ? plate : plate.name;
+                    if (!existingPlates.includes(plateName)) return true;
+                    return !!replaceTargetFoodName && plateName === replaceTargetFoodName;
+                })
+                .sort((a, b) => {
+                    const nameA = (typeof a === 'string' ? a : a.name).toLowerCase();
+                    const nameB = (typeof b === 'string' ? b : b.name).toLowerCase();
+                    return nameA.localeCompare(nameB, 'es');
+                });
+            if (subcatPlates.length > 0) {
+                groupPlates.push({ subcat, plates: subcatPlates });
             }
-
-            return !!replaceTargetFoodName && plateName === replaceTargetFoodName;
-        }).sort((a, b) => {
-            const nameA = (typeof a === 'string' ? a : a.name).toLowerCase();
-            const nameB = (typeof b === 'string' ? b : b.name).toLowerCase();
-            return nameA.localeCompare(nameB, 'es');
         });
 
-        if (availablePlates.length > 0) {
-            hasPlates = true;
-            availableCategoryKeys.push(category);
-            const categoryDiv = document.createElement('div');
-            categoryDiv.className = 'modal-category';
-            categoryDiv.dataset.category = category;
+        if (groupPlates.length === 0) return;
 
-            // Si hay múltiples categorías, añadir flecha y funcionalidad de colapso
-            if (hasMultipleCategories) {
-                const categoryTitle = document.createElement('div');
-                categoryTitle.className = 'modal-category-title';
-                categoryTitle.innerHTML = `
-                    <span class="category-title-text">${categoryTitles[category]}</span>
-                    <span class="category-arrow">▼</span>
-                `;
-                categoryTitle.style.cursor = 'pointer';
-                categoryTitle.style.display = 'flex';
-                categoryTitle.style.justifyContent = 'space-between';
-                categoryTitle.style.alignItems = 'center';
-                categoryTitle.style.padding = '12px 15px';
-                categoryTitle.style.background = '#f5f5f5';
-                categoryTitle.style.borderRadius = '6px';
-                categoryTitle.style.marginBottom = '8px';
-                categoryTitle.style.fontWeight = '600';
-                
-                // Empezar colapsado salvo en cena1
-                if (!keepCategoriesExpanded) {
-                    categoryDiv.classList.add('collapsed');
-                }
-                
-                categoryTitle.onclick = function() {
-                    const isCollapsed = categoryDiv.classList.toggle('collapsed');
-                    const arrow = categoryTitle.querySelector('.category-arrow');
-                    arrow.textContent = isCollapsed ? '▼' : '▲';
-                };
+        hasPlates = true;
+        visibleGroupTitles.push(group.title);
 
-                if (keepCategoriesExpanded) {
-                    const arrow = categoryTitle.querySelector('.category-arrow');
-                    arrow.textContent = '▲';
-                }
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = 'modal-category';
+        categoryDiv.dataset.category = group.key;
 
-                categoryDiv.appendChild(categoryTitle);
+        // Encabezado de grupo colapsable cuando hay múltiples grupos
+        if (hasMultipleGroups) {
+            const startExpanded = groupIndex === 0;
+            if (!startExpanded) categoryDiv.classList.add('collapsed');
+
+            const categoryTitle = document.createElement('div');
+            categoryTitle.className = 'modal-category-title';
+            categoryTitle.innerHTML = `
+                <span class="category-title-text">${group.title}</span>
+                <span class="category-arrow">${startExpanded ? '▲' : '▼'}</span>
+            `;
+            categoryTitle.style.cssText = 'cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:#f5f5f5;border-radius:6px;margin-bottom:8px;font-weight:600;';
+            categoryTitle.onclick = function() {
+                const isCollapsed = categoryDiv.classList.toggle('collapsed');
+                categoryTitle.querySelector('.category-arrow').textContent = isCollapsed ? '▼' : '▲';
+            };
+            categoryDiv.appendChild(categoryTitle);
+        }
+
+        // Añadir platos agrupados por subcategoría con sub-etiqueta
+        groupPlates.forEach(({ subcat, plates }) => {
+            const showSubLabel = group.cats.filter(c => (customFoodsGlobal[c] || []).length > 0).length > 1;
+            if (showSubLabel) {
+                const subLabelEl = document.createElement('div');
+                subLabelEl.className = 'modal-subcategory-label';
+                subLabelEl.textContent = SUBCATEGORY_LABELS[subcat];
+                categoryDiv.appendChild(subLabelEl);
             }
-
-            availablePlates.forEach(plate => {
+            plates.forEach(plate => {
                 const foodName = typeof plate === 'string' ? plate : plate.name;
                 const foodDiv = document.createElement('div');
                 foodDiv.className = 'modal-food-item';
@@ -4024,13 +3873,13 @@ async function openFoodModal(slot, replaceFoodName = null) {
                 foodDiv.onclick = () => selectFood(foodName);
                 categoryDiv.appendChild(foodDiv);
             });
+        });
 
-            modalFoods.appendChild(categoryDiv);
-        }
+        modalFoods.appendChild(categoryDiv);
     });
 
-    modalFixedCategoryTitle.textContent = availableCategoryKeys.length > 0
-        ? availableCategoryKeys.map(category => categoryTitles[category]).join(' • ')
+    modalFixedCategoryTitle.textContent = visibleGroupTitles.length > 0
+        ? visibleGroupTitles.join(' • ')
         : 'Sin categorías disponibles';
 
     if (!hasPlates) {
@@ -4187,7 +4036,7 @@ async function selectFood(foodName) {
 
         // Si es plato único → ocupa ambos slots del turno y bloquea el segundo
         const slotMeal = currentSlot.dataset.meal;
-        if (findPlateCategory(foodName) === 'unico' && (slotMeal === 'comida1' || slotMeal === 'cena1')) {
+        if (findPlateCategory(foodName)?.startsWith('unico_') && (slotMeal === 'comida1' || slotMeal === 'cena1')) {
             const day = currentSlot.dataset.day;
             const cal = currentSlot.dataset.calendar;
             const isPair = slotMeal === 'comida1';
@@ -4253,7 +4102,7 @@ function setupSlotClickHandlers() {
         const slot = e.target.closest('.meal-slot');
         
         if (slot) {
-            if (slot.classList.contains('slot-disabled') || !isEditorUser) {
+            if (slot.classList.contains('slot-disabled') || !currentUser) {
                 return;
             }
 
@@ -4286,7 +4135,7 @@ function setupSlotClickHandlers() {
         const slot = e.target.closest('.meal-slot');
         
         if (slot) {
-            if (slot.classList.contains('slot-disabled') || !isEditorUser) {
+            if (slot.classList.contains('slot-disabled') || !currentUser) {
                 return;
             }
 
@@ -4347,7 +4196,83 @@ updateCopyButtonsVisibility();
 // Inicializar eventos de click DESPUÉS de que todo esté cargado
 setupSlotClickHandlers();
 
-// Estado del botón aleatorio: se actualiza cuando cambia el contenido de la tabla
+// ── Definir Platos ────────────────────────────────────────────────────────────
+let _definirList = [];   // [{cat, idx}] — lista plana de todos los platos
+let _definirIdx  = 0;
+
+function abrirDefinirModal() {
+    _definirList = [];
+    for (const cat of ALL_CATEGORIES) {
+        const plates = customFoodsGlobal[cat] || [];
+        plates.forEach((_, i) => _definirList.push({ cat, i }));
+    }
+    if (!_definirList.length) {
+        showNotification('No hay platos definidos', 'warning');
+        return;
+    }
+    _definirIdx = 0;
+    _cargarDefinirPlato();
+    document.getElementById('definirModal').style.display = 'flex';
+}
+
+function cerrarDefinirModal() {
+    document.getElementById('definirModal').style.display = 'none';
+}
+
+function definirOverlayClick(e) {
+    if (e.target === e.currentTarget) cerrarDefinirModal();
+}
+
+function _cargarDefinirPlato() {
+    const { cat, i } = _definirList[_definirIdx];
+    const plate = customFoodsGlobal[cat][i];
+    const name = typeof plate === 'string' ? plate : (plate?.name || '—');
+    document.getElementById('definirCounter').textContent   = `${_definirIdx + 1} / ${_definirList.length}`;
+    document.getElementById('definirPlateName').textContent = name;
+    document.getElementById('chkSinGluten').checked    = !!(plate?.sinGluten);
+    document.getElementById('chkSinLactosa').checked   = !!(plate?.sinLactosa);
+    document.getElementById('chkPrefCena').checked     = !!(plate?.prefCena);
+    document.getElementById('chkVegano').checked       = !!(plate?.vegano);
+    document.getElementById('chkVegetariano').checked  = !!(plate?.vegetariano);
+}
+
+function _recogerFlags() {
+    return {
+        sinGluten:   document.getElementById('chkSinGluten').checked,
+        sinLactosa:  document.getElementById('chkSinLactosa').checked,
+        prefCena:    document.getElementById('chkPrefCena').checked,
+        vegano:      document.getElementById('chkVegano').checked,
+        vegetariano: document.getElementById('chkVegetariano').checked,
+    };
+}
+
+async function guardarDefinirPlato() {
+    const { cat, i } = _definirList[_definirIdx];
+    const plate = customFoodsGlobal[cat][i];
+    const flags = _recogerFlags();
+    customFoodsGlobal[cat][i] = typeof plate === 'string'
+        ? { name: plate, ...flags }
+        : { ...plate, ...flags };
+    try {
+        await db.collection('foods').doc(CUSTOM_FOODS_DOC_ID).set({ customFoods: customFoodsGlobal });
+        showNotification('✅ Guardado', 'success');
+    } catch (e) {
+        showNotification('❌ Error guardando', 'error');
+    }
+}
+
+async function siguienteDefinirPlato() {
+    await guardarDefinirPlato();
+    if (_definirIdx < _definirList.length - 1) {
+        _definirIdx++;
+        _cargarDefinirPlato();
+    } else {
+        cerrarDefinirModal();
+        showNotification('✅ Todos los platos definidos', 'success');
+    }
+}
+
+// ── Estado del botón aleatorio: se actualiza cuando cambia el contenido de la tabla
 const weekTableEl = document.getElementById('weekTable');
 if (weekTableEl) {
     new MutationObserver(updateRandomBtnState).observe(weekTableEl, { childList: true, subtree: true });
@@ -4490,3 +4415,396 @@ async function migrateCalendarDays(direction = 'forward') {
 window.migrateCalendarDays = migrateCalendarDays;
 window.migrateCalendarDaysForward = () => migrateCalendarDays('forward');
 window.migrateCalendarDaysBackward = () => migrateCalendarDays('backward');
+
+// ── Recetas Internacionales (Edamam Recipe Search API) ────────────────────────
+const _CAT_ES = {
+    'Beef':'Ternera','Chicken':'Pollo','Dessert':'Postres','Lamb':'Cordero',
+    'Miscellaneous':'Varios','Pasta':'Pasta','Pork':'Cerdo','Seafood':'Mariscos',
+    'Side':'Guarnición','Starter':'Entrante','Vegan':'Vegano','Vegetarian':'Vegetariano',
+    'Breakfast':'Desayuno','Goat':'Cabra'
+};
+const _AREA_ES = {
+    'American':'Americana','British':'Británica','Canadian':'Canadiense','Chinese':'China',
+    'Croatian':'Croata','Dutch':'Holandesa','Egyptian':'Egipcia','Filipino':'Filipina',
+    'French':'Francesa','Greek':'Griega','Indian':'India','Irish':'Irlandesa',
+    'Italian':'Italiana','Jamaican':'Jamaicana','Japanese':'Japonesa','Kenyan':'Keniana',
+    'Malaysian':'Malaya','Mexican':'Mexicana','Moroccan':'Marroquí','Polish':'Polaca',
+    'Portuguese':'Portuguesa','Russian':'Rusa','Spanish':'Española','Thai':'Tailandesa',
+    'Tunisian':'Tunecina','Turkish':'Turca','Ukrainian':'Ucraniana',
+    'Uruguayan':'Uruguaya','Vietnamese':'Vietnamita'
+};
+
+let _recetasSeleccionada = null;
+let _recetasCurrentUrl   = null;
+let _recetasPool = [];
+let _recetasShown = new Set();
+let _translCache = {};       // caché en memoria (cargado desde Firebase al abrir)
+let _translDirty = new Set(); // nombres nuevos pendientes de guardar
+
+async function _loadTranslCache() {
+    try {
+        const snap = await db.collection('translations').doc('recipe-names').get();
+        _translCache = snap.exists ? (snap.data() || {}) : {};
+    } catch(e) { _translCache = {}; }
+}
+
+async function _saveTranslCache() {
+    if (!_translDirty.size) return;
+    const updates = {};
+    _translDirty.forEach(k => { updates[k] = _translCache[k]; });
+    _translDirty.clear();
+    try {
+        await db.collection('translations').doc('recipe-names').set(updates, { merge: true });
+    } catch(e) {}
+}
+
+function _isBadTranslation(text) {
+    const l = String(text || '').toLowerCase();
+    return l.includes('mymemory') || l.includes('quota') ||
+           l.includes('daily limit') || l.includes('unavailable');
+}
+
+async function _translateText(text) {
+    const cached = _translCache[text];
+    if (cached && !_isBadTranslation(cached)) return cached;
+    try {
+        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|es`);
+        const data = await res.json();
+        const translated = data.responseData?.translatedText || '';
+        // Descartar si es un mensaje de error/aviso de MyMemory
+        if (!translated || translated.toLowerCase().includes('mymemory') || translated.toLowerCase().includes('limit')) {
+            return text;
+        }
+        if (translated !== text) {
+            _translCache[text] = translated;
+            _translDirty.add(text);
+            _saveTranslCache();
+        }
+        return translated;
+    } catch(e) { return text; }
+}
+
+async function abrirRecetasModal() {
+    document.getElementById('recetasModal').classList.add('open');
+    if (!Object.keys(_translCache).length) await _loadTranslCache();
+    await _cargarFiltrosRecetas();
+}
+
+function cerrarRecetasModal() {
+    document.getElementById('recetasModal').classList.remove('open');
+    _recetasSeleccionada = null;
+    _recetasCurrentUrl   = null;
+    _recetasPool = [];
+    _recetasShown = new Set();
+    document.getElementById('recetasDayPicker').style.display = 'none';
+    document.getElementById('recetasResultados').innerHTML = '';
+}
+
+function recetasOverlayClick(e) {
+    if (e.target === e.currentTarget) cerrarRecetasModal();
+}
+
+function setRecetasTab(tab) {
+    document.querySelectorAll('.recetas-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.recetas-search-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById(`recetasPanel${tab}`).classList.remove('hidden');
+    document.getElementById('recetasResultados').innerHTML = '';
+    document.getElementById('recetasDayPicker').style.display = 'none';
+}
+
+async function _cargarFiltrosRecetas() {
+    try {
+        const [catRes, areaRes] = await Promise.all([
+            fetch('https://www.themealdb.com/api/json/v1/1/categories.php'),
+            fetch('https://www.themealdb.com/api/json/v1/1/list.php?a=list')
+        ]);
+        const catData  = await catRes.json();
+        const areaData = await areaRes.json();
+
+        document.getElementById('recetasCategoriaSelect').innerHTML =
+            '<option value="">Selecciona una categoría...</option>' +
+            (catData.categories || []).map(c =>
+                `<option value="${c.strCategory}">${_CAT_ES[c.strCategory] || c.strCategory}</option>`
+            ).join('');
+
+        document.getElementById('recetasPaisSelect').innerHTML =
+            '<option value="">Selecciona un país...</option>' +
+            (areaData.meals || []).map(a =>
+                `<option value="${a.strArea}">${_AREA_ES[a.strArea] || a.strArea}</option>`
+            ).join('');
+    } catch(e) {
+        console.warn('Error cargando filtros:', e);
+    }
+}
+
+async function buscarRecetasPorCategoria() {
+    const val = document.getElementById('recetasCategoriaSelect').value;
+    if (!val) return;
+    await _buscarYMostrar(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${encodeURIComponent(val)}`);
+}
+
+async function buscarRecetasPorPais() {
+    const val = document.getElementById('recetasPaisSelect').value;
+    if (!val) return;
+    await _buscarYMostrar(`https://www.themealdb.com/api/json/v1/1/filter.php?a=${encodeURIComponent(val)}`);
+}
+
+async function buscarRecetasPorIngrediente() {
+    const val = document.getElementById('recetasIngredienteInput').value.trim();
+    if (!val) { showNotification('Escribe un ingrediente', 'warning'); return; }
+    await _buscarYMostrar(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(val)}`);
+}
+
+async function _buscarYMostrar(url) {
+    _recetasCurrentUrl = url;
+    _recetasPool  = [];
+    _recetasShown = new Set();
+    const grid   = document.getElementById('recetasResultados');
+    document.getElementById('recetasDayPicker').style.display = 'none';
+    _recetasSeleccionada = null;
+    grid.innerHTML = '<div class="recetas-loading">⏳ Cargando recetas...</div>';
+    try {
+        const res  = await fetch(url);
+        const data = await res.json();
+        _recetasPool = data.meals || [];
+        if (!_recetasPool.length) {
+            grid.innerHTML = '<div class="recetas-empty">No se encontraron recetas.</div>';
+            return;
+        }
+        grid.innerHTML = '';
+        await _mostrarSiguientes8();
+    } catch(e) {
+        grid.innerHTML = '<div class="recetas-empty">❌ Error cargando recetas.</div>';
+    }
+}
+
+async function _mostrarSiguientes8() {
+    const grid = document.getElementById('recetasResultados');
+    const disponibles = _recetasPool.filter(m => !_recetasShown.has(m.idMeal));
+    if (!disponibles.length) { _recetasShown = new Set(); return _mostrarSiguientes8(); }
+
+    const seleccion = disponibles.sort(() => Math.random() - 0.5).slice(0, 8);
+    seleccion.forEach(m => _recetasShown.add(m.idMeal));
+
+    const nombres = await Promise.all(seleccion.map(m => _translateText(m.strMeal)));
+
+    grid.innerHTML = '';
+    seleccion.forEach((meal, i) => {
+        const nombre = nombres[i] || meal.strMeal;
+        const card   = document.createElement('div');
+        card.className = 'receta-card';
+        card.onclick = () => _seleccionarReceta(nombre, meal.strMeal, card);
+        card.innerHTML = `
+            <img src="${meal.strMealThumb}/preview" alt="${nombre}" loading="lazy" style="width:100%;height:90px;object-fit:cover;display:block;">
+            <div style="padding:5px 7px 4px;font-size:0.75rem;font-weight:600;line-height:1.3;word-break:break-word;">${nombre}</div>
+            <button class="receta-ver-btn" onclick="event.stopPropagation();verDetalleReceta('${meal.idMeal}','${nombre.replace(/'/g,"\\'")}')">📋 Ver receta</button>
+        `;
+        grid.appendChild(card);
+    });
+
+    // Botón ver más
+    const btn = document.createElement('div');
+    btn.style.cssText = 'grid-column:1/-1;text-align:center;padding:6px 0 2px;';
+    btn.innerHTML = `<button onclick="recetasCargarMas()" style="padding:7px 24px;border:2px dashed #d1d5db;background:none;border-radius:8px;cursor:pointer;font-size:1rem;color:#6b7280;">＋ Ver más</button>`;
+    grid.appendChild(btn);
+}
+
+async function recetasCargarMas() {
+    document.getElementById('recetasDayPicker').style.display = 'none';
+    _recetasSeleccionada = null;
+    await _mostrarSiguientes8();
+}
+
+let _recetasSlotActual = 'comida1';
+
+function selRecetasSlot(btn) {
+    document.querySelectorAll('.recetas-slot-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _recetasSlotActual = btn.dataset.slot;
+}
+
+async function _translateChunks(text) {
+    // Dividir en fragmentos de ~450 chars (compatible con todos los navegadores)
+    const parrafos = text.replace(/\r\n/g, '\n').split(/\n+/).filter(s => s.trim());
+    const chunks = [];
+    let current = '';
+    for (const p of parrafos) {
+        if ((current + ' ' + p).length > 450) {
+            if (current) chunks.push(current.trim());
+            current = p;
+        } else {
+            current += (current ? ' ' : '') + p;
+        }
+    }
+    if (current) chunks.push(current.trim());
+
+    let limitHit = false;
+    const translated = [];
+    for (const chunk of chunks) {
+        try {
+            const res  = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=en|es`);
+            const data = await res.json();
+            const t    = data.responseData?.translatedText || '';
+            if (!t || t.toLowerCase().includes('mymemory')) {
+                limitHit = true;
+                translated.push(chunk);
+            } else {
+                translated.push(t);
+            }
+        } catch(e) { translated.push(chunk); }
+        await new Promise(r => setTimeout(r, 300));
+    }
+    return { text: translated.join('\n\n'), limitHit };
+}
+
+async function verDetalleReceta(idMeal, nombreEs) {
+    const overlay = document.getElementById('recetaDetalleOverlay');
+    document.getElementById('recetaDetalleTitulo').textContent = nombreEs;
+    document.getElementById('recetaDetalleImg').src = '';
+    document.getElementById('recetaDetalleIngredientes').innerHTML = '<li>Cargando...</li>';
+    document.getElementById('recetaDetalleInstrucciones').textContent = '';
+    document.getElementById('recetaDetalleYoutube').innerHTML = '';
+    overlay.classList.add('open');
+
+    try {
+        const res  = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${idMeal}`);
+        const data = await res.json();
+        const m    = data.meals?.[0];
+        if (!m) return;
+
+        document.getElementById('recetaDetalleImg').src = m.strMealThumb;
+
+        // Ingredientes (traducidos)
+        const ingredientesRaw = [];
+        for (let i = 1; i <= 20; i++) {
+            const ing  = m[`strIngredient${i}`]?.trim();
+            const cant = m[`strMeasure${i}`]?.trim();
+            if (ing) ingredientesRaw.push({ ing, cant });
+        }
+        const ingsTraducidos = await Promise.all(ingredientesRaw.map(x => _translateText(x.ing)));
+        document.getElementById('recetaDetalleIngredientes').innerHTML =
+            ingredientesRaw.map((x, i) =>
+                `<li>${x.cant ? x.cant + ' ' : ''}${ingsTraducidos[i] || x.ing}</li>`
+            ).join('');
+
+        // Instrucciones — comprobar caché Firebase
+        const instrEl  = document.getElementById('recetaDetalleInstrucciones');
+        const instrOrig = m.strInstructions || '';
+
+        let instrCached = null;
+        try {
+            const snap = await db.collection('translations').doc('instructions').get();
+            instrCached = snap.exists ? snap.data()?.[idMeal] : null;
+        } catch(e) {}
+
+        if (instrCached && !_isBadTranslation(instrCached)) {
+            instrEl.textContent = instrCached;
+        } else {
+            instrEl.textContent = instrOrig;
+            if (instrOrig) {
+                const btnTraducir = document.createElement('button');
+                btnTraducir.textContent = '🌐 Traducir instrucciones';
+                btnTraducir.style.cssText = 'margin-bottom:10px;padding:6px 14px;background:var(--accent,#2563eb);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-family:inherit;display:block;';
+                btnTraducir.onclick = async () => {
+                    btnTraducir.textContent = '⏳ Traduciendo...';
+                    btnTraducir.disabled = true;
+                    const { text: traducido, limitHit } = await _translateChunks(instrOrig);
+                    if (limitHit) {
+                        btnTraducir.textContent = '⚠️ Límite de traducciones alcanzado. Inténtalo más tarde.';
+                        btnTraducir.style.background = '#f59e0b';
+                        btnTraducir.disabled = false;
+                        btnTraducir.onclick = null;
+                        return;
+                    }
+                    instrEl.textContent = traducido;
+                    btnTraducir.remove();
+                    try {
+                        await db.collection('translations').doc('instructions').set({ [idMeal]: traducido }, { merge: true });
+                    } catch(e) {}
+                };
+                const existingBtn = instrEl.parentNode.querySelector('.btn-traducir-instr');
+                if (existingBtn) existingBtn.remove();
+                btnTraducir.className = 'btn-traducir-instr';
+                instrEl.before(btnTraducir);
+            }
+        }
+
+        // YouTube
+        if (m.strYoutube) {
+            document.getElementById('recetaDetalleYoutube').innerHTML =
+                `<a href="${m.strYoutube}" target="_blank" rel="noopener" style="font-size:0.85rem;color:#2563eb;">▶️ Ver vídeo en YouTube</a>`;
+        }
+    } catch(e) {
+        document.getElementById('recetaDetalleIngredientes').innerHTML = '<li>Error cargando.</li>';
+    }
+}
+
+function cerrarDetalleReceta(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('recetaDetalleOverlay').classList.remove('open');
+}
+
+function _seleccionarReceta(nombreEs, nombreOrig, cardEl) {
+    const yaSeleccionada = cardEl.classList.contains('selected');
+    document.querySelectorAll('.receta-card').forEach(c => c.classList.remove('selected'));
+
+    if (yaSeleccionada) {
+        _recetasSeleccionada = null;
+        document.getElementById('recetasDayPicker').style.display = 'none';
+        return;
+    }
+
+    cardEl.classList.add('selected');
+    _recetasSeleccionada = { nombreEs };
+
+    document.getElementById('recetasSelectedName').textContent = `"${nombreEs}"`;
+
+    const weekOffset = currentCalendar - 1;
+    const monday = getMondayOfWeek(weekOffset);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    document.getElementById('recetasWeekNotice').textContent =
+        `⚠️ Se insertará en la semana del ${fmt(monday)} al ${fmt(sunday)}`;
+
+    _recetasSlotActual = 'comida1';
+    document.querySelectorAll('.recetas-slot-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+
+    const days   = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+    const labels = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    document.getElementById('recetasDaysRow').innerHTML = days.map((d, i) =>
+        `<button class="receta-day-btn" onclick="_añadirRecetaADia('${d}')">${labels[i]}</button>`
+    ).join('');
+
+    const picker = document.getElementById('recetasDayPicker');
+    picker.style.display = 'block';
+    picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function cancelarSeleccionReceta() {
+    document.getElementById('recetasDayPicker').style.display = 'none';
+    document.querySelectorAll('.receta-card').forEach(c => c.classList.remove('selected'));
+    _recetasSeleccionada = null;
+}
+
+async function _añadirRecetaADia(day) {
+    if (!_recetasSeleccionada) return;
+    const { nombreEs } = _recetasSeleccionada;
+
+    const slot = document.querySelector(
+        `.meal-slot[data-day="${day}"][data-meal="${_recetasSlotActual}"]`
+    );
+    if (!slot) {
+        showNotification('No se encontró el slot del día', 'error');
+        return;
+    }
+
+    const foodsArray = [nombreEs];
+    updateSlotWithArray(slot, foodsArray);
+    await saveMenu(day, _recetasSlotActual, foodsArray);
+
+    const dayLabel  = { lunes:'lunes', martes:'martes', miercoles:'miércoles', jueves:'jueves', viernes:'viernes', sabado:'sábado', domingo:'domingo' }[day] || day;
+    const slotLabel = { comida1:'1º Comida', comida2:'2º Comida', postre:'Postre Comida', cena1:'1º Cena', cena2:'2º Cena', cenaPostre:'Postre Cena' }[_recetasSlotActual] || _recetasSlotActual;
+    showNotification(`✅ "${nombreEs}" añadido al ${dayLabel} (${slotLabel})`, 'success');
+    cerrarRecetasModal();
+}
+

@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEditor() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/editors/allowed) &&
+        request.auth.token.email in get(/databases/$(database)/documents/editors/allowed).data.emails;
+    }
+
+    // Plantilla de platos por defecto (solo lectura pública, escritura solo editores)
+    match /foods/{docId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    // Menú compartido legacy (solo lectura pública, escritura solo editores)
+    match /menus/{docId} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    // Editores autorizados
+    match /editors/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.token.email == 'alfredo.escamilla.gonzalez@gmail.com';
+    }
+
+    // Caché de traducciones
+    match /translations/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Espacio personal por usuario: cada usuario solo accede a sus propios datos
+    match /users/{userId}/{document=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+  }
+}

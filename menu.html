@@ -12,10 +12,15 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="utils.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     
-    <link rel="stylesheet" href="menu.css">
+    <link rel="stylesheet" href="menu.css?v=5">
+    <script src="perfil.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="topbar">
@@ -24,12 +29,27 @@
             <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
             <div id="sync-status" class="sync-status" title="Estado de sincronización"></div>
         </div>
-        <div class="topbar-center">🍴 Menú Semanal</div>
+
+        <span class="topbar-brand">Gestor de Menús</span>
+
         <div class="topbar-right">
-            <button class="topbar-nav-btn" onclick="window.location.href='gestion-platos.html'">🍽️ Gestionar Platos</button>
+            <a class="topbar-nav-btn" href="gestion-platos.html" title="Mis Platos">🍽️ <span>Mis Platos</span></a>
+            <a class="topbar-nav-btn" href="combos.html" title="Combos">🔗 <span>Combos</span></a>
+            <button class="topbar-nav-btn recetas-btn" onclick="abrirRecetasModal()" title="Recetas internacionales">🌍 <span>Internacional</span></button>
             <div id="authWidget" class="auth-widget"></div>
+            <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleHamburger()" title="Menú">☰</button>
         </div>
     </nav>
+    <div class="hamburger-menu" id="hamburgerMenu">
+        <div class="ham-section">
+            <button class="ham-item theme-toggle-btn mode-light" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
+            <button class="ham-item theme-toggle-btn mode-dark" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
+        </div>
+        <div class="ham-divider"></div>
+        <button class="ham-item" onclick="window.location.href='gestion-platos.html'">🍽️ Gestionar Platos</button>
+        <button class="ham-item" onclick="window.location.href='combos.html'">🔗 Combos</button>
+        <button class="ham-item" onclick="abrirRecetasModal();closeHamburger()">🌍 Recetas internacionales</button>
+    </div>
 
 
     <!-- Modal para seleccionar comidas en móvil -->
@@ -106,40 +126,19 @@
             
             <div class="food-category">
                 <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🥗 Primeros Platos</div>
+                    <div class="category-title">🥗 Primeros</div>
                     <span class="category-arrow">▼</span>
                 </div>
-                <div class="category-items collapsed" data-category="primeros">
+                <div class="category-items collapsed">
                 </div>
             </div>
 
             <div class="food-category">
                 <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🍗 Segundos Platos</div>
+                    <div class="category-title">🍗 Segundos</div>
                     <span class="category-arrow">▼</span>
                 </div>
-                <div class="category-items collapsed" data-category="segundos">
-                </div>
-            </div>
-
-            <div class="food-category">
-                <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🍮 Postres</div>
-                    <span class="category-arrow">▼</span>
-                </div>
-                <div class="category-items collapsed" data-category="postres">
-                    <div class="category-controls" style="padding:8px 6px; display:flex; gap:6px; align-items:center;">
-                        <button id="randomizeDessertsBtn" class="small-btn" onclick="randomizeDesserts()" title="Asignar postres aleatorios">🎲 Aleatorizar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="food-category">
-                <div class="category-header collapsed" onclick="toggleCategory(this)">
-                    <div class="category-title">🌙 Cenas Ligeras</div>
-                    <span class="category-arrow">▼</span>
-                </div>
-                <div class="category-items collapsed" data-category="cenas">
+                <div class="category-items collapsed">
                 </div>
             </div>
 
@@ -148,18 +147,50 @@
                     <div class="category-title">🍲 Plato Único</div>
                     <span class="category-arrow">▼</span>
                 </div>
-                <div class="category-items collapsed" data-category="unico">
+                <div class="category-items collapsed">
+                </div>
+            </div>
+
+            <div class="food-category">
+                <div class="category-header collapsed" onclick="toggleCategory(this)">
+                    <div class="category-title">🍮 Postres</div>
+                    <span class="category-arrow">▼</span>
+                </div>
+                <div class="category-items collapsed">
+                    <div class="category-controls" style="padding:8px 6px; display:flex; gap:6px; align-items:center;">
+                        <button id="randomizeDessertsBtn" class="small-btn" onclick="randomizeDesserts()" title="Asignar postres aleatorios">🎲 Aleatorizar</button>
+                    </div>
                 </div>
             </div>
 
             <div class="add-custom">
                 <h3>➕ Añadir Nuevo Plato</h3>
                 <select id="categorySelect" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; font-size: 0.9em;">
-                    <option value="primeros">🥗 Primeros Platos</option>
-                    <option value="segundos">🍗 Segundos Platos</option>
-                    <option value="postres">🍮 Postres</option>
-                    <option value="cenas">🌙 Cenas Ligeras</option>
-                    <option value="unico">🍲 Plato Único</option>
+                    <optgroup label="🥗 Primeros">
+                        <option value="primeros_sopa">Sopa / Crema</option>
+                        <option value="primeros_ensalada">Ensalada</option>
+                        <option value="primeros_pasta">Pasta</option>
+                        <option value="primeros_arroz">Arroz</option>
+                        <option value="primeros_legumbres">Legumbres</option>
+                        <option value="primeros_verduras">Verduras</option>
+                    </optgroup>
+                    <optgroup label="🍗 Segundos">
+                        <option value="segundos_carne">Carne</option>
+                        <option value="segundos_pescado">Pescado</option>
+                        <option value="segundos_marisco">Marisco</option>
+                        <option value="segundos_huevos">Huevos</option>
+                    </optgroup>
+                    <optgroup label="🍲 Plato Único">
+                        <option value="unico_potaje">Potaje</option>
+                        <option value="unico_guiso">Guiso</option>
+                        <option value="unico_combinado">Fast Food</option>
+                        <option value="unico_arroz_pasta">Arroz / Pasta completo</option>
+                    </optgroup>
+                    <optgroup label="🍮 Postres">
+                        <option value="postres_fruta">Fruta</option>
+                        <option value="postres_lacteo">Lácteo</option>
+                        <option value="postres_dulce">Dulce</option>
+                    </optgroup>
                 </select>
                 <input type="text" id="customFood" placeholder="Escribe el nombre del plato...">
                 <button onclick="addCustomFood()">Añadir Plato</button>
@@ -283,6 +314,103 @@
     </div>
 
     <script src="menu.js"></script>
+
+<!-- Modal Recetas Internacionales -->
+<div id="recetasModal" class="recetas-overlay" onclick="recetasOverlayClick(event)">
+    <div class="recetas-box">
+        <div class="recetas-header">
+            <h2 class="recetas-title">🌍 Recetas Internacionales</h2>
+            <button class="recetas-close" onclick="cerrarRecetasModal()">×</button>
+        </div>
+
+        <div class="recetas-tabs">
+            <button class="recetas-tab active" data-tab="categoria" onclick="setRecetasTab('categoria')">🗂️ Categoría</button>
+            <button class="recetas-tab" data-tab="pais" onclick="setRecetasTab('pais')">🌍 País</button>
+            <button class="recetas-tab" data-tab="ingrediente" onclick="setRecetasTab('ingrediente')">🥕 Ingrediente</button>
+        </div>
+
+        <div id="recetasPanelcategoria" class="recetas-search-panel">
+            <select id="recetasCategoriaSelect" class="recetas-select" onchange="buscarRecetasPorCategoria()">
+                <option value="">Selecciona una categoría...</option>
+            </select>
+        </div>
+        <div id="recetasPanelpais" class="recetas-search-panel hidden">
+            <select id="recetasPaisSelect" class="recetas-select" onchange="buscarRecetasPorPais()">
+                <option value="">Selecciona un país...</option>
+            </select>
+        </div>
+        <div id="recetasPanelingrediente" class="recetas-search-panel hidden">
+            <div class="recetas-ingredient-row">
+                <input type="text" id="recetasIngredienteInput" class="recetas-input" placeholder="ej: chicken, salmon, pasta...">
+                <button class="recetas-search-btn" onclick="buscarRecetasPorIngrediente()">Buscar</button>
+            </div>
+        </div>
+
+        <div id="recetasResultados" class="recetas-grid"></div>
+
+        <div id="recetasDayPicker" class="recetas-day-picker">
+            <div class="recetas-pick-label">Añadir <strong id="recetasSelectedName"></strong> a:</div>
+            <div id="recetasWeekNotice" style="font-size:0.78rem;color:#6b7280;margin-bottom:8px;"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                <button class="recetas-slot-btn active" data-slot="comida1"  onclick="selRecetasSlot(this)">1º Comida</button>
+                <button class="recetas-slot-btn"        data-slot="comida2"  onclick="selRecetasSlot(this)">2º Comida</button>
+                <button class="recetas-slot-btn"        data-slot="postre"   onclick="selRecetasSlot(this)">Postre Comida</button>
+                <button class="recetas-slot-btn"        data-slot="cena1"    onclick="selRecetasSlot(this)">1º Cena</button>
+                <button class="recetas-slot-btn"        data-slot="cena2"    onclick="selRecetasSlot(this)">2º Cena</button>
+                <button class="recetas-slot-btn"        data-slot="cenaPostre" onclick="selRecetasSlot(this)">Postre Cena</button>
+            </div>
+            <div class="recetas-days-row" id="recetasDaysRow"></div>
+            <button class="recetas-cancel-btn" onclick="cancelarSeleccionReceta()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+    <!-- Modal Detalle Receta -->
+    <div id="recetaDetalleOverlay" class="receta-detalle-overlay" onclick="cerrarDetalleReceta(event)">
+        <div class="receta-detalle-box">
+            <div class="receta-detalle-header">
+                <h3 id="recetaDetalleTitulo"></h3>
+                <button class="recetas-close" onclick="cerrarDetalleReceta()">×</button>
+            </div>
+            <div class="receta-detalle-body">
+                <img id="recetaDetalleImg" src="" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;margin-bottom:16px;">
+                <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+                    <div style="flex:0 0 200px;">
+                        <h4 style="margin:0 0 8px;font-size:0.9rem;">🧂 Ingredientes</h4>
+                        <ul id="recetaDetalleIngredientes" style="margin:0;padding-left:18px;font-size:0.85rem;line-height:1.8;"></ul>
+                    </div>
+                    <div style="flex:1;min-width:200px;">
+                        <h4 style="margin:0 0 8px;font-size:0.9rem;">👨‍🍳 Preparación</h4>
+                        <p id="recetaDetalleInstrucciones" style="font-size:0.82rem;line-height:1.6;white-space:pre-wrap;margin:0;"></p>
+                    </div>
+                </div>
+                <div id="recetaDetalleYoutube" style="margin-top:14px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Definir Platos -->
+    <div id="definirModal" class="definir-overlay" style="display:none" onclick="definirOverlayClick(event)">
+        <div class="definir-box">
+            <div class="definir-header">
+                <span class="definir-counter" id="definirCounter">1 / —</span>
+                <button class="definir-close" onclick="cerrarDefinirModal()" title="Salir">×</button>
+            </div>
+            <div class="definir-plate-name" id="definirPlateName"></div>
+            <div class="definir-checks">
+                <label class="definir-check-label"><input type="checkbox" id="chkSinGluten"> Sin Gluten</label>
+                <label class="definir-check-label"><input type="checkbox" id="chkSinLactosa"> Sin Lactosa</label>
+                <label class="definir-check-label"><input type="checkbox" id="chkPrefCena"> Pref. Cena</label>
+                <label class="definir-check-label"><input type="checkbox" id="chkVegano"> Vegano</label>
+                <label class="definir-check-label"><input type="checkbox" id="chkVegetariano"> Vegetariano</label>
+            </div>
+            <div class="definir-actions">
+                <button class="definir-btn definir-btn-save" onclick="guardarDefinirPlato()">💾 Guardar</button>
+                <button class="definir-btn definir-btn-next" onclick="siguienteDefinirPlato()">Siguiente →</button>
+                <button class="definir-btn definir-btn-exit" onclick="cerrarDefinirModal()">Salir</button>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>

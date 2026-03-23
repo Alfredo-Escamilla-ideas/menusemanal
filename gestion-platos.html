@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Platos | Planificador de Comidas</title>
-    
-    <!-- Favicon -->
+    <title>Gestión de Alimentos | Planificador de Comidas</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
-    
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-
+    <script src="utils.js?v=3"></script>
+    <script src="perfil.js"></script>
     <link rel="stylesheet" href="gestion-platos.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <nav class="topbar">
@@ -21,126 +21,169 @@
             <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
             <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
         </div>
-        <div class="topbar-center">🍽️ Gestión de Platos</div>
+        <span class="topbar-brand">Gestor de Menús</span>
         <div class="topbar-right">
-            <button class="topbar-nav-btn" onclick="window.location.href='menu.html'">⬅ Volver al Menú</button>
+            <button class="topbar-nav-btn" onclick="window.location.href='menu.html'">⬅ <span>Menú</span></button>
+            <button class="topbar-nav-btn" onclick="window.location.href='combos.html'">🔗 <span>Combos</span></button>
             <div id="authWidget" class="auth-widget"></div>
+            <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleHamburger()">☰</button>
         </div>
     </nav>
+    <div class="hamburger-menu" id="hamburgerMenu">
+        <div class="ham-section">
+            <button class="ham-item" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
+            <button class="ham-item" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
+        </div>
+        <div class="ham-divider"></div>
+        <button class="ham-item" onclick="window.location.href='menu.html'">⬅ Volver al Menú</button>
+        <button class="ham-item" onclick="window.location.href='combos.html'">🔗 Combos</button>
+    </div>
 
     <div class="container">
-        <!-- Formulario para añadir platos -->
-        <div class="add-form">
-            <h2>➕ Añadir Nuevo Plato</h2>
-            <div class="form-group">
-                <label for="plateName">Nombre del Plato *</label>
-                <div class="input-with-action">
-                    <input type="text" id="plateName" placeholder="Ej: Paella valenciana">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Categorías *</label>
-                <div class="categories-selector">
-                    <div class="category-option" data-category="primeros">
-                        <input type="checkbox" id="cat-primeros" name="category" value="primeros">
-                        <label for="cat-primeros">🥗 Primeros Platos</label>
-                    </div>
-                    <div class="category-option" data-category="segundos">
-                        <input type="checkbox" id="cat-segundos" name="category" value="segundos">
-                        <label for="cat-segundos">🍗 Segundos Platos</label>
-                    </div>
-                    <div class="category-option" data-category="postres">
-                        <input type="checkbox" id="cat-postres" name="category" value="postres">
-                        <label for="cat-postres">🍮 Postres</label>
-                    </div>
-                    <div class="category-option" data-category="cenas">
-                        <input type="checkbox" id="cat-cenas" name="category" value="cenas">
-                        <label for="cat-cenas">🌙 Cenas Ligeras</label>
-                    </div>
-                    <div class="category-option" data-category="unico">
-                        <input type="checkbox" id="cat-unico" name="category" value="unico">
-                        <label for="cat-unico">🍲 Plato Único</label>
-                    </div>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="plateComments">💬 Comentarios</label>
-                <textarea id="plateComments" placeholder="Añade ingredientes, instrucciones, notas..."></textarea>
-            </div>
-            <div class="form-group">
-                <label for="plateLink">🔗 Link de Receta</label>
-                <input type="url" id="plateLink" placeholder="https://ejemplo.com/receta">
-            </div>
-            <button class="add-button" onclick="addPlate()">Añadir Plato</button>
-        </div>
-
-        <!-- Lista de platos -->
         <div class="plates-list">
-            <h2>📋 Mis Platos</h2>
+            <div class="plates-list-header">
+                <h2>🥘 Mis Alimentos</h2>
+                <button class="btn-new-plate" onclick="openAddModal()">+ Nuevo alimento</button>
+            </div>
             <div class="plates-search-wrapper">
-                <input type="text" id="platesSearchInput" class="plates-search-input" placeholder="🔎 Buscar plato, comentario o enlace..." autocomplete="off" spellcheck="false">
+                <input type="text" id="platesSearchInput" class="plates-search-input" placeholder="🔎 Buscar alimento, alérgeno o etiqueta..." autocomplete="off" spellcheck="false">
             </div>
-            <div id="platesList">
-                <!-- Se llenará dinámicamente -->
-            </div>
+            <div id="platesList"></div>
         </div>
     </div>
 
-    <div id="editPlateModal" class="custom-modal">
-        <div class="custom-modal-content">
-            <div class="custom-modal-header">
-                <h3>✏️ Editar Plato</h3>
-                <button class="custom-modal-close" onclick="closeEditModal()">×</button>
+    <!-- ====== MODAL: Añadir / Editar alimento ====== -->
+    <div id="plateModal" class="custom-modal">
+        <div class="custom-modal-content plate-form-modal">
+
+            <!-- Panel 1: Selección de tipo -->
+            <div id="typeSelectPanel">
+                <div class="plate-modal-header">
+                    <h3>¿Qué tipo de plato es?</h3>
+                    <button class="custom-modal-close" onclick="closePlateModal()">×</button>
+                </div>
+                <div class="type-cards-grid">
+                    <button class="type-card" onclick="selectType('primeros')">
+                        <span class="type-card-icon">🥣</span>
+                        <span class="type-card-label">Primero</span>
+                        <span class="type-card-hint">Sopa, ensalada, pasta…</span>
+                    </button>
+                    <button class="type-card" onclick="selectType('segundos')">
+                        <span class="type-card-icon">🍗</span>
+                        <span class="type-card-label">Segundo</span>
+                        <span class="type-card-hint">Carne, pescado, huevos…</span>
+                    </button>
+                    <button class="type-card" onclick="selectType('postres')">
+                        <span class="type-card-icon">🍰</span>
+                        <span class="type-card-label">Postre</span>
+                        <span class="type-card-hint">Fruta, lácteo, dulce…</span>
+                    </button>
+                    <button class="type-card" onclick="selectType('unico')">
+                        <span class="type-card-icon">🥘</span>
+                        <span class="type-card-label">Acompañamiento</span>
+                        <span class="type-card-hint">Potaje, guiso, arroz…</span>
+                    </button>
+                </div>
             </div>
-            <div class="custom-modal-body">
-                <div class="form-group">
-                    <label for="editPlateName">Nombre del Plato *</label>
-                    <div class="input-with-action">
-                        <input type="text" id="editPlateName" placeholder="Nombre del plato">
-                        <button type="button" class="search-recipe-btn" onclick="searchInDirectoAlPaladar('edit')" title="Buscar receta en DirectoAlPaladar">🔍 Buscar receta</button>
+
+            <!-- Panel 2: Formulario de detalle -->
+            <div id="detailPanel" class="hidden">
+                <div class="plate-modal-header">
+                    <div class="header-back-title">
+                        <button type="button" class="btn-back" id="backBtn" onclick="goBackToTypeSelect()">← Atrás</button>
+                        <h3 id="plateModalTitle">Nuevo Primero</h3>
                     </div>
+                    <button class="custom-modal-close" onclick="closePlateModal()">×</button>
                 </div>
-                <div class="form-group">
-                    <label>Categorías *</label>
-                    <div class="categories-selector" id="editCategoriesSelector">
-                        <div class="category-option" data-category="primeros">
-                            <input type="checkbox" id="edit-cat-primeros" name="editCategory" value="primeros">
-                            <label for="edit-cat-primeros">🥗 Primeros Platos</label>
-                        </div>
-                        <div class="category-option" data-category="segundos">
-                            <input type="checkbox" id="edit-cat-segundos" name="editCategory" value="segundos">
-                            <label for="edit-cat-segundos">🍗 Segundos Platos</label>
-                        </div>
-                        <div class="category-option" data-category="postres">
-                            <input type="checkbox" id="edit-cat-postres" name="editCategory" value="postres">
-                            <label for="edit-cat-postres">🍮 Postres</label>
-                        </div>
-                        <div class="category-option" data-category="cenas">
-                            <input type="checkbox" id="edit-cat-cenas" name="editCategory" value="cenas">
-                            <label for="edit-cat-cenas">🌙 Cenas Ligeras</label>
-                        </div>
-                        <div class="category-option" data-category="unico">
-                            <input type="checkbox" id="edit-cat-unico" name="editCategory" value="unico">
-                            <label for="edit-cat-unico">🍲 Plato Único</label>
+                <div class="plate-modal-body">
+
+                    <div class="field-group">
+                        <label class="field-label">NOMBRE *</label>
+                        <div class="input-with-action">
+                            <input type="text" id="pmName" placeholder="Ej: Pechuga de pollo" autocomplete="off">
+                            <button type="button" class="search-recipe-btn" onclick="searchInDirectoAlPaladar()" title="Buscar receta en DirectoAlPaladar">🔍</button>
                         </div>
                     </div>
+
+                    <div class="field-group">
+                        <label class="field-label">TIPO ESPECÍFICO</label>
+                        <div id="subcatChips" class="subcat-chips-row"></div>
+                    </div>
+
+                    <div class="field-row-2">
+                        <div class="field-group">
+                            <label class="field-label">UNIDAD</label>
+                            <select id="pmUnit">
+                                <option value="">—</option>
+                                <option value="kg">kg</option>
+                                <option value="g">g</option>
+                                <option value="l">l</option>
+                                <option value="ml">ml</option>
+                                <option value="unidad">unidad</option>
+                                <option value="racion">ración</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">TEMPORADA</label>
+                            <select id="pmSeason">
+                                <option value="todo">Todo el año</option>
+                                <option value="primavera">Primavera</option>
+                                <option value="verano">Verano</option>
+                                <option value="otono">Otoño</option>
+                                <option value="invierno">Invierno</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">ALÉRGENOS (14 UE)</label>
+                        <div class="allergens-grid">
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="gluten"> Gluten</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="crustaceos"> Crustáceos</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="huevos"> Huevos</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="pescado"> Pescado</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="cacahuetes"> Cacahuetes</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="soja"> Soja</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="lacteos"> Lácteos</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="frutos_secos"> Frutos secos</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="apio"> Apio</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="mostaza"> Mostaza</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="sesamo"> Sésamo</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="sulfitos"> Sulfitos</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="moluscos"> Moluscos</label>
+                            <label class="check-label"><input type="checkbox" name="pmAllergen" value="altramuz"> Altramuz</label>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">USO PREFERENTE</label>
+                        <div class="checks-row">
+                            <label class="check-label"><input type="checkbox" id="pmUseComida"> 🍽️ Comida</label>
+                            <label class="check-label"><input type="checkbox" id="pmUseCena"> 🌙 Cena</label>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">ETIQUETAS DIETÉTICAS</label>
+                        <div class="checks-row">
+                            <label class="check-label"><input type="checkbox" id="pmVegetariano"> 🥗 Vegetariano</label>
+                            <label class="check-label"><input type="checkbox" id="pmVegano"> 🌱 Vegano</label>
+                            <label class="check-label"><input type="checkbox" id="pmSinGluten"> Sin gluten</label>
+                            <label class="check-label"><input type="checkbox" id="pmSinLactosa"> Sin lactosa</label>
+                        </div>
+                    </div>
+
                 </div>
-                <div class="form-group">
-                    <label for="editPlateComments">💬 Comentarios (opcional)</label>
-                    <textarea id="editPlateComments" placeholder="Añade ingredientes, instrucciones, notas..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="editPlateLink">🔗 Link de Receta (opcional)</label>
-                    <input type="url" id="editPlateLink" placeholder="https://ejemplo.com/receta">
+                <div class="plate-modal-footer">
+                    <button class="btn-cancel" onclick="closePlateModal()">Cancelar</button>
+                    <button class="btn-save" onclick="savePlate()">Guardar</button>
                 </div>
             </div>
-            <div class="custom-modal-footer">
-                <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
-                <button class="btn-primary" onclick="savePlateEdit()">Guardar cambios</button>
-            </div>
+
         </div>
     </div>
 
+    <!-- ====== MODAL: Confirmar ====== -->
     <div id="confirmModal" class="custom-modal">
         <div class="custom-modal-content confirm-content">
             <div class="custom-modal-header">

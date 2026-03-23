@@ -1,7 +1,7 @@
 // ====================================
 // CONFIGURACIÓN
 // ====================================
-const ADMIN_EMAIL = 'daniel.escamilla.bq@gmail.com';
+const ADMIN_EMAIL = 'alfredo.escamilla.gonzalez@gmail.com';
 
 // ====================================
 // INICIALIZACIÓN FIREBASE
@@ -10,12 +10,12 @@ let db = null;
 
 try {
     const firebaseConfig = {
-        apiKey: "AIzaSyDPxRwlqftP-RoeJILhw_PsM3fsqCFIfqo",
-        authDomain: "comidas-33dba.firebaseapp.com",
-        projectId: "comidas-33dba",
-        storageBucket: "comidas-33dba.firebasestorage.app",
-        messagingSenderId: "627965464872",
-        appId: "1:627965464872:web:5a921a070a3f4d8afbc01d"
+        apiKey: "AIzaSyCVByYzJFMlyZazwXIDq3Tb1ihWJosaGFw",
+        authDomain: "menusemanal-53c08.firebaseapp.com",
+        projectId: "menusemanal-53c08",
+        storageBucket: "menusemanal-53c08.firebasestorage.app",
+        messagingSenderId: "944560384545",
+        appId: "1:944560384545:web:0cda30d1dcf3154281d160"
     };
 
     if (!firebase.apps.length) {
@@ -23,13 +23,6 @@ try {
     }
 
     db = firebase.firestore();
-
-    try {
-        firebase.firestore().enablePersistence({ synchronizeTabs: true });
-        console.log('✅ Firestore persistence enabled');
-    } catch (err) {
-        console.warn('⚠️ Firestore persistence not enabled:', err && err.code ? err.code : err);
-    }
 
     console.log('✅ Firebase conectado correctamente (admin)');
 } catch (error) {
