@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Seed — 15 Primeros Mediterráneos</title>
+<title>Seed — 25 Primeros Mediterráneos</title>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -23,8 +23,8 @@
 </style>
 </head>
 <body>
-<h2>🌿 Seed — 15 Primeros Mediterráneos</h2>
-<p>Añade <strong>15 primeros platos</strong> de dieta mediterránea y todos sus <strong>ingredientes</strong>.<br>
+<h2>🌿 Seed — 25 Primeros Mediterráneos</h2>
+<p>Añade <strong>25 primeros platos</strong> de dieta mediterránea y todos sus <strong>ingredientes</strong>.<br>
 Los elementos que ya existan con el mismo nombre se omiten sin duplicar.</p>
 <button id="btnRun" onclick="runSeed()">Importar platos e ingredientes</button>
 <div id="log"></div>
@@ -179,6 +179,106 @@ const PLATOS = [
       allergens:['sulfitos'], comments:'Lentejas templadas con tomate, pepino, cebolla roja y vinagreta mediterránea.',
     }),
   },
+
+  // ── Sopas / Cremas (adicionales) ─────────────────────────────────────────
+  {
+    categoria: 'primeros_sopa',
+    name: 'Salmorejo cordobés',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten','huevos'], comments:'Crema fría de tomate más densa que el gazpacho. Se sirve con huevo duro y jamón opcional.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Crema de puerros',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Crema suave y reconfortante. Muy digestiva.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Crema de zanahoria con jengibre',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Crema vegana con un toque de jengibre fresco. Antiinflamatoria.',
+    }),
+  },
+
+  // ── Ensaladas (adicionales) ───────────────────────────────────────────────
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada de aguacate y tomate',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Aguacate maduro con tomate, cebolla roja y aliño de limón. Rica en grasas saludables.',
+    }),
+  },
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Tabulé mediterráneo',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:false, sinLactosa:true,
+      allergens:['gluten'], comments:'Ensalada levantina de bulgur con tomate, pepino, perejil y menta. Muy refrescante.',
+    }),
+  },
+
+  // ── Pasta (adicionales) ───────────────────────────────────────────────────
+  {
+    categoria: 'primeros_pasta',
+    name: 'Espaguetis al pomodoro',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:true, sinGluten:false, sinLactosa:true,
+      allergens:['gluten'], comments:'Salsa de tomate fresco con ajo y albahaca. El primero mediterráneo más sencillo y clásico.',
+    }),
+  },
+  {
+    categoria: 'primeros_pasta',
+    name: 'Fusilli con brócoli y ajo',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:true, sinGluten:false, sinLactosa:true,
+      allergens:['gluten'], comments:'Pasta salteada con brócoli, ajo laminado y aceite de oliva. Rápido y nutritivo.',
+    }),
+  },
+
+  // ── Verduras (adicionales) ────────────────────────────────────────────────
+  {
+    categoria: 'primeros_verduras',
+    name: 'Escalivada',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Pimientos y berenjenas asadas al horno con aceite de oliva. Tradicional catalán.',
+    }),
+  },
+  {
+    categoria: 'primeros_verduras',
+    name: 'Berenjenas rellenas de verduras',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Berenjenas rellenas de pisto de verduras y gratinadas al horno.',
+    }),
+  },
+
+  // ── Legumbres (adicionales) ───────────────────────────────────────────────
+  {
+    categoria: 'primeros_legumbres',
+    name: 'Alubias blancas con tomate',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Guiso ligero de alubias con tomate, pimentón y ajo. Muy reconfortante.',
+    }),
+  },
 ];
 
 // ─── Ingredientes ────────────────────────────────────────────────────────────
@@ -237,6 +337,23 @@ const INGREDIENTES = [
   { name:'Caldo de verduras',   category:'condimentos',   allergens:[], unit:'ml', season:'todo', notes:'Casero o brick sin sal añadida' },
   // Frutas
   { name:'Limón',               category:'frutas',        allergens:[], unit:'g',  season:'todo', notes:'Usar zumo y ralladura para aderezos mediterráneos' },
+  { name:'Aguacate',            category:'frutas',        allergens:[], unit:'g',  season:'todo', notes:'Usar maduro. Rico en grasas saludables monoinsaturadas.' },
+  // Verduras (adicionales)
+  { name:'Puerro',              category:'verduras',      allergens:[], unit:'g',  season:'invierno', notes:'' },
+  { name:'Brócoli',             category:'verduras',      allergens:[], unit:'g',  season:'todo',     notes:'' },
+  { name:'Jengibre fresco',     category:'verduras',      allergens:[], unit:'g',  season:'todo',     notes:'Pelar y rallar. Conservar en el congelador para mayor duración.' },
+  // Hierbas
+  { name:'Menta fresca',        category:'condimentos',   allergens:[], unit:'g',  season:'todo',     notes:'Imprescindible para el tabulé. Usar siempre fresca.' },
+  // Pasta (adicionales)
+  { name:'Fusilli',             category:'pasta_arroz',   allergens:['gluten'], unit:'g', season:'todo', notes:'Pasta en espiral, retiene bien las salsas.' },
+  // Legumbres (adicionales)
+  { name:'Alubias blancas cocidas', category:'legumbres', allergens:[], unit:'g',  season:'todo', notes:'Cocidas o en conserva escurridas.' },
+  // Cereales
+  { name:'Bulgur',              category:'cereales',      allergens:['gluten'], unit:'g', season:'todo', notes:'Trigo partido precocido. Hidratar con agua hirviendo 15 min.' },
+  // Huevos
+  { name:'Huevo',               category:'huevos',        allergens:['huevos'], unit:'ud', season:'todo', notes:'' },
+  // Condimentos (adicionales)
+  { name:'Vinagre de Jerez',    category:'condimentos',   allergens:['sulfitos'], unit:'ml', season:'todo', notes:'Para el salmorejo y aderezos andaluces.' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
