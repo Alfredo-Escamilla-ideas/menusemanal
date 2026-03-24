@@ -33,38 +33,41 @@ let currentView = 'week'; // 'day', 'three-days', 'week' (móvil) o 'single-week
 let currentDayIndex = new Date().getDay(); // 0=Domingo, 1=Lunes, ...
 const ALL_CATEGORIES = [
     'primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras',
-    'segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos',
-    'unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta',
+    'segundos_carne_roja','segundos_carne_pollo','segundos_carne_cerdo','segundos_pescado_porcion','segundos_pescado_entero','segundos_huevos',
+    'unico_guiso_carne','unico_guiso_pescado','unico_guiso_legumbre','unico_asado_carne','unico_asado_pollo','unico_asado_pescado','unico_asado_verduras','unico_fast_food',
     'postres_fruta','postres_lacteo','postres_dulce'
 ];
 const SUBCATEGORY_LABELS = {
     'primeros_sopa':'Sopa / Crema','primeros_ensalada':'Ensalada','primeros_pasta':'Pasta',
     'primeros_arroz':'Arroz','primeros_legumbres':'Legumbres','primeros_verduras':'Verduras',
-    'segundos_carne':'Carne','segundos_pescado':'Pescado','segundos_marisco':'Marisco','segundos_huevos':'Huevos',
-    'unico_potaje':'Potaje','unico_guiso':'Guiso','unico_combinado':'Fast Food','unico_arroz_pasta':'Arroz / Pasta completo',
+    'segundos_carne_roja':'Carne roja','segundos_carne_pollo':'Pollo / Pavo','segundos_carne_cerdo':'Cerdo',
+    'segundos_pescado_porcion':'Pescado (porción)','segundos_pescado_entero':'Pescado (entero)','segundos_huevos':'Huevos',
+    'unico_guiso_carne':'Guiso de carne','unico_guiso_pescado':'Guiso de pescado','unico_guiso_legumbre':'Guiso de legumbre',
+    'unico_asado_carne':'Asado de carne','unico_asado_pollo':'Asado de pollo','unico_asado_pescado':'Asado de pescado',
+    'unico_asado_verduras':'Asado de verduras','unico_fast_food':'Fast food',
     'postres_fruta':'Fruta','postres_lacteo':'Lácteo','postres_dulce':'Dulce',
 };
 // Índice de contenedor en sidebar: Primeros=0, Segundos=1, Plato Único=2, Postres=3
 const CATEGORY_MAP = {
     'primeros_sopa':0,'primeros_ensalada':0,'primeros_pasta':0,'primeros_arroz':0,'primeros_legumbres':0,'primeros_verduras':0,
-    'segundos_carne':1,'segundos_pescado':1,'segundos_marisco':1,'segundos_huevos':1,
-    'unico_potaje':2,'unico_guiso':2,'unico_combinado':2,'unico_arroz_pasta':2,
+    'segundos_carne_roja':1,'segundos_carne_pollo':1,'segundos_carne_cerdo':1,'segundos_pescado_porcion':1,'segundos_pescado_entero':1,'segundos_huevos':1,
+    'unico_guiso_carne':2,'unico_guiso_pescado':2,'unico_guiso_legumbre':2,'unico_asado_carne':2,'unico_asado_pollo':2,'unico_asado_pescado':2,'unico_asado_verduras':2,'unico_fast_food':2,
     'postres_fruta':3,'postres_lacteo':3,'postres_dulce':3,
 };
 const PARENT_GROUP_SUBCATS = [
     ['primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras'],
-    ['segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos'],
-    ['unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta'],
+    ['segundos_carne_roja','segundos_carne_pollo','segundos_carne_cerdo','segundos_pescado_porcion','segundos_pescado_entero','segundos_huevos'],
+    ['unico_guiso_carne','unico_guiso_pescado','unico_guiso_legumbre','unico_asado_carne','unico_asado_pollo','unico_asado_pescado','unico_asado_verduras','unico_fast_food'],
     ['postres_fruta','postres_lacteo','postres_dulce'],
 ];
 const MODAL_GROUPS_BY_MEAL = {
     comida1:    [{ key:'primeros', title:'🥗 Primeros',     cats:['primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras'] },
-                 { key:'unico',    title:'🍲 Plato Único',  cats:['unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta'] }],
-    comida2:    [{ key:'segundos', title:'🍗 Segundos',     cats:['segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos'] }],
+                 { key:'unico',    title:'🍲 Plato Único',  cats:['unico_guiso_carne','unico_guiso_pescado','unico_guiso_legumbre','unico_asado_carne','unico_asado_pollo','unico_asado_pescado','unico_asado_verduras','unico_fast_food'] }],
+    comida2:    [{ key:'segundos', title:'🍗 Segundos',     cats:['segundos_carne_roja','segundos_carne_pollo','segundos_carne_cerdo','segundos_pescado_porcion','segundos_pescado_entero','segundos_huevos'] }],
     postre:     [{ key:'postres',  title:'🍮 Postres',      cats:['postres_fruta','postres_lacteo','postres_dulce'] }],
     cena1:      [{ key:'primeros', title:'🥗 Primeros',     cats:['primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras'] },
-                 { key:'unico',    title:'🍲 Plato Único',  cats:['unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta'] }],
-    cena2:      [{ key:'segundos', title:'🍗 Segundos',     cats:['segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos'] }],
+                 { key:'unico',    title:'🍲 Plato Único',  cats:['unico_guiso_carne','unico_guiso_pescado','unico_guiso_legumbre','unico_asado_carne','unico_asado_pollo','unico_asado_pescado','unico_asado_verduras','unico_fast_food'] }],
+    cena2:      [{ key:'segundos', title:'🍗 Segundos',     cats:['segundos_carne_roja','segundos_carne_pollo','segundos_carne_cerdo','segundos_pescado_porcion','segundos_pescado_entero','segundos_huevos'] }],
     cenaPostre: [{ key:'postres',  title:'🍮 Postres',      cats:['postres_fruta','postres_lacteo','postres_dulce'] }],
 };
 let customFoodsGlobal = Object.fromEntries(ALL_CATEGORIES.map(c => [c, []]));
@@ -1979,8 +1982,7 @@ function updateSlotWithArray(slot, foodsArray) {
     });
 
     // Actualizar valoración del combo si el slot modificado es relevante
-    const day  = slot.dataset?.day;
-    const meal = slot.dataset?.meal;
+    const day = slot.dataset?.day;
     if (day && (meal === 'comida1' || meal === 'comida2')) {
         refreshComboRating(day, 'comida');
     } else if (day && (meal === 'cena1' || meal === 'cena2')) {
@@ -2731,11 +2733,15 @@ async function generateRandomMenu() {
         ...(customFoodsGlobal.primeros_verduras  ||[]),
     ]);
 
-    // Proteína: pools por categoría para garantizar rotación real (carne / pescado+marisco / huevos)
-    const _carnePool    = buildPool(customFoodsGlobal.segundos_carne   ||[]);
+    // Proteína: pools por categoría para garantizar rotación real (carne / pescado / huevos)
+    const _carnePool    = buildPool([
+        ...(customFoodsGlobal.segundos_carne_roja   ||[]),
+        ...(customFoodsGlobal.segundos_carne_pollo  ||[]),
+        ...(customFoodsGlobal.segundos_carne_cerdo  ||[]),
+    ]);
     const _pescadoPool  = buildPool([
-        ...(customFoodsGlobal.segundos_pescado  ||[]),
-        ...(customFoodsGlobal.segundos_marisco  ||[]),
+        ...(customFoodsGlobal.segundos_pescado_porcion ||[]),
+        ...(customFoodsGlobal.segundos_pescado_entero  ||[]),
     ]);
     const _huevosPool   = buildPool(customFoodsGlobal.segundos_huevos  ||[]);
     // Lista de categorías disponibles (las que tengan al menos 1 plato)
@@ -2745,11 +2751,15 @@ async function generateRandomMenu() {
 
     // Plato único: legumbres + categorías unico_*
     const unicoPool = buildPool([
-        ...(customFoodsGlobal.primeros_legumbres ||[]),
-        ...(customFoodsGlobal.unico_potaje       ||[]),
-        ...(customFoodsGlobal.unico_guiso        ||[]),
-        ...(customFoodsGlobal.unico_combinado    ||[]),
-        ...(customFoodsGlobal.unico_arroz_pasta  ||[]),
+        ...(customFoodsGlobal.primeros_legumbres     ||[]),
+        ...(customFoodsGlobal.unico_guiso_carne      ||[]),
+        ...(customFoodsGlobal.unico_guiso_pescado    ||[]),
+        ...(customFoodsGlobal.unico_guiso_legumbre   ||[]),
+        ...(customFoodsGlobal.unico_asado_carne      ||[]),
+        ...(customFoodsGlobal.unico_asado_pollo      ||[]),
+        ...(customFoodsGlobal.unico_asado_pescado    ||[]),
+        ...(customFoodsGlobal.unico_asado_verduras   ||[]),
+        ...(customFoodsGlobal.unico_fast_food        ||[]),
     ]);
     // Postres
     const postresPool = [
@@ -2783,97 +2793,117 @@ async function generateRandomMenu() {
         ...(customFoodsGlobal.primeros_sopa      ||[]),
     ]);
 
-    // ── Sets de usados ────────────────────────────────────────────────────────
-    const usedHidratos      = new Set();
-    const usedUnicos        = new Set();
-    const usedPostres       = new Set();
-    const usedCenaHidratos  = new Set();
-    const usedCenaPostres   = new Set();
-    // Un set de usados por categoría de proteína (comida y cena independientes)
-    const usedComidaProt = protCatPools.map(() => new Set());
-    const usedCenaProt   = protCatPools.map(() => new Set());
-    // Índice de categoría actual para rotación (comida y cena desfasadas)
-    let comidaCatIdx = 0;
-    let cenaCatIdx   = protCatPools.length > 1 ? 1 : 0;
+    // ── Tabla 7 días × 4 columnas ────────────────────────────────────────────
+    // Columnas: [0]=comida1  [1]=comida2  [2]=cena1  [3]=cena2
+    // Para cada celda: elegimos un plato y comprobamos que su nombre NO esté
+    // ya en ninguna otra celda de la tabla. Si está, elegimos otro.
 
-    // Helper: elegir proteína de la categoría indicada por idx, con fallback al pool plano
-    function pickProtein(catPools, usedSets, idx, pairedWith) {
-        if (!catPools.length) return null;
-        const catIdx = idx % catPools.length;
-        const pool   = catPools[catIdx];
-        const used   = usedSets[catIdx];
-        if (used.size >= pool.length) used.clear();
-        const pick = pickFilteredWeighted(pool, used, season, null, null, pairedWith);
-        if (pick) { used.add(getPlateNameStr(pick)); return pick; }
-        // Fallback: cualquier categoría disponible
-        for (let k = 0; k < catPools.length; k++) {
-            const fb = pickFilteredWeighted(catPools[k], usedSets[k], season, null, null, pairedWith);
-            if (fb) { usedSets[k].add(getPlateNameStr(fb)); return fb; }
+    const cf = customFoodsGlobal;
+    const sf = p => plateMatchesSeason(p, season);
+
+    function aleatorizar(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
         }
-        return null;
+        return a;
     }
 
-    const ligeroPosPool = postresPool.filter(p => {
-        const st = getPlateSubtipo(p);
-        return st === 'fruta_fresca' || st === 'lacteo';
-    });
-    const postresComida   = ligeroPosPool.length ? ligeroPosPool : postresPool;
-    const postresParaCena = ligeroPosPool.length ? ligeroPosPool : postresPool;
+    // Pools completos por tipo (todos los platos disponibles, solo filtro de temporada)
+    const pLigeros  = aleatorizar([...(cf.primeros_ensalada||[]), ...(cf.primeros_verduras||[])].filter(sf));
+    const pSopas    = aleatorizar([...(cf.primeros_sopa||[])].filter(sf));
+    const pPesados  = aleatorizar([...(cf.primeros_pasta||[]), ...(cf.primeros_arroz||[])].filter(sf));
+    const pCarnes   = aleatorizar([...(cf.segundos_carne_roja||[]), ...(cf.segundos_carne_pollo||[]), ...(cf.segundos_carne_cerdo||[])].filter(sf));
+    const pPescados = aleatorizar([...(cf.segundos_pescado_porcion||[]), ...(cf.segundos_pescado_entero||[])].filter(sf));
+    const pHuevos   = aleatorizar([...(cf.segundos_huevos||[])].filter(sf));
+    const pUnicos   = aleatorizar([
+        ...(cf.primeros_legumbres||[]), ...(cf.unico_guiso_carne||[]), ...(cf.unico_guiso_pescado||[]),
+        ...(cf.unico_guiso_legumbre||[]), ...(cf.unico_asado_carne||[]), ...(cf.unico_asado_pollo||[]),
+        ...(cf.unico_asado_pescado||[]), ...(cf.unico_asado_verduras||[]), ...(cf.unico_fast_food||[]),
+    ].filter(sf));
+    const ligeroPosPool = postresPool.filter(p => { const st = getPlateSubtipo(p); return st === 'fruta_fresca' || st === 'lacteo'; });
+    const pPostres = aleatorizar((ligeroPosPool.length ? ligeroPosPool : postresPool).filter(sf));
 
-    const assignments = [];
+    // Pool comida1: pasta/arroz primero (exclusivos de comida), luego sopa, luego ligeros
+    const pComida1 = [...pPesados, ...pSopas, ...pLigeros];
 
-    for (let i = 0; i < days.length; i++) {
-        const day = days[i];
-        const usarUnico = unicoDaySet.has(i) && unicoPool.length > 0;
+    // Pool proteínas: intercalar carne → pescado → huevos → carne → …
+    const pProteinas = [];
+    for (let i = 0; i < Math.max(pCarnes.length, pPescados.length, pHuevos.length); i++) {
+        if (i < pCarnes.length)   pProteinas.push(pCarnes[i]);
+        if (i < pPescados.length) pProteinas.push(pPescados[i]);
+        if (i < pHuevos.length)   pProteinas.push(pHuevos[i]);
+    }
 
-        // ── Comida ───────────────────────────────────────────────────────────
-        let comida1, comida2;
+    // La tabla: 7 filas × 4 columnas, inicialmente vacía
+    const tabla = Array.from({length: 7}, () => ['', '', '', '']);
+    const enTabla = new Set(); // nombres ya colocados en la tabla
+
+    // Elige el primer plato del pool que NO esté en la tabla.
+    // Si todos están ya en la tabla (pool agotado), elige cualquiera de temporada.
+    function elegir(pool) {
+        const libres = pool.filter(p => !enTabla.has(getPlateNameStr(p)));
+        const fuente = libres.length ? libres : pool;
+        if (!fuente.length) return '';
+        return getPlateNameStr(fuente[Math.floor(Math.random() * fuente.length)]);
+    }
+
+    // Coloca un plato en tabla[fila][col] y lo registra en enTabla.
+    function colocar(fila, col, pool) {
+        const nombre = elegir(pool);
+        tabla[fila][col] = nombre;
+        if (nombre) enTabla.add(nombre);
+    }
+
+    // Pool de cena1: prioriza ligeros (ensalada/verduras); si no quedan libres, añade sopas
+    function poolCena1() {
+        const libresLigeros = pLigeros.filter(p => !enTabla.has(getPlateNameStr(p)));
+        return libresLigeros.length ? pLigeros : [...pLigeros, ...pSopas];
+    }
+
+    // Rellenar la tabla fila por fila (día por día), celda por celda
+    let unicoIdx = 0;
+    for (let i = 0; i < 7; i++) {
+        const usarUnico = unicoDaySet.has(i) && pUnicos.length > 0;
 
         if (usarUnico) {
-            // Ruta A: plato único + postre (sin segundo)
-            if (usedUnicos.size >= unicoPool.length) usedUnicos.clear();
-            comida1 = pickFiltered(unicoPool, usedUnicos, season, null, null);
-            comida2 = null;
+            // Plato único: comida1 y comida2 llevan el mismo nombre
+            const nombre = elegir(pUnicos);
+            tabla[i][0] = nombre;
+            tabla[i][1] = nombre;
+            if (nombre) enTabla.add(nombre);
         } else {
-            // Ruta B: hidrato + proteína rotada + postre
-            if (usedHidratos.size >= hidratoPool.length) usedHidratos.clear();
-            comida1 = pickFiltered(hidratoPool, usedHidratos, season, null, null);
-            comida2 = pickProtein(protCatPools, usedComidaProt, comidaCatIdx, getPlateNameStr(comida1));
-            comidaCatIdx = (comidaCatIdx + 1) % Math.max(1, protCatPools.length);
+            colocar(i, 0, pComida1);    // primero comida
+            colocar(i, 1, pProteinas);  // segundo comida
         }
 
-        // Postre comida
-        if (postresPool.length > 0 && usedPostres.size >= postresComida.length) usedPostres.clear();
-        const postre = pickFiltered(postresComida, usedPostres, season, null, null);
+        colocar(i, 2, poolCena1());     // primero cena
+        colocar(i, 3, pProteinas);      // segundo cena
+    }
 
-        // ── Cena: hidrato ligero + proteína rotada (desfasada respecto a comida) ──
-        const ligerosSinUsar = cenaLigeroPool.filter(p => !usedCenaHidratos.has(getPlateNameStr(p)));
-        const poolActivoCena = ligerosSinUsar.length > 0 ? cenaLigeroPool : cenaHidratoPool;
-        if (usedCenaHidratos.size >= poolActivoCena.length) usedCenaHidratos.clear();
-        const cena1 = pickFiltered(poolActivoCena, usedCenaHidratos, season, null, null);
+    // Postres: conjunto independiente (pueden repetir si hay pocos)
+    const enTablaPostres = new Set();
+    function elegirPostre() {
+        const libres = pPostres.filter(p => !enTablaPostres.has(getPlateNameStr(p)));
+        const fuente = libres.length ? libres : pPostres;
+        if (!fuente.length) return '';
+        const p = fuente[Math.floor(Math.random() * fuente.length)];
+        enTablaPostres.add(getPlateNameStr(p));
+        return getPlateNameStr(p);
+    }
 
-        const cena2 = pickProtein(protCatPools, usedCenaProt, cenaCatIdx, getPlateNameStr(cena1));
-        cenaCatIdx = (cenaCatIdx + 1) % Math.max(1, protCatPools.length);
-
-        // Postre cena
-        if (postresPool.length > 0 && usedCenaPostres.size >= postresParaCena.length) usedCenaPostres.clear();
-        const cenaPostre = pickFiltered(postresParaCena, usedCenaPostres, season, null, null);
-
-        const comida1Str = getPlateNameStr(comida1);
-        assignments.push({ day, slots: {
-            comida1:    comida1Str,
-            comida2:    usarUnico ? comida1Str : (comida2 ? getPlateNameStr(comida2) : ''),
-            postre:     getPlateNameStr(postre),
-            cena1:      getPlateNameStr(cena1),
-            cena2:      cena2 ? getPlateNameStr(cena2) : '',
-            cenaPostre: getPlateNameStr(cenaPostre),
+    // Construir assignments desde la tabla
+    const assignments = [];
+    for (let i = 0; i < days.length; i++) {
+        assignments.push({ day: days[i], slots: {
+            comida1:    tabla[i][0],
+            comida2:    tabla[i][1],
+            postre:     elegirPostre(),
+            cena1:      tabla[i][2],
+            cena2:      tabla[i][3],
+            cenaPostre: elegirPostre(),
         }});
-
-        if (usarUnico && comida1) usedUnicos.add(getPlateNameStr(comida1));
-        if (!usarUnico && comida1) usedHidratos.add(getPlateNameStr(comida1));
-        if (postre)     usedPostres.add(getPlateNameStr(postre));
-        if (cena1)      usedCenaHidratos.add(getPlateNameStr(cena1));
-        if (cenaPostre) usedCenaPostres.add(getPlateNameStr(cenaPostre));
     }
 
     // Aplicar al calendario actual

@@ -3,7 +3,7 @@
 // ====================================
 function searchInDirectoAlPaladar() {
     const name = document.getElementById('pmName')?.value?.trim();
-    if (!name) { showNotification('Escribe el nombre del alimento primero', 'warning'); return; }
+    if (!name) { showNotification('Escribe el nombre del plato primero', 'warning'); return; }
     const query = encodeURIComponent(name.toLowerCase()).replace(/%20/g, '+');
     window.open(`https://www.directoalpaladar.com/?s=${query}`, '_blank', 'noopener');
 }
@@ -12,8 +12,9 @@ const CUSTOM_FOODS_DOC_ID = 'custom-foods';
 
 const ALL_CATEGORIES = [
     'primeros_sopa','primeros_ensalada','primeros_pasta','primeros_arroz','primeros_legumbres','primeros_verduras',
-    'segundos_carne','segundos_pescado','segundos_marisco','segundos_huevos',
-    'unico_potaje','unico_guiso','unico_combinado','unico_arroz_pasta',
+    'segundos_carne_roja','segundos_carne_pollo','segundos_carne_cerdo','segundos_pescado_porcion','segundos_pescado_entero','segundos_huevos',
+    'unico_guiso_carne','unico_guiso_pescado','unico_guiso_legumbre','unico_asado_carne','unico_asado_pollo','unico_asado_pescado','unico_asado_verduras','unico_fast_food',
+    'guarnicion_arroz','guarnicion_patata_frita','guarnicion_patata_cocida','guarnicion_pure_patata','guarnicion_ensalada_verde','guarnicion_ensalada_tomate','guarnicion_pasta_larga','guarnicion_pasta_corta','guarnicion_verduras','guarnicion_mariscos',
     'postres_fruta','postres_lacteo','postres_dulce'
 ];
 
@@ -52,10 +53,12 @@ const TYPE_CONFIG = {
         label: 'Segundo',
         icon: '🍗',
         subcats: [
-            { key: 'segundos_carne',    label: 'Carne' },
-            { key: 'segundos_pescado',  label: 'Pescado' },
-            { key: 'segundos_marisco',  label: 'Marisco' },
-            { key: 'segundos_huevos',   label: 'Huevos' },
+            { key: 'segundos_carne_roja',     label: 'Carne roja' },
+            { key: 'segundos_carne_pollo',    label: 'Carne pollo/pavo' },
+            { key: 'segundos_carne_cerdo',    label: 'Carne de cerdo' },
+            { key: 'segundos_pescado_porcion',label: 'Pescado (porción)' },
+            { key: 'segundos_pescado_entero', label: 'Pescado (entero)' },
+            { key: 'segundos_huevos',         label: 'Huevos' },
         ]
     },
     postres: {
@@ -68,13 +71,33 @@ const TYPE_CONFIG = {
         ]
     },
     unico: {
-        label: 'Acompañamiento',
+        label: 'Plato Único',
         icon: '🥘',
         subcats: [
-            { key: 'unico_potaje',      label: 'Potaje' },
-            { key: 'unico_guiso',       label: 'Guiso' },
-            { key: 'unico_combinado',   label: 'Combinado' },
-            { key: 'unico_arroz_pasta', label: 'Arroz / Pasta' },
+            { key: 'unico_guiso_carne',    label: 'Guiso de carne' },
+            { key: 'unico_guiso_pescado',  label: 'Guiso de pescado' },
+            { key: 'unico_guiso_legumbre', label: 'Guiso de legumbre' },
+            { key: 'unico_asado_carne',    label: 'Asado de carne' },
+            { key: 'unico_asado_pollo',    label: 'Asado de pollo' },
+            { key: 'unico_asado_pescado',  label: 'Asado de pescado' },
+            { key: 'unico_asado_verduras', label: 'Asado de verduras' },
+            { key: 'unico_fast_food',      label: 'Fast food' },
+        ]
+    },
+    guarnicion: {
+        label: 'Guarnición',
+        icon: '🥗',
+        subcats: [
+            { key: 'guarnicion_arroz',           label: 'Arroz' },
+            { key: 'guarnicion_patata_frita',     label: 'Patata frita' },
+            { key: 'guarnicion_patata_cocida',    label: 'Patata cocida' },
+            { key: 'guarnicion_pure_patata',      label: 'Puré de patata' },
+            { key: 'guarnicion_ensalada_verde',   label: 'Ensalada verde' },
+            { key: 'guarnicion_ensalada_tomate',  label: 'Ensalada de tomate' },
+            { key: 'guarnicion_pasta_larga',      label: 'Pasta larga' },
+            { key: 'guarnicion_pasta_corta',      label: 'Pasta corta' },
+            { key: 'guarnicion_verduras',         label: 'Verduras' },
+            { key: 'guarnicion_mariscos',         label: 'Mariscos' },
         ]
     },
 };
@@ -89,16 +112,34 @@ const CATEGORY_GROUPS = [
         { key: 'primeros_verduras',  label: 'Verduras' },
     ]},
     { group: '🍗 Segundos', cats: [
-        { key: 'segundos_carne',    label: 'Carne' },
-        { key: 'segundos_pescado',  label: 'Pescado' },
-        { key: 'segundos_marisco',  label: 'Marisco' },
-        { key: 'segundos_huevos',   label: 'Huevos' },
+        { key: 'segundos_carne_roja',      label: 'Carne roja' },
+        { key: 'segundos_carne_pollo',     label: 'Carne pollo/pavo' },
+        { key: 'segundos_carne_cerdo',     label: 'Carne de cerdo' },
+        { key: 'segundos_pescado_porcion', label: 'Pescado (porción)' },
+        { key: 'segundos_pescado_entero',  label: 'Pescado (entero)' },
+        { key: 'segundos_huevos',          label: 'Huevos' },
     ]},
-    { group: '🥘 Acompañamiento', cats: [
-        { key: 'unico_potaje',      label: 'Potaje' },
-        { key: 'unico_guiso',       label: 'Guiso' },
-        { key: 'unico_combinado',   label: 'Combinado' },
-        { key: 'unico_arroz_pasta', label: 'Arroz / Pasta' },
+    { group: '🥘 Plato Único', cats: [
+        { key: 'unico_guiso_carne',    label: 'Guiso de carne' },
+        { key: 'unico_guiso_pescado',  label: 'Guiso de pescado' },
+        { key: 'unico_guiso_legumbre', label: 'Guiso de legumbre' },
+        { key: 'unico_asado_carne',    label: 'Asado de carne' },
+        { key: 'unico_asado_pollo',    label: 'Asado de pollo' },
+        { key: 'unico_asado_pescado',  label: 'Asado de pescado' },
+        { key: 'unico_asado_verduras', label: 'Asado de verduras' },
+        { key: 'unico_fast_food',      label: 'Fast food' },
+    ]},
+    { group: '🥗 Guarniciones', cats: [
+        { key: 'guarnicion_arroz',           label: 'Arroz' },
+        { key: 'guarnicion_patata_frita',     label: 'Patata frita' },
+        { key: 'guarnicion_patata_cocida',    label: 'Patata cocida' },
+        { key: 'guarnicion_pure_patata',      label: 'Puré de patata' },
+        { key: 'guarnicion_ensalada_verde',   label: 'Ensalada verde' },
+        { key: 'guarnicion_ensalada_tomate',  label: 'Ensalada de tomate' },
+        { key: 'guarnicion_pasta_larga',      label: 'Pasta larga' },
+        { key: 'guarnicion_pasta_corta',      label: 'Pasta corta' },
+        { key: 'guarnicion_verduras',         label: 'Verduras' },
+        { key: 'guarnicion_mariscos',         label: 'Mariscos' },
     ]},
     { group: '🍰 Postres', cats: [
         { key: 'postres_fruta',   label: 'Fruta' },
@@ -288,96 +329,77 @@ function renderPlates(customFoods) {
     let hasVisiblePlates = false;
 
     for (const { group, cats } of CATEGORY_GROUPS) {
-        const groupHasVisible = cats.some(({ key }) => {
-            const plates = customFoods[key] || [];
-            return !query ? plates.length > 0 : plates.some(p => normalizeSearchText(_searchText(p)).includes(query));
-        });
-        if (!groupHasVisible) continue;
-        hasVisiblePlates = true;
-
-        const groupHeader = document.createElement('div');
-        groupHeader.className = 'category-group-header';
-        groupHeader.textContent = group;
-        container.appendChild(groupHeader);
-
-        for (const { key: category, label } of cats) {
-            const indexedPlates = (customFoods[category] || []).map((plate, originalIndex) => ({ plate, originalIndex }))
+        // Collect all matching plates in this group (flat list with subcategory label)
+        const groupCards = [];
+        for (const { key: category, label: subcatLabel } of cats) {
+            const indexed = (customFoods[category] || [])
+                .map((plate, originalIndex) => ({ plate, originalIndex, category, subcatLabel }))
                 .sort((a, b) => getPlateName(a.plate).toLowerCase().localeCompare(getPlateName(b.plate).toLowerCase(), 'es'));
 
-            if (indexedPlates.length > 0) hasPlates = true;
+            if (indexed.length > 0) hasPlates = true;
 
-            const filtered = indexedPlates.filter(({ plate }) =>
-                !query || normalizeSearchText(_searchText(plate)).includes(query)
-            );
-            if (filtered.length === 0) continue;
-
-            const section = document.createElement('div');
-            section.className = 'category-section';
-            const startExpanded = !!query;
-
-            const catHeader = document.createElement('button');
-            catHeader.type = 'button';
-            catHeader.className = 'category-toggle';
-            catHeader.setAttribute('aria-expanded', String(startExpanded));
-            catHeader.innerHTML = `
-                <span class="category-title">${label} <span class="category-count">(${filtered.length})</span></span>
-                <span class="category-arrow">${startExpanded ? '▲' : '▼'}</span>`;
-
-            const catContent = document.createElement('div');
-            catContent.className = startExpanded ? 'category-content' : 'category-content collapsed';
-
-            catHeader.addEventListener('click', () => {
-                const collapsed = catContent.classList.toggle('collapsed');
-                catHeader.setAttribute('aria-expanded', String(!collapsed));
-                catHeader.querySelector('.category-arrow').textContent = collapsed ? '▼' : '▲';
-            });
-
-            section.appendChild(catHeader);
-
-            filtered.forEach(({ plate, originalIndex }) => {
-                const div = document.createElement('div');
-                div.className = 'plate-item';
-                const name = getPlateName(plate);
-                const meta = parsePlateMeta(typeof plate === 'object' ? plate.description : '');
-
-                let badges = '';
-                if (meta.allergens.length > 0) {
-                    badges += `<div class="plate-allergens">${meta.allergens.map(id => {
-                        const a = ALERGENOS_EU.find(x => x.id === id);
-                        return a ? `<span class="allergen-badge">${a.label}</span>` : '';
-                    }).join('')}</div>`;
+            indexed.forEach(item => {
+                if (!query || normalizeSearchText(_searchText(item.plate)).includes(query)) {
+                    groupCards.push(item);
                 }
-                const dietary = [
-                    meta.vegetariano ? '🥗 Vegetariano' : null,
-                    meta.vegano      ? '🌱 Vegano' : null,
-                    meta.sinGluten   ? 'Sin gluten' : null,
-                    meta.sinLactosa  ? 'Sin lactosa' : null,
-                ].filter(Boolean);
-                if (dietary.length) {
-                    badges += `<div class="plate-dietary">${dietary.map(l => `<span class="dietary-badge">${l}</span>`).join('')}</div>`;
-                }
-                const seasonLabel = { primavera:'Primavera', verano:'Verano', otono:'Otoño', invierno:'Invierno' }[meta.season] || '';
-                const parts = [meta.unit, seasonLabel].filter(Boolean);
-                const metaLine = parts.length ? `<div class="plate-meta2">${parts.join(' · ')}</div>` : '';
-
-                div.innerHTML = `
-                    <div class="plate-info">
-                        <div class="plate-name">${name}</div>
-                        ${badges}${metaLine}
-                    </div>
-                    <div class="plate-actions">
-                        <button class="btn-edit" onclick="openEditModal('${category}', ${originalIndex})">✏️ Editar</button>
-                        <button class="btn-delete" onclick="deletePlate('${category}', ${originalIndex})">🗑️</button>
-                    </div>`;
-                catContent.appendChild(div);
             });
-
-            section.appendChild(catContent);
-            container.appendChild(section);
         }
+
+        if (groupCards.length === 0) continue;
+        hasVisiblePlates = true;
+
+        // Section header
+        const header = document.createElement('div');
+        header.className = 'plates-group-title';
+        header.textContent = group;
+        container.appendChild(header);
+
+        // Grid of cards
+        const grid = document.createElement('div');
+        grid.className = 'plates-grid';
+
+        groupCards.forEach(({ plate, originalIndex, category, subcatLabel }) => {
+            const name = getPlateName(plate);
+            const meta = parsePlateMeta(typeof plate === 'object' ? plate.description : '');
+
+            const allergenHtml = meta.allergens.length
+                ? `<div class="plate-allergens">${meta.allergens.map(id => {
+                    const a = ALERGENOS_EU.find(x => x.id === id);
+                    return a ? `<span class="allergen-badge">${a.label}</span>` : '';
+                }).join('')}</div>` : '';
+
+            const dietary = [
+                meta.vegetariano ? '🥗 Vegetariano' : null,
+                meta.vegano      ? '🌱 Vegano' : null,
+                meta.sinGluten   ? 'Sin gluten' : null,
+                meta.sinLactosa  ? 'Sin lactosa' : null,
+            ].filter(Boolean);
+            const dietaryHtml = dietary.length
+                ? `<div class="plate-dietary">${dietary.map(l => `<span class="dietary-badge">${l}</span>`).join('')}</div>` : '';
+
+            const seasonLabel = { primavera:'Primavera', verano:'Verano', otono:'Otoño', invierno:'Invierno' }[meta.season] || '';
+            const parts = [meta.unit, seasonLabel].filter(Boolean);
+            const metaHtml = parts.length ? `<div class="plate-meta2">${parts.join(' · ')}</div>` : '';
+
+            const card = document.createElement('div');
+            card.className = 'plate-card';
+            card.innerHTML = `
+                <div class="plate-card-top">
+                    <span class="plate-card-name">${name}</span>
+                    <div class="plate-card-actions">
+                        <button class="btn-edit" onclick="openEditModal('${category}', ${originalIndex})" title="Editar">✏️</button>
+                        <button class="btn-delete" onclick="deletePlate('${category}', ${originalIndex})" title="Eliminar">🗑️</button>
+                    </div>
+                </div>
+                <span class="plate-card-subcat">${subcatLabel}</span>
+                ${allergenHtml}${dietaryHtml}${metaHtml}`;
+            grid.appendChild(card);
+        });
+
+        container.appendChild(grid);
     }
 
-    if (!hasPlates) { container.innerHTML = '<div class="empty-message">No hay alimentos creados. Pulsa "+ Nuevo alimento" para empezar.</div>'; return; }
+    if (!hasPlates) { container.innerHTML = '<div class="empty-message">No hay platos creados. Pulsa "+ Nuevo plato" para empezar.</div>'; return; }
     if (!hasVisiblePlates) { container.innerHTML = '<div class="empty-message">No hay resultados para esa búsqueda.</div>'; }
 }
 
@@ -530,7 +552,7 @@ async function savePlate() {
         const exists = (customFoods[category] || []).some(item =>
             normalizeFoodName(getPlateName(item)).toLocaleLowerCase('es') === name.toLocaleLowerCase('es')
         );
-        if (exists) { showNotification('Ese alimento ya existe en esa categoría', 'error'); return; }
+        if (exists) { showNotification('Ese plato ya existe en esa categoría', 'error'); return; }
     }
 
     if (!customFoods[category]) customFoods[category] = [];
@@ -539,13 +561,13 @@ async function savePlate() {
     await savePlates(customFoods);
     renderPlates(customFoods);
     closePlateModal();
-    showNotification(editingPlateContext ? 'Alimento actualizado' : `"${name}" añadido`, 'success');
+    showNotification(editingPlateContext ? 'Plato actualizado' : `"${name}" añadido`, 'success');
 }
 
 async function deletePlate(category, index) {
     const customFoods = await loadPlates();
     const name = getPlateName(customFoods[category][index]);
-    if (!await showConfirmModal(`¿Eliminar "${name}"?`, 'Eliminar alimento')) return;
+    if (!await showConfirmModal(`¿Eliminar "${name}"?`, 'Eliminar plato')) return;
     customFoods[category].splice(index, 1);
     await savePlates(customFoods);
     renderPlates(customFoods);

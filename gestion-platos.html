@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Alimentos | Planificador de Comidas</title>
+    <title>Gestión de Platos | Planificador de Comidas</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -14,42 +14,55 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '.theme-dark'],
+            corePlugins: { preflight: false },
+            theme: { extend: { colors: { brand: { DEFAULT: '#c2410c', hover: '#9a3412', light: '#fb923c' } } } }
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #hamburgerMenu { display: none; }
+        #hamburgerMenu.open { display: block; }
+    </style>
 </head>
 <body>
-    <nav class="topbar">
-        <div class="topbar-left">
-            <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
-            <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+    <nav class="sticky top-0 z-50 flex items-center h-14 px-4 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        <div class="flex items-center gap-1 shrink-0">
+            <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
+            <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
         </div>
-        <span class="topbar-brand">Gestor de Menús</span>
-        <div class="topbar-right">
-            <button class="topbar-nav-btn" onclick="window.location.href='menu.html'">⬅ <span>Menú</span></button>
-            <button class="topbar-nav-btn" onclick="window.location.href='combos.html'">🔗 <span>Combos</span></button>
+        <div class="flex-1 flex justify-center">
+            <span class="font-bold text-[#c2410c] dark:text-[#fb923c] text-base tracking-tight select-none">Gestor de Menús</span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <a class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" href="menu.html">⬅ Menú</a>
+            <a class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" href="ingredientes.html">🧂 Ingredientes</a>
             <div id="authWidget" class="auth-widget"></div>
-            <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleHamburger()">☰</button>
+            <button class="md:hidden p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors leading-none" id="hamburgerBtn" onclick="toggleHamburger()">☰</button>
         </div>
     </nav>
-    <div class="hamburger-menu" id="hamburgerMenu">
-        <div class="ham-section">
-            <button class="ham-item" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
-            <button class="ham-item" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
+    <div id="hamburgerMenu" class="fixed top-14 right-0 z-40 w-56 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 border-t-0 rounded-bl-xl shadow-xl">
+        <div class="p-2 border-b border-gray-100 dark:border-gray-800">
+            <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-light" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
+            <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-dark" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
         </div>
-        <div class="ham-divider"></div>
-        <button class="ham-item" onclick="window.location.href='menu.html'">⬅ Volver al Menú</button>
-        <button class="ham-item" onclick="window.location.href='combos.html'">🔗 Combos</button>
+        <div class="p-2">
+            <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" href="menu.html">⬅ Menú Semanal</a>
+            <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" href="ingredientes.html">🧂 Ingredientes</a>
+        </div>
     </div>
 
     <div class="container">
-        <div class="plates-list">
-            <div class="plates-list-header">
-                <h2>🥘 Mis Alimentos</h2>
-                <button class="btn-new-plate" onclick="openAddModal()">+ Nuevo alimento</button>
-            </div>
-            <div class="plates-search-wrapper">
-                <input type="text" id="platesSearchInput" class="plates-search-input" placeholder="🔎 Buscar alimento, alérgeno o etiqueta..." autocomplete="off" spellcheck="false">
-            </div>
-            <div id="platesList"></div>
+        <div class="plates-list-header">
+            <h2>🍽️ Mis Platos</h2>
+            <button class="btn-new-plate" onclick="openAddModal()">+ Nuevo plato</button>
         </div>
+        <div class="plates-search-wrapper">
+            <input type="text" id="platesSearchInput" class="plates-search-input" placeholder="🔎 Buscar plato, alérgeno o etiqueta..." autocomplete="off" spellcheck="false">
+        </div>
+        <div id="platesList"></div>
     </div>
 
     <!-- ====== MODAL: Añadir / Editar alimento ====== -->
@@ -62,26 +75,31 @@
                     <h3>¿Qué tipo de plato es?</h3>
                     <button class="custom-modal-close" onclick="closePlateModal()">×</button>
                 </div>
-                <div class="type-cards-grid">
-                    <button class="type-card" onclick="selectType('primeros')">
-                        <span class="type-card-icon">🥣</span>
-                        <span class="type-card-label">Primero</span>
-                        <span class="type-card-hint">Sopa, ensalada, pasta…</span>
+                <div class="grid grid-cols-2 gap-3 p-5">
+                    <button class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-[#c2410c] dark:hover:border-[#fb923c] hover:-translate-y-1 hover:shadow-md transition-all text-center" onclick="selectType('primeros')">
+                        <span class="text-4xl">🥣</span>
+                        <span class="font-semibold text-sm text-gray-800 dark:text-gray-100">Primero</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Sopa, ensalada, pasta…</span>
                     </button>
-                    <button class="type-card" onclick="selectType('segundos')">
-                        <span class="type-card-icon">🍗</span>
-                        <span class="type-card-label">Segundo</span>
-                        <span class="type-card-hint">Carne, pescado, huevos…</span>
+                    <button class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-[#c2410c] dark:hover:border-[#fb923c] hover:-translate-y-1 hover:shadow-md transition-all text-center" onclick="selectType('segundos')">
+                        <span class="text-4xl">🍗</span>
+                        <span class="font-semibold text-sm text-gray-800 dark:text-gray-100">Segundo</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Carne, pescado, huevos…</span>
                     </button>
-                    <button class="type-card" onclick="selectType('postres')">
-                        <span class="type-card-icon">🍰</span>
-                        <span class="type-card-label">Postre</span>
-                        <span class="type-card-hint">Fruta, lácteo, dulce…</span>
+                    <button class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-[#c2410c] dark:hover:border-[#fb923c] hover:-translate-y-1 hover:shadow-md transition-all text-center" onclick="selectType('postres')">
+                        <span class="text-4xl">🍰</span>
+                        <span class="font-semibold text-sm text-gray-800 dark:text-gray-100">Postre</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Fruta, lácteo, dulce…</span>
                     </button>
-                    <button class="type-card" onclick="selectType('unico')">
-                        <span class="type-card-icon">🥘</span>
-                        <span class="type-card-label">Acompañamiento</span>
-                        <span class="type-card-hint">Potaje, guiso, arroz…</span>
+                    <button class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-[#c2410c] dark:hover:border-[#fb923c] hover:-translate-y-1 hover:shadow-md transition-all text-center" onclick="selectType('unico')">
+                        <span class="text-4xl">🥘</span>
+                        <span class="font-semibold text-sm text-gray-800 dark:text-gray-100">Plato Único</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Guisos, asados, fast food…</span>
+                    </button>
+                    <button class="col-span-2 flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-[#c2410c] dark:hover:border-[#fb923c] hover:-translate-y-1 hover:shadow-md transition-all text-center" onclick="selectType('guarnicion')">
+                        <span class="text-4xl">🥗</span>
+                        <span class="font-semibold text-sm text-gray-800 dark:text-gray-100">Guarnición</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Arroz, patatas, ensaladas…</span>
                     </button>
                 </div>
             </div>

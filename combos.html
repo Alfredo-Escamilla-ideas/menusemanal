@@ -13,56 +13,71 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '.theme-dark'],
+            corePlugins: { preflight: false },
+            theme: { extend: { colors: { brand: { DEFAULT: '#c2410c', hover: '#9a3412', light: '#fb923c' } } } }
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #hamburgerMenu { display: none; }
+        #hamburgerMenu.open { display: block; }
+    </style>
 </head>
 <body>
 
-<nav class="topbar">
-    <div class="topbar-left">
-        <button class="theme-toggle-btn mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
-        <button class="theme-toggle-btn mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+<nav class="sticky top-0 z-50 flex items-center h-14 px-4 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <div class="flex items-center gap-1 shrink-0">
+        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
+        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
     </div>
-
-    <span class="topbar-brand">Gestor de Menús</span>
-
-    <div class="topbar-right">
-        <button class="topbar-nav-btn" onclick="location.href='menu.html'" title="Menú Semanal">⬅ <span>Menú</span></button>
-        <button class="topbar-nav-btn" onclick="location.href='gestion-platos.html'" title="Mis Platos">🍽️ <span>Mis Platos</span></button>
+    <div class="flex-1 flex justify-center">
+        <span class="font-bold text-[#c2410c] dark:text-[#fb923c] text-base tracking-tight select-none">Gestor de Menús</span>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+        <a class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" href="menu.html">⬅ Menú</a>
+        <a class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" href="gestion-platos.html">🍽️ Mis Platos</a>
+        <a class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" href="ingredientes.html">🧂 Ingredientes</a>
         <div id="authWidget" class="auth-widget"></div>
-        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleHamburger()" title="Menú">☰</button>
+        <button class="md:hidden p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors leading-none" id="hamburgerBtn" onclick="toggleHamburger()">☰</button>
     </div>
 </nav>
-<div class="hamburger-menu" id="hamburgerMenu">
-    <div class="ham-section">
-        <button class="ham-item" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
-        <button class="ham-item" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
+<div id="hamburgerMenu" class="fixed top-14 right-0 z-40 w-56 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 border-t-0 rounded-bl-xl shadow-xl">
+    <div class="p-2 border-b border-gray-100 dark:border-gray-800">
+        <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-light" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
+        <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-dark" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
     </div>
-    <div class="ham-divider"></div>
-    <button class="ham-item" onclick="location.href='menu.html'">⬅ Menú Semanal</button>
-    <button class="ham-item" onclick="location.href='gestion-platos.html'">🍽️ Gestionar Platos</button>
+    <div class="p-2">
+        <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" href="menu.html">⬅ Menú Semanal</a>
+        <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" href="gestion-platos.html">🍽️ Mis Platos</a>
+        <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" href="ingredientes.html">🧂 Ingredientes</a>
+    </div>
 </div>
 
 <!-- Stats -->
-<div class="stats-bar">
-    <div class="stat">
-        <span class="stat-val" id="statTotal">—</span>
-        <span class="stat-lbl">Pares totales</span>
+<div class="flex flex-wrap items-center gap-4 px-6 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+    <div class="flex flex-col items-center min-w-[60px]">
+        <span class="text-xl font-bold text-gray-800 dark:text-gray-100 stat-val" id="statTotal">—</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">Pares totales</span>
     </div>
-    <div class="stat">
-        <span class="stat-val" id="statReviewed">0</span>
-        <span class="stat-lbl">Revisados</span>
+    <div class="flex flex-col items-center min-w-[60px]">
+        <span class="text-xl font-bold text-gray-800 dark:text-gray-100 stat-val" id="statReviewed">0</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">Revisados</span>
     </div>
-    <div class="stat stat-yes">
-        <span class="stat-val" id="statYes">0</span>
-        <span class="stat-lbl">✅ Combos</span>
+    <div class="flex flex-col items-center min-w-[60px]">
+        <span class="text-xl font-bold text-green-600 dark:text-green-400 stat-val" id="statYes">0</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">✅ Combos</span>
     </div>
-    <div class="stat stat-no">
-        <span class="stat-val" id="statNo">0</span>
-        <span class="stat-lbl">❌ Rechazados</span>
+    <div class="flex flex-col items-center min-w-[60px]">
+        <span class="text-xl font-bold text-red-500 dark:text-red-400 stat-val" id="statNo">0</span>
+        <span class="text-xs text-gray-500 dark:text-gray-400">❌ Rechazados</span>
     </div>
-    <div class="stat progress-wrap">
-        <span class="progress-label" id="progressLabel">0 de — revisados</span>
-        <div class="progress-track">
-            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    <div class="flex flex-col gap-1 flex-1 min-w-[140px]">
+        <span class="text-xs text-gray-500 dark:text-gray-400" id="progressLabel">0 de — revisados</span>
+        <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+            <div class="h-2 rounded-full bg-[#c2410c] transition-all progress-fill" id="progressFill" style="width:0%"></div>
         </div>
     </div>
 </div>
