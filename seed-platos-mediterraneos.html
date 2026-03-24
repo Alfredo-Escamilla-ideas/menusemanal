@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Seed — 15 Primeros Mediterráneos</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="utils.js?v=3"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 20px; }
+  h2 { color: #c2410c; }
+  button { padding: 12px 28px; background: #c2410c; color: #fff; border: none; border-radius: 8px;
+           font-size: 1rem; cursor: pointer; margin-right: 10px; }
+  button:hover { background: #9a3412; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  #log { margin-top: 20px; font-size: .82rem; font-family: monospace; white-space: pre-wrap;
+         background: #f3f4f6; padding: 16px; border-radius: 8px; max-height: 500px; overflow-y: auto; }
+  .ok  { color: #16a34a; }
+  .skip{ color: #6b7280; }
+  .err { color: #dc2626; }
+  .hd  { color: #1d4ed8; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>🌿 Seed — 15 Primeros Mediterráneos</h2>
+<p>Añade <strong>15 primeros platos</strong> de dieta mediterránea y todos sus <strong>ingredientes</strong>.<br>
+Los elementos que ya existan con el mismo nombre se omiten sin duplicar.</p>
+<button id="btnRun" onclick="runSeed()">Importar platos e ingredientes</button>
+<div id="log"></div>
+
+<script>
+// ─── Datos ──────────────────────────────────────────────────────────────────
+
+const PLATOS = [
+  // ── Sopas / Cremas ──────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_sopa',
+    name: 'Gazpacho andaluz',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:false, sinLactosa:true,
+      allergens:['gluten'], comments:'Sopa fría de tomate, pepino y pimiento. Icono de la cocina mediterránea.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Crema de calabacín',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Crema suave con nata. Ligera y muy digestiva.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Sopa de tomate con albahaca',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Sopa reconfortante con tomate natural y albahaca fresca.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Crema de lentejas rojas',
+    description: JSON.stringify({
+      season:'otoño', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Crema especiada con comino y cúrcuma. Alta en proteína vegetal.',
+    }),
+  },
+
+  // ── Ensaladas ────────────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada griega',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Tomate, pepino, aceitunas y queso feta. Fresca y nutritiva.',
+    }),
+  },
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada de tomate con atún',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Clásico mediterráneo con tomate de temporada y atún en aceite.',
+    }),
+  },
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada de judías verdes',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Judías verdes cocidas con patata, aliñadas con aceite de oliva y vinagre.',
+    }),
+  },
+
+  // ── Pasta ────────────────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_pasta',
+    name: 'Espaguetis al pesto',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','lacteos','frutos_secos'], comments:'Salsa pesto casera con albahaca, piñones y parmesano.',
+    }),
+  },
+  {
+    categoria: 'primeros_pasta',
+    name: 'Macarrones con verduras al horno',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten'], comments:'Pasta al horno con pisto de verduras mediterráneas.',
+    }),
+  },
+
+  // ── Arroz ────────────────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_arroz',
+    name: 'Arroz con verduras al horno',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Arroz al horno con pimientos, tomate y cebolla. Muy completo.',
+    }),
+  },
+  {
+    categoria: 'primeros_arroz',
+    name: 'Arroz con tomate y pimentón',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Arroz sencillo con sofrito de tomate y pimentón dulce.',
+    }),
+  },
+
+  // ── Verduras ─────────────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_verduras',
+    name: 'Pisto manchego',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Guiso de verduras de temporada con tomate, calabacín y berenjena.',
+    }),
+  },
+  {
+    categoria: 'primeros_verduras',
+    name: 'Menestra de verduras',
+    description: JSON.stringify({
+      season:'primavera', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Alcachofas, guisantes y espárragos salteados. Plato de primavera.',
+    }),
+  },
+
+  // ── Legumbres ────────────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_legumbres',
+    name: 'Garbanzos con espinacas',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Guiso andaluz de garbanzos con espinacas, ajo y pimentón.',
+    }),
+  },
+  {
+    categoria: 'primeros_legumbres',
+    name: 'Ensalada de lentejas con vinagreta',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Lentejas templadas con tomate, pepino, cebolla roja y vinagreta mediterránea.',
+    }),
+  },
+];
+
+// ─── Ingredientes ────────────────────────────────────────────────────────────
+const INGREDIENTES = [
+  // Verduras
+  { name:'Tomate maduro',       category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'Preferir tomate de huerta de temporada' },
+  { name:'Tomate cherry',       category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'' },
+  { name:'Pepino',              category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'' },
+  { name:'Pimiento verde',      category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'' },
+  { name:'Pimiento rojo',       category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'' },
+  { name:'Cebolla',             category:'verduras',      allergens:[], unit:'g',  season:'todo',   notes:'' },
+  { name:'Cebolla roja',        category:'verduras',      allergens:[], unit:'g',  season:'todo',   notes:'Más suave que la cebolla blanca para ensaladas' },
+  { name:'Ajo',                 category:'verduras',      allergens:[], unit:'g',  season:'todo',   notes:'' },
+  { name:'Calabacín',           category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'' },
+  { name:'Berenjena',           category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'' },
+  { name:'Zanahoria',           category:'verduras',      allergens:[], unit:'g',  season:'todo',   notes:'' },
+  { name:'Judías verdes',       category:'verduras',      allergens:[], unit:'g',  season:'verano', notes:'' },
+  { name:'Patata',              category:'verduras',      allergens:[], unit:'g',  season:'todo',   notes:'' },
+  { name:'Alcachofas',          category:'verduras',      allergens:[], unit:'g',  season:'primavera', notes:'' },
+  { name:'Guisantes frescos',   category:'verduras',      allergens:[], unit:'g',  season:'primavera', notes:'' },
+  { name:'Espárragos trigueros',category:'verduras',      allergens:[], unit:'g',  season:'primavera', notes:'' },
+  { name:'Espinacas frescas',   category:'verduras',      allergens:[], unit:'g',  season:'todo',   notes:'' },
+  // Pan
+  { name:'Pan blanco (miga)',   category:'pan_bolleria',  allergens:['gluten'], unit:'g', season:'todo', notes:'Para gazpacho y salmorejos. Puede ser del día anterior.' },
+  // Conservas
+  { name:'Aceitunas negras',    category:'conservas',     allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Aceitunas verdes',    category:'conservas',     allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Atún en aceite de oliva', category:'conservas', allergens:['pescado'], unit:'g', season:'todo', notes:'Usar atún de calidad en aceite de oliva virgen extra' },
+  { name:'Tomate triturado (conserva)', category:'conservas', allergens:[], unit:'ml', season:'todo', notes:'Sin azúcares añadidos' },
+  // Lácteos
+  { name:'Nata para cocinar',   category:'lacteos',       allergens:['lacteos'], unit:'ml', season:'todo', notes:'Se puede sustituir por nata vegetal o yogur para versión más ligera' },
+  { name:'Queso feta',          category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'DOP griego. Alérgeno: lácteos' },
+  { name:'Queso parmesano',     category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'Usar recién rallado. Puede sustituirse por levadura nutricional (versión vegana)' },
+  // Pasta y Arroz
+  { name:'Espaguetis',          category:'pasta_arroz',   allergens:['gluten'], unit:'g', season:'todo', notes:'' },
+  { name:'Macarrones',          category:'pasta_arroz',   allergens:['gluten'], unit:'g', season:'todo', notes:'' },
+  { name:'Arroz largo',         category:'pasta_arroz',   allergens:[], unit:'g', season:'todo', notes:'Mejor de grano largo para platos al horno' },
+  // Legumbres
+  { name:'Lentejas rojas',      category:'legumbres',     allergens:[], unit:'g',  season:'todo', notes:'No necesitan remojo previo. Cocción rápida.' },
+  { name:'Lentejas cocidas',    category:'legumbres',     allergens:[], unit:'g',  season:'todo', notes:'Cocidas o en conserva' },
+  { name:'Garbanzos cocidos',   category:'legumbres',     allergens:[], unit:'g',  season:'todo', notes:'Cocidos o en conserva escurridos' },
+  // Frutos secos
+  { name:'Piñones',             category:'frutos_secos',  allergens:['frutos_secos'], unit:'g', season:'todo', notes:'Tostar brevemente en seco antes de usar para más sabor' },
+  // Aceites y grasas
+  { name:'Aceite de oliva virgen extra', category:'aceites_grasas', allergens:[], unit:'ml', season:'todo', notes:'Usar AOVE para aliñar en frío y también para cocinar' },
+  // Condimentos
+  { name:'Vinagre de vino blanco', category:'condimentos', allergens:['sulfitos'], unit:'ml', season:'todo', notes:'Alérgeno: sulfitos' },
+  { name:'Sal',                 category:'condimentos',   allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Pimienta negra',      category:'condimentos',   allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Orégano seco',        category:'condimentos',   allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Comino molido',       category:'condimentos',   allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Cúrcuma molida',      category:'condimentos',   allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Pimentón dulce',      category:'condimentos',   allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Albahaca fresca',     category:'condimentos',   allergens:[], unit:'g',  season:'verano', notes:'Usar siempre fresca, no seca, para pesto y salsas de tomate' },
+  { name:'Perejil fresco',      category:'condimentos',   allergens:[], unit:'g',  season:'todo', notes:'' },
+  { name:'Caldo de verduras',   category:'condimentos',   allergens:[], unit:'ml', season:'todo', notes:'Casero o brick sin sal añadida' },
+  // Frutas
+  { name:'Limón',               category:'frutas',        allergens:[], unit:'g',  season:'todo', notes:'Usar zumo y ralladura para aderezos mediterráneos' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const log = document.getElementById('log');
+function print(msg, cls='') {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── Auth callback ────────────────────────────────────────────────────────────
+function onAuthReady(user) {
+  if (!user) {
+    print('⚠️  Debes iniciar sesión primero. Ve a menu.html, inicia sesión y vuelve aquí.', 'err');
+    document.getElementById('btnRun').disabled = true;
+  } else {
+    print(`Sesión activa: ${user.email}`, 'ok');
+  }
+}
+
+// ─── Seed principal ───────────────────────────────────────────────────────────
+async function runSeed() {
+  document.getElementById('btnRun').disabled = true;
+  log.innerHTML = '';
+
+  try {
+    // ── 1. Ingredientes ───────────────────────────────────────────────────
+    print('── INGREDIENTES ─────────────────────────────', 'hd');
+    const ingRef = db.collection('users').doc(currentUser.uid).collection('ingredientes');
+    const existSnap = await ingRef.get();
+    const existNames = new Set(existSnap.docs.map(d => (d.data().name || '').toLowerCase().trim()));
+
+    let ingAdded = 0, ingSkipped = 0;
+    for (const ing of INGREDIENTES) {
+      const key = ing.name.toLowerCase().trim();
+      if (existNames.has(key)) {
+        print(`  · omitido (ya existe): ${ing.name}`, 'skip');
+        ingSkipped++;
+      } else {
+        await ingRef.add({ ...ing });
+        print(`  + añadido: ${ing.name}`, 'ok');
+        existNames.add(key);
+        ingAdded++;
+      }
+    }
+    print(`Ingredientes: ${ingAdded} añadidos, ${ingSkipped} ya existían.\n`, 'ok');
+
+    // ── 2. Platos ─────────────────────────────────────────────────────────
+    print('── PLATOS ───────────────────────────────────', 'hd');
+    const foodsRef = db.collection('users').doc(currentUser.uid)
+                       .collection('foods').doc('custom-foods');
+    const foodsSnap = await foodsRef.get();
+    const data = foodsSnap.exists ? foodsSnap.data() : {};
+    const customFoods = data.customFoods || {};
+
+    let platosAdded = 0, platosSkipped = 0;
+    for (const plato of PLATOS) {
+      const cat = plato.categoria;
+      if (!customFoods[cat]) customFoods[cat] = [];
+
+      const existsInCat = customFoods[cat].some(p => {
+        const n = typeof p === 'string' ? p : (p.name || '');
+        return n.toLowerCase().trim() === plato.name.toLowerCase().trim();
+      });
+
+      if (existsInCat) {
+        print(`  · omitido (ya existe en ${cat}): ${plato.name}`, 'skip');
+        platosSkipped++;
+      } else {
+        customFoods[cat].push({ name: plato.name, description: plato.description });
+        print(`  + añadido [${cat}]: ${plato.name}`, 'ok');
+        platosAdded++;
+      }
+    }
+
+    await foodsRef.set({ customFoods });
+    // Invalidar caché local para que menu.html recargue los platos
+    localStorage.removeItem('customFoods');
+    print(`Platos: ${platosAdded} añadidos, ${platosSkipped} ya existían.\n`, 'ok');
+
+    print('✅  Seed completado. Puedes cerrar esta página.', 'ok');
+  } catch (err) {
+    print(`ERROR: ${err.message}`, 'err');
+    console.error(err);
+    document.getElementById('btnRun').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
