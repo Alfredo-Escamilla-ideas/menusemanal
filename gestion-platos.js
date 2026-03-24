@@ -415,7 +415,7 @@ function initPlatesSearch() {
 function selectType(type) {
     selectedType = type;
     const config = TYPE_CONFIG[type];
-    document.getElementById('plateModalTitle').textContent = `Nuevo ${config.label}`;
+    document.getElementById('plateModalTitle').textContent = editingPlateContext ? `Editar ${config.label}` : `Nuevo ${config.label}`;
     _buildSubcatChips(config.subcats, null);
     document.getElementById('typeSelectPanel').classList.add('hidden');
     document.getElementById('detailPanel').classList.remove('hidden');
@@ -497,7 +497,7 @@ function openEditModal(category, index) {
     document.getElementById('pmSinGluten').checked   = meta.sinGluten;
     document.getElementById('pmSinLactosa').checked  = meta.sinLactosa;
 
-    document.getElementById('backBtn').style.display = 'none';
+    document.getElementById('backBtn').style.display = '';
     document.getElementById('typeSelectPanel').classList.add('hidden');
     document.getElementById('detailPanel').classList.remove('hidden');
     document.getElementById('plateModal').classList.add('show');
