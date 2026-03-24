@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingredientes | Planificador de Comidas</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧂</text></svg>">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="utils.js?v=3"></script>
+    <script src="perfil.js"></script>
+
+    <!-- Tailwind -->
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '.theme-dark'],
+            corePlugins: { preflight: false },
+            theme: { extend: { colors: { brand: { DEFAULT: '#c2410c', hover: '#9a3412', light: '#fb923c' } } } }
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="ingredientes.css">
+    <style>
+        #hamburgerMenu { display: none; }
+        #hamburgerMenu.open { display: block; }
+        #ingModal { display: none; }
+        #ingModal.open { display: flex; }
+        #ingConfirmModal { display: none; }
+        #ingConfirmModal.open { display: flex; }
+        /* Safelist: clases dinámicas de renderCard para que Tailwind CDN las genere */
+    </style>
+    <!-- Tailwind safelist: clases usadas dinámicamente en renderCard -->
+    <div class="hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-[#c2410c] dark:hover:border-[#fb923c] transition-all flex flex-col gap-2.5 p-4 items-start justify-between font-semibold text-sm text-gray-900 dark:text-gray-100 leading-snug shrink-0 rounded-lg border-gray-600 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 text-xs hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-500 hover:border-red-300 inline-block font-medium px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 w-fit flex-wrap gap-1 inline-block text-[11px] px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800 leading-relaxed"></div>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors">
+
+<!-- NAVBAR -->
+<nav class="sticky top-0 z-50 flex items-center h-14 px-4 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <div class="flex items-center gap-1 shrink-0">
+        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-light" onclick="setThemeMode('light')" title="Modo claro">☀️</button>
+        <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-dark" onclick="setThemeMode('dark')" title="Modo oscuro">🌙</button>
+    </div>
+    <div class="flex-1 flex justify-center">
+        <span class="font-bold text-[#c2410c] dark:text-[#fb923c] text-base tracking-tight select-none">Gestor de Menús</span>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+        <a class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" href="menu.html">⬅ Menú</a>
+        <a class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap" href="gestion-platos.html">🍽️ Mis Platos</a>
+        <div id="authWidget" class="auth-widget"></div>
+        <button class="md:hidden p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors leading-none" id="hamburgerBtn" onclick="toggleHamburger()">☰</button>
+    </div>
+</nav>
+<div id="hamburgerMenu" class="fixed top-14 right-0 z-40 w-56 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 border-t-0 rounded-bl-xl shadow-xl">
+    <div class="p-2 border-b border-gray-100 dark:border-gray-800">
+        <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-light" onclick="setThemeMode('light');closeHamburger()">☀️ Modo claro</button>
+        <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mode-dark" onclick="setThemeMode('dark');closeHamburger()">🌙 Modo oscuro</button>
+    </div>
+    <div class="p-2">
+        <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" href="menu.html">⬅ Menú Semanal</a>
+        <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" href="gestion-platos.html">🍽️ Mis Platos</a>
+    </div>
+</div>
+
+<!-- AUTH GATE -->
+<div id="authGate" class="fixed inset-0 z-[100] items-center justify-center bg-gray-50 dark:bg-gray-950" style="display:none">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-10 flex flex-col items-center gap-4 w-[340px]">
+        <div class="text-5xl">🍴</div>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Menú Semanal</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Inicia sesión para acceder</p>
+        <button class="mt-2 w-full py-3 rounded-xl bg-[#c2410c] hover:bg-[#9a3412] text-white font-semibold text-sm transition" onclick="handleAuthClick()">🔑 Entrar con Google</button>
+    </div>
+</div>
+
+<!-- CONTENIDO -->
+<div id="appContent" class="max-w-6xl mx-auto px-4 py-7" style="display:none">
+
+    <!-- Cabecera -->
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-50">🧂 Ingredientes</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="ingCount">Cargando…</p>
+        </div>
+        <button class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#c2410c] hover:bg-[#9a3412] text-white font-semibold text-sm transition shadow-sm" onclick="openAddModal()">+ Nuevo ingrediente</button>
+    </div>
+
+    <!-- Filtros -->
+    <div class="flex flex-wrap gap-3 mb-6">
+        <div class="relative flex-1 min-w-[220px]">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">🔎</span>
+            <input type="text" id="ingSearch" class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:border-[#c2410c] dark:focus:border-[#fb923c] transition" placeholder="Buscar por nombre, categoría o alérgeno…" autocomplete="off" spellcheck="false">
+        </div>
+        <select id="ingFilterCat" class="flex-none px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:border-[#c2410c] transition cursor-pointer"></select>
+        <select id="ingFilterAllergen" class="flex-none px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:border-[#c2410c] transition cursor-pointer">
+            <option value="">Todos los alérgenos</option>
+            <option value="gluten">Gluten</option>
+            <option value="crustaceos">Crustáceos</option>
+            <option value="huevos">Huevos</option>
+            <option value="pescado">Pescado</option>
+            <option value="cacahuetes">Cacahuetes</option>
+            <option value="soja">Soja</option>
+            <option value="lacteos">Lácteos</option>
+            <option value="frutos_secos">Frutos secos</option>
+            <option value="apio">Apio</option>
+            <option value="mostaza">Mostaza</option>
+            <option value="sesamo">Sésamo</option>
+            <option value="sulfitos">Sulfitos</option>
+            <option value="moluscos">Moluscos</option>
+            <option value="altramuz">Altramuz</option>
+        </select>
+    </div>
+
+    <!-- Grid -->
+    <div id="ingGrid" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(250px,1fr))"></div>
+
+    <!-- Empty state -->
+    <div id="ingEmpty" class="hidden text-center py-20 text-gray-400 dark:text-gray-600">
+        <div class="text-5xl mb-4">🫙</div>
+        <p class="mb-5">No se encontraron ingredientes</p>
+        <button class="px-5 py-2.5 rounded-xl bg-[#c2410c] hover:bg-[#9a3412] text-white font-semibold text-sm transition" onclick="openAddModal()">Añadir el primero</button>
+    </div>
+</div>
+
+<!-- ===== MODAL AÑADIR / EDITAR ===== -->
+<div id="ingModal" class="fixed inset-0 z-[200] items-center justify-center bg-black/50 p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-base font-bold text-[#c2410c] dark:text-[#fb923c]" id="ingModalTitle">Nuevo ingrediente</h2>
+            <button class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 text-xl leading-none" onclick="closeIngModal()">×</button>
+        </div>
+        <div class="p-6 flex flex-col gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Nombre *</label>
+                    <input type="text" id="ingName" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:border-[#c2410c] transition" placeholder="Ej: Tomate cherry" autocomplete="off">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Unidad</label>
+                    <select id="ingUnit" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:border-[#c2410c] transition">
+                        <option value="">—</option>
+                        <option value="kg">kg</option>
+                        <option value="g">g</option>
+                        <option value="l">l</option>
+                        <option value="ml">ml</option>
+                        <option value="unidad">unidad</option>
+                        <option value="manojo">manojo</option>
+                        <option value="lata">lata</option>
+                        <option value="bote">bote</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Categoría *</label>
+                    <select id="ingCat" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:border-[#c2410c] transition">
+                        <option value="">— Selecciona —</option>
+                        <option value="carnes">Carnes</option>
+                        <option value="pescados">Pescados</option>
+                        <option value="mariscos">Mariscos</option>
+                        <option value="verduras">Verduras</option>
+                        <option value="frutas">Frutas</option>
+                        <option value="lacteos">Lácteos</option>
+                        <option value="huevos">Huevos</option>
+                        <option value="cereales">Cereales y harinas</option>
+                        <option value="legumbres">Legumbres</option>
+                        <option value="pasta_arroz">Pasta y arroz</option>
+                        <option value="aceites_grasas">Aceites y grasas</option>
+                        <option value="condimentos">Condimentos y especias</option>
+                        <option value="salsas">Salsas y aderezos</option>
+                        <option value="conservas">Conservas</option>
+                        <option value="frutos_secos">Frutos secos y semillas</option>
+                        <option value="embutidos">Embutidos y charcutería</option>
+                        <option value="pan_bolleria">Pan y bollería</option>
+                        <option value="bebidas">Bebidas</option>
+                        <option value="otros">Otros</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Temporada</label>
+                    <select id="ingSeason" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:border-[#c2410c] transition">
+                        <option value="todo">Todo el año</option>
+                        <option value="primavera">Primavera</option>
+                        <option value="verano">Verano</option>
+                        <option value="otono">Otoño</option>
+                        <option value="invierno">Invierno</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Alérgenos (14 UE)</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="gluten"> Gluten</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="crustaceos"> Crustáceos</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="huevos"> Huevos</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="pescado"> Pescado</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="cacahuetes"> Cacahuetes</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="soja"> Soja</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="lacteos"> Lácteos</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="frutos_secos"> Frutos secos</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="apio"> Apio</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="mostaza"> Mostaza</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="sesamo"> Sésamo</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="sulfitos"> Sulfitos</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="moluscos"> Moluscos</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="accent-[#c2410c]" name="ingAllergen" value="altramuz"> Altramuz</label>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Notas</label>
+                <textarea id="ingNotes" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:border-[#c2410c] transition resize-none" rows="2" placeholder="Notas opcionales…"></textarea>
+            </div>
+        </div>
+        <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <button class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition" onclick="closeIngModal()">Cancelar</button>
+            <button class="px-5 py-2.5 rounded-xl bg-[#c2410c] hover:bg-[#9a3412] text-white font-semibold text-sm transition" onclick="saveIngredient()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL CONFIRMAR ===== -->
+<div id="ingConfirmModal" class="fixed inset-0 z-[300] items-center justify-center bg-black/50 p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+        <h3 class="font-bold text-gray-800 dark:text-gray-100">Confirmar eliminación</h3>
+        <p id="ingConfirmMsg" class="text-sm text-gray-600 dark:text-gray-400"></p>
+        <div class="flex justify-end gap-3">
+            <button class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition" onclick="closeConfirmModal()">Cancelar</button>
+            <button class="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition" id="ingConfirmOk">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<script src="ingredientes.js"></script>
+</body>
+</html>

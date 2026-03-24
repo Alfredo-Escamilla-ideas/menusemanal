@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Importar Ingredientes</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="utils.js?v=3"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; }
+  button { padding: 12px 28px; background: #c2410c; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+  button:hover { background: #9a3412; }
+  #log { margin-top: 20px; font-size: .85rem; font-family: monospace; white-space: pre-wrap; background: #f3f4f6; padding: 16px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
+  .ok { color: #16a34a; } .err { color: #dc2626; }
+</style>
+</head>
+<body>
+<h2>🧂 Importar Ingredientes Mediterráneos</h2>
+<p>Se importarán <strong>200+</strong> ingredientes a tu cuenta. Si ya existen con el mismo nombre no se duplicarán.</p>
+<button onclick="importar()">Importar ingredientes</button>
+<div id="log"></div>
+
+<script>
+const INGREDIENTS = [
+  // CARNES
+  {name:'Ternera (filete)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Ternera (estofado)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Ternera (chuletón)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Pollo (pechuga)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Pollo (muslo)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Pollo entero',category:'carnes',allergens:[],unit:'kg'},
+  {name:'Pavo (filete)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Cerdo (lomo)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Cerdo (costillas)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Cerdo (solomillo)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Cordero (chuletas)',category:'carnes',allergens:[],unit:'g'},
+  {name:'Cordero (pierna)',category:'carnes',allergens:[],unit:'kg'},
+  {name:'Conejo',category:'carnes',allergens:[],unit:'kg'},
+  {name:'Pato (pechuga)',category:'carnes',allergens:[],unit:'g'},
+  // PESCADOS
+  {name:'Merluza',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Lubina',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Dorada',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Salmón',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Atún fresco',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Bacalao fresco',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Bacalao salado',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Sardinas',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Boquerones',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Trucha',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Rape',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Rodaballo',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Besugo',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Emperador',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Mero',category:'pescados',allergens:['pescado'],unit:'g'},
+  {name:'Pez espada',category:'pescados',allergens:['pescado'],unit:'g'},
+  // MARISCOS
+  {name:'Gambas',category:'mariscos',allergens:['crustaceos'],unit:'g'},
+  {name:'Langostinos',category:'mariscos',allergens:['crustaceos'],unit:'g'},
+  {name:'Mejillones',category:'mariscos',allergens:['moluscos'],unit:'g'},
+  {name:'Almejas',category:'mariscos',allergens:['moluscos'],unit:'g'},
+  {name:'Calamares',category:'mariscos',allergens:['moluscos'],unit:'g'},
+  {name:'Pulpo',category:'mariscos',allergens:['moluscos'],unit:'g'},
+  {name:'Sepia',category:'mariscos',allergens:['moluscos'],unit:'g'},
+  {name:'Berberechos',category:'mariscos',allergens:['moluscos'],unit:'g'},
+  {name:'Cigalas',category:'mariscos',allergens:['crustaceos'],unit:'g'},
+  {name:'Nécora',category:'mariscos',allergens:['crustaceos'],unit:'g'},
+  // VERDURAS
+  {name:'Tomate',category:'verduras',allergens:[],unit:'g'},
+  {name:'Cebolla',category:'verduras',allergens:[],unit:'g'},
+  {name:'Ajo',category:'verduras',allergens:[],unit:'g'},
+  {name:'Pimiento rojo',category:'verduras',allergens:[],unit:'g'},
+  {name:'Pimiento verde',category:'verduras',allergens:[],unit:'g'},
+  {name:'Berenjena',category:'verduras',allergens:[],unit:'g'},
+  {name:'Calabacín',category:'verduras',allergens:[],unit:'g'},
+  {name:'Espinacas',category:'verduras',allergens:[],unit:'g'},
+  {name:'Lechuga',category:'verduras',allergens:[],unit:'g'},
+  {name:'Zanahoria',category:'verduras',allergens:[],unit:'g'},
+  {name:'Patata',category:'verduras',allergens:[],unit:'kg'},
+  {name:'Boniato',category:'verduras',allergens:[],unit:'g'},
+  {name:'Puerro',category:'verduras',allergens:[],unit:'g'},
+  {name:'Apio',category:'verduras',allergens:['apio'],unit:'g'},
+  {name:'Acelgas',category:'verduras',allergens:[],unit:'g'},
+  {name:'Coliflor',category:'verduras',allergens:[],unit:'g'},
+  {name:'Brócoli',category:'verduras',allergens:[],unit:'g'},
+  {name:'Col lombarda',category:'verduras',allergens:[],unit:'g'},
+  {name:'Repollo',category:'verduras',allergens:[],unit:'g'},
+  {name:'Alcachofa',category:'verduras',allergens:[],unit:'g'},
+  {name:'Espárragos verdes',category:'verduras',allergens:[],unit:'g'},
+  {name:'Espárragos blancos',category:'verduras',allergens:[],unit:'g'},
+  {name:'Judías verdes',category:'verduras',allergens:[],unit:'g'},
+  {name:'Champiñones',category:'verduras',allergens:[],unit:'g'},
+  {name:'Setas',category:'verduras',allergens:[],unit:'g'},
+  {name:'Pepino',category:'verduras',allergens:[],unit:'g'},
+  {name:'Rúcula',category:'verduras',allergens:[],unit:'g'},
+  {name:'Canónigos',category:'verduras',allergens:[],unit:'g'},
+  {name:'Endivias',category:'verduras',allergens:[],unit:'g'},
+  {name:'Remolacha',category:'verduras',allergens:[],unit:'g'},
+  {name:'Nabo',category:'verduras',allergens:[],unit:'g'},
+  {name:'Hinojo',category:'verduras',allergens:[],unit:'g'},
+  {name:'Cebolleta',category:'verduras',allergens:[],unit:'g'},
+  {name:'Pimiento del piquillo',category:'verduras',allergens:[],unit:'bote'},
+  // FRUTAS
+  {name:'Naranja',category:'frutas',allergens:[],unit:'g'},
+  {name:'Limón',category:'frutas',allergens:[],unit:'g'},
+  {name:'Manzana',category:'frutas',allergens:[],unit:'g'},
+  {name:'Pera',category:'frutas',allergens:[],unit:'g'},
+  {name:'Plátano',category:'frutas',allergens:[],unit:'g'},
+  {name:'Uvas',category:'frutas',allergens:['sulfitos'],unit:'g'},
+  {name:'Melocotón',category:'frutas',allergens:[],unit:'g'},
+  {name:'Albaricoques',category:'frutas',allergens:[],unit:'g'},
+  {name:'Higos',category:'frutas',allergens:[],unit:'g'},
+  {name:'Cerezas',category:'frutas',allergens:[],unit:'g'},
+  {name:'Sandía',category:'frutas',allergens:[],unit:'g'},
+  {name:'Melón',category:'frutas',allergens:[],unit:'g'},
+  {name:'Fresas',category:'frutas',allergens:[],unit:'g'},
+  {name:'Kiwi',category:'frutas',allergens:[],unit:'g'},
+  {name:'Mandarina',category:'frutas',allergens:[],unit:'g'},
+  {name:'Granada',category:'frutas',allergens:[],unit:'g'},
+  {name:'Dátiles',category:'frutas',allergens:[],unit:'g'},
+  // LÁCTEOS
+  {name:'Leche entera',category:'lacteos',allergens:['lacteos'],unit:'l'},
+  {name:'Leche desnatada',category:'lacteos',allergens:['lacteos'],unit:'l'},
+  {name:'Yogur natural',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  {name:'Queso manchego',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  {name:'Queso fresco',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  {name:'Queso ricotta',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  {name:'Mozzarella',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  {name:'Nata para cocinar',category:'lacteos',allergens:['lacteos'],unit:'ml'},
+  {name:'Mantequilla',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  {name:'Queso parmesano',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  {name:'Queso feta',category:'lacteos',allergens:['lacteos'],unit:'g'},
+  // HUEVOS
+  {name:'Huevos',category:'huevos',allergens:['huevos'],unit:'unidad'},
+  {name:'Huevos de codorniz',category:'huevos',allergens:['huevos'],unit:'unidad'},
+  // CEREALES Y HARINAS
+  {name:'Harina de trigo',category:'cereales',allergens:['gluten'],unit:'g'},
+  {name:'Harina integral',category:'cereales',allergens:['gluten'],unit:'g'},
+  {name:'Pan de molde',category:'cereales',allergens:['gluten'],unit:'g'},
+  {name:'Pan baguette',category:'cereales',allergens:['gluten'],unit:'g'},
+  {name:'Pan rallado',category:'cereales',allergens:['gluten'],unit:'g'},
+  {name:'Avena',category:'cereales',allergens:['gluten'],unit:'g'},
+  {name:'Cuscús',category:'cereales',allergens:['gluten'],unit:'g'},
+  {name:'Sémola',category:'cereales',allergens:['gluten'],unit:'g'},
+  // LEGUMBRES
+  {name:'Garbanzos',category:'legumbres',allergens:[],unit:'g'},
+  {name:'Lentejas',category:'legumbres',allergens:[],unit:'g'},
+  {name:'Judías blancas',category:'legumbres',allergens:[],unit:'g'},
+  {name:'Judías pintas',category:'legumbres',allergens:[],unit:'g'},
+  {name:'Alubias negras',category:'legumbres',allergens:[],unit:'g'},
+  {name:'Habas',category:'legumbres',allergens:[],unit:'g'},
+  {name:'Guisantes',category:'legumbres',allergens:[],unit:'g'},
+  // PASTA Y ARROZ
+  {name:'Arroz redondo',category:'pasta_arroz',allergens:[],unit:'g'},
+  {name:'Arroz largo',category:'pasta_arroz',allergens:[],unit:'g'},
+  {name:'Arroz basmati',category:'pasta_arroz',allergens:[],unit:'g'},
+  {name:'Espaguetis',category:'pasta_arroz',allergens:['gluten'],unit:'g'},
+  {name:'Macarrones',category:'pasta_arroz',allergens:['gluten'],unit:'g'},
+  {name:'Penne',category:'pasta_arroz',allergens:['gluten'],unit:'g'},
+  {name:'Tagliatelle',category:'pasta_arroz',allergens:['gluten','huevos'],unit:'g'},
+  {name:'Lasaña',category:'pasta_arroz',allergens:['gluten'],unit:'g'},
+  {name:'Fideos',category:'pasta_arroz',allergens:['gluten'],unit:'g'},
+  {name:'Pasta orzo',category:'pasta_arroz',allergens:['gluten'],unit:'g'},
+  // ACEITES Y GRASAS
+  {name:'Aceite de oliva virgen extra',category:'aceites_grasas',allergens:[],unit:'ml'},
+  {name:'Aceite de girasol',category:'aceites_grasas',allergens:[],unit:'ml'},
+  {name:'Aceite de sésamo',category:'aceites_grasas',allergens:['sesamo'],unit:'ml'},
+  // CONDIMENTOS Y ESPECIAS
+  {name:'Sal',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Pimienta negra',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Pimentón dulce',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Pimentón picante',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Comino',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Orégano',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Tomillo',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Romero',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Laurel',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Curry',category:'condimentos',allergens:['mostaza'],unit:'g'},
+  {name:'Cúrcuma',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Canela',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Nuez moscada',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Azafrán',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Perejil fresco',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Albahaca fresca',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Menta fresca',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Cilantro',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Cebollino',category:'condimentos',allergens:[],unit:'g'},
+  {name:'Vinagre de vino',category:'condimentos',allergens:['sulfitos'],unit:'ml'},
+  {name:'Vinagre de Módena',category:'condimentos',allergens:['sulfitos'],unit:'ml'},
+  {name:'Pimentón de la Vera',category:'condimentos',allergens:[],unit:'g'},
+  // SALSAS
+  {name:'Tomate frito',category:'salsas',allergens:[],unit:'bote'},
+  {name:'Tomate triturado',category:'salsas',allergens:[],unit:'bote'},
+  {name:'Salsa de tomate casera',category:'salsas',allergens:[],unit:'ml'},
+  {name:'Sofrito',category:'salsas',allergens:[],unit:'g'},
+  {name:'Mayonesa',category:'salsas',allergens:['huevos'],unit:'g'},
+  {name:'Mostaza',category:'salsas',allergens:['mostaza'],unit:'g'},
+  {name:'Salsa de soja',category:'salsas',allergens:['soja','gluten'],unit:'ml'},
+  {name:'Salsa pesto',category:'salsas',allergens:['lacteos','frutos_secos'],unit:'g'},
+  {name:'Alioli',category:'salsas',allergens:['huevos'],unit:'g'},
+  // CONSERVAS
+  {name:'Atún en lata',category:'conservas',allergens:['pescado'],unit:'lata'},
+  {name:'Sardinas en lata',category:'conservas',allergens:['pescado'],unit:'lata'},
+  {name:'Mejillones en lata',category:'conservas',allergens:['moluscos'],unit:'lata'},
+  {name:'Aceitunas negras',category:'conservas',allergens:[],unit:'bote'},
+  {name:'Aceitunas verdes',category:'conservas',allergens:[],unit:'bote'},
+  {name:'Alcaparras',category:'conservas',allergens:[],unit:'bote'},
+  {name:'Anchoas en aceite',category:'conservas',allergens:['pescado'],unit:'lata'},
+  {name:'Pulpo en lata',category:'conservas',allergens:['moluscos'],unit:'lata'},
+  // FRUTOS SECOS Y SEMILLAS
+  {name:'Almendras',category:'frutos_secos',allergens:['frutos_secos'],unit:'g'},
+  {name:'Nueces',category:'frutos_secos',allergens:['frutos_secos'],unit:'g'},
+  {name:'Piñones',category:'frutos_secos',allergens:['frutos_secos'],unit:'g'},
+  {name:'Avellanas',category:'frutos_secos',allergens:['frutos_secos'],unit:'g'},
+  {name:'Pistachos',category:'frutos_secos',allergens:['frutos_secos'],unit:'g'},
+  {name:'Semillas de sésamo',category:'frutos_secos',allergens:['sesamo'],unit:'g'},
+  {name:'Semillas de chía',category:'frutos_secos',allergens:[],unit:'g'},
+  {name:'Semillas de girasol',category:'frutos_secos',allergens:[],unit:'g'},
+  // EMBUTIDOS
+  {name:'Jamón serrano',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Jamón cocido',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Chorizo',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Salchichón',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Sobrasada',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Morcilla',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Lomo curado',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Bacon',category:'embutidos',allergens:[],unit:'g'},
+  {name:'Fuet',category:'embutidos',allergens:[],unit:'g'},
+  // PAN Y BOLLERÍA
+  {name:'Pan de pueblo',category:'pan_bolleria',allergens:['gluten'],unit:'g'},
+  {name:'Pan integral',category:'pan_bolleria',allergens:['gluten'],unit:'g'},
+  {name:'Pan pita',category:'pan_bolleria',allergens:['gluten'],unit:'g'},
+  // BEBIDAS / CALDOS
+  {name:'Caldo de pollo',category:'bebidas',allergens:[],unit:'ml'},
+  {name:'Caldo de pescado',category:'bebidas',allergens:['pescado'],unit:'ml'},
+  {name:'Caldo de verduras',category:'bebidas',allergens:[],unit:'ml'},
+  {name:'Vino blanco (para cocinar)',category:'bebidas',allergens:['sulfitos'],unit:'ml'},
+  {name:'Vino tinto (para cocinar)',category:'bebidas',allergens:['sulfitos'],unit:'ml'},
+  // OTROS
+  {name:'Azúcar',category:'otros',allergens:[],unit:'g'},
+  {name:'Azúcar moreno',category:'otros',allergens:[],unit:'g'},
+  {name:'Miel',category:'otros',allergens:[],unit:'g'},
+  {name:'Levadura química',category:'otros',allergens:[],unit:'g'},
+  {name:'Bicarbonato',category:'otros',allergens:[],unit:'g'},
+  {name:'Maicena',category:'otros',allergens:[],unit:'g'},
+  {name:'Caldo de carne',category:'otros',allergens:[],unit:'ml'},
+];
+
+async function importar() {
+  const btn = document.querySelector('button');
+  btn.disabled = true;
+  btn.textContent = 'Importando…';
+  const log = document.getElementById('log');
+  log.textContent = '';
+
+  await new Promise(r => setTimeout(r, 1000)); // wait for firebase init
+  const user = firebase.auth().currentUser;
+  if (!user) { log.textContent = 'ERROR: Debes iniciar sesión primero.'; btn.disabled = false; return; }
+
+  const db = firebase.firestore();
+  const coll = db.collection('users').doc(user.uid).collection('ingredientes');
+
+  // Get existing names to avoid duplicates
+  const existing = await coll.get();
+  const existingNames = new Set(existing.docs.map(d => d.data().name?.toLowerCase()));
+
+  let added = 0, skipped = 0, errors = 0;
+
+  for (const ing of INGREDIENTS) {
+    try {
+      if (existingNames.has(ing.name.toLowerCase())) {
+        log.textContent += `⏭️  Ya existe: ${ing.name}\n`;
+        skipped++;
+      } else {
+        await coll.add({ ...ing, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        log.textContent += `✅ Añadido: ${ing.name}\n`;
+        added++;
+        existingNames.add(ing.name.toLowerCase());
+      }
+      log.scrollTop = log.scrollHeight;
+    } catch(e) {
+      log.textContent += `❌ Error: ${ing.name} — ${e.message}\n`;
+      errors++;
+    }
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  log.textContent += `\n📊 Resultado: ${added} añadidos, ${skipped} ya existían, ${errors} errores.\n`;
+  log.textContent += '✅ Importación completada. Puedes cerrar esta página.\n';
+  btn.textContent = 'Importar ingredientes';
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
