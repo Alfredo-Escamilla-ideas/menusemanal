@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Seed — 15 Segundos Platos</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="utils.js?v=3"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 20px; }
+  h2 { color: #c2410c; }
+  button { padding: 12px 28px; background: #c2410c; color: #fff; border: none; border-radius: 8px;
+           font-size: 1rem; cursor: pointer; margin-right: 10px; }
+  button:hover { background: #9a3412; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  #log { margin-top: 20px; font-size: .82rem; font-family: monospace; white-space: pre-wrap;
+         background: #f3f4f6; padding: 16px; border-radius: 8px; max-height: 500px; overflow-y: auto; }
+  .ok  { color: #16a34a; }
+  .skip{ color: #6b7280; }
+  .err { color: #dc2626; }
+  .hd  { color: #1d4ed8; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>Seed — 15 Segundos Platos</h2>
+<p>Añade <strong>15 segundos platos</strong> y todos sus <strong>ingredientes</strong>.<br>
+Los elementos que ya existan con el mismo nombre se omiten sin duplicar.</p>
+<button id="btnRun" onclick="runSeed()">Importar platos e ingredientes</button>
+<div id="log"></div>
+
+<script>
+// ─── Datos ──────────────────────────────────────────────────────────────────
+
+const PLATOS = [
+  // ── Carne roja ───────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Filete de ternera a la plancha',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Filete de ternera sencillo a la plancha con aceite de oliva. Rápido y proteico.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Albóndigas en salsa de tomate',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten','huevos'], comments:'Albóndigas caseras de carne picada mixta en salsa de tomate con ajo y laurel.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Entrecot con chimichurri',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Entrecot a la plancha con salsa chimichurri de perejil, ajo, pimentón y vinagre.',
+    }),
+  },
+
+  // ── Pollo / Pavo ─────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pollo al horno con limón y romero',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Pollo entero o en piezas asado con limón, romero y ajo. Jugoso y aromático.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pechuga de pollo a la plancha',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Pechuga fileteada marinada con limón y ajo. Muy ligera y versátil.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Muslos de pollo al ajillo',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Muslos dorados en aceite con abundante ajo y vino blanco. Clásico español.',
+    }),
+  },
+
+  // ── Cerdo ────────────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Lomo de cerdo al horno',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Lomo en una pieza asado con ajo, romero y aceite de oliva. Muy jugoso.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Chuletas de cerdo a la plancha',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Chuletas sazonadas con sal, pimienta y romero, a la plancha con aceite de oliva.',
+    }),
+  },
+
+  // ── Pescado (porción) ────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Salmon al horno con limon',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Lomo de salmón al horno con limón, eneldo y aceite de oliva. Rico en omega-3.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Merluza en salsa verde',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado','sulfitos'], comments:'Filetes de merluza en salsa de ajo, perejil y vino blanco. Plato tradicional vasco.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Atun fresco a la plancha con tomate',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Filete de atún fresco vuelta y vuelta con tomate salteado y aceite de oliva.',
+    }),
+  },
+
+  // ── Pescado (entero) ─────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_pescado_entero',
+    name: 'Dorada al horno',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Dorada entera al horno con patata, limón y aceite de oliva. Receta mediterránea clásica.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_entero',
+    name: 'Lubina al horno con patatas',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Lubina entera sobre cama de patatas panaderas con aceite de oliva y limón.',
+    }),
+  },
+
+  // ── Huevos ───────────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_huevos',
+    name: 'Tortilla española',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos'], comments:'Tortilla clásica de patata y cebolla. Puede servirse caliente o fría.',
+    }),
+  },
+  {
+    categoria: 'segundos_huevos',
+    name: 'Huevos a la flamenca',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos'], comments:'Huevos al horno sobre sofrito de tomate, pimiento, guisantes y chorizo. Plato andaluz.',
+    }),
+  },
+];
+
+// ─── Ingredientes ────────────────────────────────────────────────────────────
+const INGREDIENTES = [
+  // Carnes
+  { name:'Filete de ternera',      category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'Preferir cortes magros como babilla o redondo.' },
+  { name:'Carne picada mixta',     category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'Mezcla de ternera y cerdo (50/50). Para albóndigas y hamburguesas.' },
+  { name:'Entrecot de ternera',    category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'Corte con algo de grasa intramuscular, ideal para plancha fuerte.' },
+  { name:'Pollo entero',           category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'Mejor si es de corral. Pedir troceado en carnicería para hornear.' },
+  { name:'Pechuga de pollo',       category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'Filetear fino para cocinado rápido a la plancha.' },
+  { name:'Muslos de pollo',        category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'Con hueso y piel para más sabor al ajillo o al horno.' },
+  { name:'Lomo de cerdo',          category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'En pieza entera para el horno o en filetes para la plancha.' },
+  { name:'Chuletas de cerdo',      category:'carnes', allergens:[], unit:'g',  season:'todo', notes:'Con hueso para más sabor. Golpear ligeramente antes de cocinar.' },
+  { name:'Chorizo',                category:'embutidos', allergens:[], unit:'g', season:'todo', notes:'Usar chorizo fresco o curado según la receta. Alérgeno potencial: sulfitos.' },
+  // Pescados
+  { name:'Salmon filete',          category:'pescados', allergens:['pescado'], unit:'g', season:'todo', notes:'Rico en omega-3. Conservar en frio y consumir en 24h.' },
+  { name:'Merluza filete',         category:'pescados', allergens:['pescado'], unit:'g', season:'todo', notes:'Pescado blanco magro y de sabor suave. Fresca o descongelada.' },
+  { name:'Atun fresco filete',     category:'pescados', allergens:['pescado'], unit:'g', season:'verano', notes:'No sobrecocinar: vuelta y vuelta en plancha muy caliente.' },
+  { name:'Dorada entera',          category:'pescados', allergens:['pescado'], unit:'g', season:'todo', notes:'Pedir limpia y sin escamas. Ideal para el horno.' },
+  { name:'Lubina entera',          category:'pescados', allergens:['pescado'], unit:'g', season:'todo', notes:'Pescado fino y de carne blanca. Pedir limpia en la pescaderia.' },
+  // Condimentos nuevos
+  { name:'Romero fresco',          category:'condimentos', allergens:[], unit:'g',  season:'todo', notes:'Usar ramitas enteras para asados. Muy aromático.' },
+  { name:'Eneldo seco',            category:'condimentos', allergens:[], unit:'g',  season:'todo', notes:'Acompaña muy bien al salmon y pescados ahumados.' },
+  { name:'Pimenton picante',       category:'condimentos', allergens:[], unit:'g',  season:'todo', notes:'Para chimichurri y platos con personalidad. Usar con moderacion.' },
+  { name:'Vino blanco seco',       category:'condimentos', allergens:['sulfitos'], unit:'ml', season:'todo', notes:'Para cocinar: usar uno de calidad media. Aporta acidez y aroma.' },
+  { name:'Laurel',                 category:'condimentos', allergens:[], unit:'g',  season:'todo', notes:'Hoja de laurel seco para guisos y salsas. Retirar antes de servir.' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const log = document.getElementById('log');
+function print(msg, cls='') {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── Auth callback ────────────────────────────────────────────────────────────
+function onAuthReady(user) {
+  if (!user) {
+    print('Debes iniciar sesion primero. Ve a menu.html, inicia sesion y vuelve aqui.', 'err');
+    document.getElementById('btnRun').disabled = true;
+  } else {
+    print(`Sesion activa: ${user.email}`, 'ok');
+  }
+}
+
+// ─── Seed principal ───────────────────────────────────────────────────────────
+async function runSeed() {
+  document.getElementById('btnRun').disabled = true;
+  log.innerHTML = '';
+
+  try {
+    // ── 1. Ingredientes ───────────────────────────────────────────────────
+    print('── INGREDIENTES ─────────────────────────────', 'hd');
+    const ingRef = db.collection('users').doc(currentUser.uid).collection('ingredientes');
+    const existSnap = await ingRef.get();
+    const existNames = new Set(existSnap.docs.map(d => (d.data().name || '').toLowerCase().trim()));
+
+    let ingAdded = 0, ingSkipped = 0;
+    for (const ing of INGREDIENTES) {
+      const key = ing.name.toLowerCase().trim();
+      if (existNames.has(key)) {
+        print(`  · omitido (ya existe): ${ing.name}`, 'skip');
+        ingSkipped++;
+      } else {
+        await ingRef.add({ ...ing });
+        print(`  + añadido: ${ing.name}`, 'ok');
+        existNames.add(key);
+        ingAdded++;
+      }
+    }
+    print(`Ingredientes: ${ingAdded} añadidos, ${ingSkipped} ya existian.\n`, 'ok');
+
+    // ── 2. Platos ─────────────────────────────────────────────────────────
+    print('── PLATOS ───────────────────────────────────', 'hd');
+    const foodsRef = db.collection('users').doc(currentUser.uid)
+                       .collection('foods').doc('custom-foods');
+    const foodsSnap = await foodsRef.get();
+    const data = foodsSnap.exists ? foodsSnap.data() : {};
+    const customFoods = data.customFoods || {};
+
+    let platosAdded = 0, platosSkipped = 0;
+    for (const plato of PLATOS) {
+      const cat = plato.categoria;
+      if (!customFoods[cat]) customFoods[cat] = [];
+
+      const existsInCat = customFoods[cat].some(p => {
+        const n = typeof p === 'string' ? p : (p.name || '');
+        return n.toLowerCase().trim() === plato.name.toLowerCase().trim();
+      });
+
+      if (existsInCat) {
+        print(`  · omitido (ya existe en ${cat}): ${plato.name}`, 'skip');
+        platosSkipped++;
+      } else {
+        customFoods[cat].push({ name: plato.name, description: plato.description });
+        print(`  + añadido [${cat}]: ${plato.name}`, 'ok');
+        platosAdded++;
+      }
+    }
+
+    await foodsRef.set({ customFoods });
+    localStorage.removeItem('customFoods');
+    print(`Platos: ${platosAdded} añadidos, ${platosSkipped} ya existian.\n`, 'ok');
+
+    print('Seed completado. Puedes cerrar esta pagina.', 'ok');
+  } catch (err) {
+    print(`ERROR: ${err.message}`, 'err');
+    console.error(err);
+    document.getElementById('btnRun').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
