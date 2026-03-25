@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Seed — 15 Platos Unicos (guisos con proteina)</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="utils.js?v=3"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 20px; }
+  h2 { color: #c2410c; }
+  button { padding: 12px 28px; background: #c2410c; color: #fff; border: none; border-radius: 8px;
+           font-size: 1rem; cursor: pointer; margin-right: 10px; }
+  button:hover { background: #9a3412; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  #log { margin-top: 20px; font-size: .82rem; font-family: monospace; white-space: pre-wrap;
+         background: #f3f4f6; padding: 16px; border-radius: 8px; max-height: 500px; overflow-y: auto; }
+  .ok  { color: #16a34a; }
+  .skip{ color: #6b7280; }
+  .err { color: #dc2626; }
+  .hd  { color: #1d4ed8; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>Seed — 15 Platos Unicos: guisos con proteina</h2>
+<p>Añade <strong>5 guisos de carne + 5 guisos de pescado + 5 guisos de legumbre</strong> y sus <strong>ingredientes</strong>.<br>
+Los elementos que ya existan con el mismo nombre se omiten sin duplicar.</p>
+<button id="btnRun" onclick="runSeed()">Importar platos e ingredientes</button>
+<div id="log"></div>
+
+<script>
+const PLATOS = [
+  // ── Guiso de carne ───────────────────────────────────────────────────────
+  {
+    categoria: 'unico_guiso_carne',
+    name: 'Estofado de ternera con patatas',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Trozos de ternera estofados a fuego lento con patatas, zanahoria y vino tinto. Clasico y reconfortante.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_carne',
+    name: 'Rabo de toro estofado',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Rabo estofado muy lentamente con vino tinto, verduras y especias. La carne se desprende del hueso.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_carne',
+    name: 'Caldereta de cordero',
+    description: JSON.stringify({
+      season:'primavera', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Cordero troceado guisado con pimiento, tomate, ajo y vino blanco. Tipico extremeno.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_carne',
+    name: 'Fabada asturiana',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Fabes con compango (chorizo, morcilla, tocino y lacón). Plato contundente asturiano.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_carne',
+    name: 'Cocido madrileno',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Tres vuelcos: sopa de fideos, garbanzos con verduras y las carnes (morcillo, pollo, chorizo, tocino).',
+    }),
+  },
+
+  // ── Guiso de pescado ─────────────────────────────────────────────────────
+  {
+    categoria: 'unico_guiso_pescado',
+    name: 'Marmitako de bonito',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Guiso vasco de bonito del norte con patata, pimiento choricero y tomate. El bonito se añade al final.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_pescado',
+    name: 'Bacalao a la vizcaina',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Lomos de bacalao desalado en salsa vizcaina de pimiento choricero, cebolla y tomate.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_pescado',
+    name: 'Zarzuela de mariscos',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado','crustaceos','moluscos','sulfitos'], comments:'Guiso festivo de gambas, mejillones, almejas y rape en salsa de tomate y vino blanco.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_pescado',
+    name: 'Cazuela de rape con patatas',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Rape troceado guisado con patatas chascadas, ajo, pimenton y caldo de pescado.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_pescado',
+    name: 'Suquet de pescado',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['pescado','frutos_secos'], comments:'Guiso catalan de pescado con patata y picada de almendras, ajo y pan frito. Muy sabroso.',
+    }),
+  },
+
+  // ── Guiso de legumbre ────────────────────────────────────────────────────
+  {
+    categoria: 'unico_guiso_legumbre',
+    name: 'Lentejas con chorizo y verduras',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Lentejas pardinas con chorizo, zanahoria, cebolla y pimenton. El guiso de cuchara mas clasico.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_legumbre',
+    name: 'Judias blancas con chorizo y morcilla',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Judias blancas cocidas con sofrito de cebolla, pimenton y compango. Plato de invierno muy energetico.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_legumbre',
+    name: 'Garbanzos con callos',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Garbanzos con callos de ternera, chorizo y morcilla en salsa de tomate y pimenton.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_legumbre',
+    name: 'Alubias rojas con costilla de cerdo',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Alubias rojas de Tolosa con costilla de cerdo, pimiento verde y cebolla. Guiso vasco tradicional.',
+    }),
+  },
+  {
+    categoria: 'unico_guiso_legumbre',
+    name: 'Potaje de garbanzos con bacalao y espinacas',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Potaje de vigilia con garbanzos, bacalao desalado y espinacas. Tradicional de Cuaresma.',
+    }),
+  },
+];
+
+const INGREDIENTES = [
+  // Carnes para guisar (nuevas)
+  { name:'Ternera para guisar',      category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Cortes como morcillo, aguja o falda. Cortada en dados de 3-4 cm.' },
+  { name:'Rabo de toro',             category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Pedir troceado en la carniceria. Necesita coccion de 3-4 horas.' },
+  { name:'Cordero troceado',         category:'carnes',    allergens:[], unit:'g',  season:'primavera', notes:'Pierna o paletilla en trozos. Desgrasar un poco antes de guisar.' },
+  { name:'Morcillo de ternera',      category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Corte gelatinoso ideal para el cocido. Aporta sabor al caldo.' },
+  { name:'Tocino de cerdo',          category:'embutidos', allergens:[], unit:'g',  season:'todo',    notes:'Tocino salado o fresco. Desalar si es necesario antes de usar.' },
+  { name:'Lacon',                    category:'embutidos', allergens:[], unit:'g',  season:'todo',    notes:'Pata delantera del cerdo curada. Desalar 24h. Imprescindible en la fabada.' },
+  { name:'Morcilla',                 category:'embutidos', allergens:[], unit:'g',  season:'todo',    notes:'De cebolla o de arroz segun la receta. Anadir al final para que no se deshaga.' },
+  { name:'Callos de ternera',        category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Pedir limpios en la carniceria. Cocinar largo tiempo para ablandarlos.' },
+  // Pescados para guisar (nuevos)
+  { name:'Bonito del norte',         category:'pescados',  allergens:['pescado'], unit:'g', season:'verano', notes:'Fresco de temporada (julio-octubre). Anadir al guiso apagando el fuego.' },
+  { name:'Rape troceado',            category:'pescados',  allergens:['pescado'], unit:'g', season:'todo',   notes:'Pedir limpio y sin piel. Cortes gruesos para que no se deshagan.' },
+  { name:'Mejillones',               category:'mariscos',  allergens:['moluscos'], unit:'g', season:'todo',  notes:'Limpiar bien las valvas. Abrir al vapor y añadir el jugo colado al guiso.' },
+  { name:'Almejas',                  category:'mariscos',  allergens:['moluscos'], unit:'g', season:'todo',  notes:'Poner en agua con sal 2 horas para que suelten arena.' },
+  // Legumbres (nuevas)
+  { name:'Lentejas pardinas',        category:'legumbres', allergens:[], unit:'g',  season:'todo',    notes:'No necesitan remojo. Coccion de 25-30 min. Aguantan bien el guiso.' },
+  { name:'Fabes asturianas',         category:'legumbres', allergens:[], unit:'g',  season:'todo',    notes:'Alubias grandes asturianas. Remojo 12h. Coccion lenta a fuego minimo.' },
+  { name:'Alubias rojas',            category:'legumbres', allergens:[], unit:'g',  season:'todo',    notes:'Remojo minimo 8h. Cocer partiendo de agua fria. No remover para no romperlas.' },
+  // Condimentos y bases (nuevos)
+  { name:'Caldo de pescado',         category:'condimentos', allergens:['pescado'], unit:'ml', season:'todo', notes:'Casero o brick. Base imprescindible para guisos de pescado.' },
+  { name:'Pimiento choricero',       category:'conservas', allergens:[], unit:'g',  season:'todo',    notes:'En seco o en carne de pimiento choricero en tarro. Base de la cocina vasca.' },
+  { name:'Pimenton de la Vera',      category:'condimentos', allergens:[], unit:'g', season:'todo',   notes:'Pimenton ahumado. Dulce o picante. Aporta sabor y color a legumbres y guisos.' },
+  { name:'Hueso de jamon',           category:'embutidos', allergens:[], unit:'g',  season:'todo',    notes:'Para dar sabor al caldo de cocidos y potajes. Congelar si no se usa de inmediato.' },
+  { name:'Vino tinto',               category:'condimentos', allergens:['sulfitos'], unit:'ml', season:'todo', notes:'Para estofados de carne. Usar uno de calidad media, no muy tannico.' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const log = document.getElementById('log');
+function print(msg, cls='') {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function onAuthReady(user) {
+  if (!user) {
+    print('Debes iniciar sesion primero. Ve a menu.html, inicia sesion y vuelve aqui.', 'err');
+    document.getElementById('btnRun').disabled = true;
+  } else {
+    print(`Sesion activa: ${user.email}`, 'ok');
+  }
+}
+
+async function runSeed() {
+  document.getElementById('btnRun').disabled = true;
+  log.innerHTML = '';
+
+  try {
+    print('── INGREDIENTES ─────────────────────────────', 'hd');
+    const ingRef = db.collection('users').doc(currentUser.uid).collection('ingredientes');
+    const existSnap = await ingRef.get();
+    const existNames = new Set(existSnap.docs.map(d => (d.data().name || '').toLowerCase().trim()));
+
+    let ingAdded = 0, ingSkipped = 0;
+    for (const ing of INGREDIENTES) {
+      const key = ing.name.toLowerCase().trim();
+      if (existNames.has(key)) {
+        print(`  · omitido (ya existe): ${ing.name}`, 'skip');
+        ingSkipped++;
+      } else {
+        await ingRef.add({ ...ing });
+        print(`  + añadido: ${ing.name}`, 'ok');
+        existNames.add(key);
+        ingAdded++;
+      }
+    }
+    print(`Ingredientes: ${ingAdded} añadidos, ${ingSkipped} ya existian.\n`, 'ok');
+
+    print('── PLATOS ───────────────────────────────────', 'hd');
+    const foodsRef = db.collection('users').doc(currentUser.uid)
+                       .collection('foods').doc('custom-foods');
+    const foodsSnap = await foodsRef.get();
+    const data = foodsSnap.exists ? foodsSnap.data() : {};
+    const customFoods = data.customFoods || {};
+
+    let platosAdded = 0, platosSkipped = 0;
+    for (const plato of PLATOS) {
+      const cat = plato.categoria;
+      if (!customFoods[cat]) customFoods[cat] = [];
+
+      const existsInCat = customFoods[cat].some(p => {
+        const n = typeof p === 'string' ? p : (p.name || '');
+        return n.toLowerCase().trim() === plato.name.toLowerCase().trim();
+      });
+
+      if (existsInCat) {
+        print(`  · omitido (ya existe en ${cat}): ${plato.name}`, 'skip');
+        platosSkipped++;
+      } else {
+        customFoods[cat].push({ name: plato.name, description: plato.description });
+        print(`  + añadido [${cat}]: ${plato.name}`, 'ok');
+        platosAdded++;
+      }
+    }
+
+    await foodsRef.set({ customFoods });
+    localStorage.removeItem('customFoods');
+    print(`Platos: ${platosAdded} añadidos, ${platosSkipped} ya existian.\n`, 'ok');
+    print('Seed completado. Puedes cerrar esta pagina.', 'ok');
+  } catch (err) {
+    print(`ERROR: ${err.message}`, 'err');
+    console.error(err);
+    document.getElementById('btnRun').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
