@@ -34,85 +34,9 @@ body {
     font-family: 'Inter', system-ui, sans-serif;
     background: var(--ing-bg);
     color: var(--ing-text);
-    padding-top: var(--ing-topbar-h);
     min-height: 100vh;
     transition: background .3s, color .3s;
 }
-
-/* ---- TOPBAR ---- */
-.ing-topbar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: var(--ing-topbar-h);
-    background: var(--ing-topbar-bg);
-    border-bottom: 1px solid var(--ing-border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 16px;
-    z-index: 1000;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-}
-
-.ing-topbar-left { display: flex; align-items: center; gap: 4px; }
-.ing-brand { font-weight: 700; font-size: 1rem; color: var(--ing-accent); letter-spacing: -.3px; }
-.ing-topbar-right { display: flex; align-items: center; gap: 6px; }
-
-.ing-theme-btn {
-    background: none; border: none; cursor: pointer;
-    padding: 6px 8px; border-radius: 8px; font-size: .95rem;
-    transition: background .15s;
-}
-.ing-theme-btn:hover { background: var(--ing-border); }
-
-.ing-nav-btn {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 6px 12px; border-radius: 8px;
-    border: 1px solid var(--ing-border);
-    background: var(--ing-surface); color: var(--ing-text);
-    font-size: .82rem; font-weight: 500; text-decoration: none;
-    white-space: nowrap; cursor: pointer;
-    transition: background .15s, border-color .15s;
-}
-.ing-nav-btn:hover { background: var(--ing-border); color: var(--ing-text); }
-
-.ing-hamburger {
-    display: none;
-    background: none; border: 1px solid var(--ing-border);
-    border-radius: 8px; padding: 5px 10px; cursor: pointer;
-    font-size: 1.1rem; color: var(--ing-text);
-}
-
-@media (max-width: 600px) {
-    .ing-nav-btn span { display: none; }
-    .ing-hamburger { display: block; }
-}
-
-/* ---- HAMBURGER MENU ---- */
-.ing-hamburger-menu {
-    display: none;
-    position: fixed;
-    top: var(--ing-topbar-h); right: 0;
-    background: var(--ing-surface);
-    border: 1px solid var(--ing-border);
-    border-radius: 0 0 12px 12px;
-    box-shadow: var(--ing-shadow-h);
-    min-width: 200px;
-    z-index: 999;
-    padding: 8px 0;
-}
-.ing-hamburger-menu.open { display: block; }
-
-.ham-section { padding: 4px 0; }
-.ham-divider { height: 1px; background: var(--ing-border); margin: 4px 0; }
-.ham-item {
-    display: block; width: 100%;
-    background: none; border: none; cursor: pointer;
-    padding: 10px 18px; text-align: left;
-    color: var(--ing-text); font-size: .9rem;
-    transition: background .15s;
-}
-.ham-item:hover { background: var(--ing-border); }
 
 /* ---- AUTH GATE ---- */
 .auth-gate {
@@ -420,26 +344,34 @@ body {
     padding: 4px 8px; border-radius: 8px;
     cursor: pointer; position: relative;
     color: var(--ing-text);
+    transition: background .15s;
 }
 .auth-trigger:hover { background: var(--ing-border); }
 .auth-trigger.active { background: rgba(194,65,12,.1); }
-.auth-name { font-size: .82rem; font-weight: 600; }
+.theme-dark .auth-trigger.active { background: rgba(251,146,60,.12); }
+.auth-name { font-size: .82rem; font-weight: 600; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .auth-chevron { font-size: .65rem; opacity: .6; }
 .auth-login-btn {
     padding: 5px 14px;
     background: var(--ing-accent); color: #fff;
     border-radius: 8px; border: none;
     font-size: .82rem; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: background .2s;
 }
 .auth-login-btn:hover { background: var(--ing-accent-h); }
+@keyframes authDropIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
 .auth-dropdown {
     position: absolute; top: calc(100% + 6px); right: 0;
     min-width: 180px;
     background: var(--ing-surface);
-    border: 1px solid var(--ing-border);
+    border: 1.5px solid var(--ing-border);
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,.18);
     z-index: 500; padding: 6px;
+    animation: authDropIn .15s ease;
 }
 .auth-dropdown.hidden { display: none !important; }
 .auth-dropdown-item {
