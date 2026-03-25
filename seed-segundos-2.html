@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Seed — 20 Segundos (pollo, pavo, cerdo, huevos)</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="utils.js?v=3"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 20px; }
+  h2 { color: #c2410c; }
+  button { padding: 12px 28px; background: #c2410c; color: #fff; border: none; border-radius: 8px;
+           font-size: 1rem; cursor: pointer; margin-right: 10px; }
+  button:hover { background: #9a3412; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  #log { margin-top: 20px; font-size: .82rem; font-family: monospace; white-space: pre-wrap;
+         background: #f3f4f6; padding: 16px; border-radius: 8px; max-height: 500px; overflow-y: auto; }
+  .ok  { color: #16a34a; }
+  .skip{ color: #6b7280; }
+  .err { color: #dc2626; }
+  .hd  { color: #1d4ed8; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>Seed — 20 Segundos: pollo, pavo, cerdo y huevos</h2>
+<p>Añade <strong>5 de pollo + 5 de pavo + 5 de cerdo + 5 de huevos</strong> y sus <strong>ingredientes</strong>.<br>
+Los elementos que ya existan con el mismo nombre se omiten sin duplicar.</p>
+<button id="btnRun" onclick="runSeed()">Importar platos e ingredientes</button>
+<div id="log"></div>
+
+<script>
+const PLATOS = [
+  // ── Pollo ────────────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pollo en salsa de champinones',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Contramuslos de pollo estofados con champinones, cebolla y nata. Cremoso y reconfortante.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pechugas rellenas de jamon y queso',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','lacteos'], comments:'Pechuga abierta en libro, rellena de jamon cocido y queso, empanada y frita o al horno.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Alitas de pollo al horno',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Alitas marinadas con ajo, pimenton y aceite de oliva. Crujientes al horno sin freir.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pollo en pepitoria',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['frutos_secos','huevos'], comments:'Guiso tradicional espanol con almendras, azafran, huevo duro y caldo. Muy sabroso.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pollo al curry con leche de coco',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Troceado de pollo en salsa de curry amarillo y leche de coco. Perfumado y suave.',
+    }),
+  },
+
+  // ── Pavo ─────────────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pechuga de pavo a la plancha',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Filete de pavo a la plancha con limon y hierbas. Muy magro y bajo en calorias.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Escalopes de pavo empanados',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten','huevos'], comments:'Filetes de pavo empanados en pan rallado y fritos o al horno. Con limon para servir.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pavo estofado con verduras',
+    description: JSON.stringify({
+      season:'otono', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Troceado de pavo estofado con zanahoria, cebolla, pimiento y vino blanco.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Medallones de pavo con salsa de mostaza',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos','mostaza'], comments:'Medallones de pavo a la plancha con salsa de nata y mostaza de Dijon.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Hamburguesa de pavo casera',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten','huevos'], comments:'Hamburguesa de carne picada de pavo con ajo, perejil y especias. Mas ligera que la de ternera.',
+    }),
+  },
+
+  // ── Cerdo ────────────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Solomillo de cerdo con champinones',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Solomillo de cerdo a la plancha con salsa de champinones y nata. Tierno y jugoso.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Costillas de cerdo al horno',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Costillas marinadas con pimenton, ajo y aceite, asadas lentamente al horno.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Carrilleras de cerdo en salsa de vino tinto',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Carrilleras estofadas a fuego lento con vino tinto, cebolla y zanahoria. Muy tiernas.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Secreto iberico a la plancha',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Corte premium del cerdo iberico. Plancha muy caliente, sal gruesa y listo. Delicioso.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Presa iberica al horno con romero',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Pieza de presa iberica asada al horno con romero, ajo y aceite de oliva.',
+    }),
+  },
+
+  // ── Huevos ───────────────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_huevos',
+    name: 'Revuelto de setas y gambas',
+    description: JSON.stringify({
+      season:'otono', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos','crustaceos'], comments:'Revuelto cremoso con setas salteadas y gambas. Cocinado a fuego lento removiendo sin parar.',
+    }),
+  },
+  {
+    categoria: 'segundos_huevos',
+    name: 'Frittata de verduras al horno',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['huevos','lacteos'], comments:'Tortilla italiana de verduras de temporada terminada al horno. Sin dar la vuelta.',
+    }),
+  },
+  {
+    categoria: 'segundos_huevos',
+    name: 'Huevos rellenos de atun',
+    description: JSON.stringify({
+      season:'todo', useComida:false, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos','pescado'], comments:'Huevos duros rellenos de mezcla de atun, mahonesa y pimiento. Plato frio.',
+    }),
+  },
+  {
+    categoria: 'segundos_huevos',
+    name: 'Shakshuka',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos'], comments:'Huevos escalfados en salsa de tomate especiada con pimiento y comino. Receta mediterranea de origen nortafricano.',
+    }),
+  },
+  {
+    categoria: 'segundos_huevos',
+    name: 'Tortilla de bacalao',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos','pescado'], comments:'Tortilla jugosa con bacalao desalado desmenuzado y pimiento verde. Tipico del pais vasco.',
+    }),
+  },
+];
+
+const INGREDIENTES = [
+  // Carnes (nuevas)
+  { name:'Alitas de pollo',        category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Marinar minimo 1 hora antes de hornear para mas sabor.' },
+  { name:'Pechuga de pavo',        category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Muy magra. No sobrecocinar para que no quede seca.' },
+  { name:'Carne picada de pavo',   category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Mas ligera que la de ternera o cerdo. Mezclar con especias para hamburguesas.' },
+  { name:'Solomillo de cerdo',     category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Pieza muy tierna. Cocinar rapido para no resecarla.' },
+  { name:'Costillas de cerdo',     category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Marinar y hornear a temperatura baja durante 2-3 horas.' },
+  { name:'Carrilleras de cerdo',   category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Corte gelatinoso ideal para estofado lento. Muy tiernas al dente.' },
+  { name:'Secreto iberico',        category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Corte entre la paleta y el lomo. Plancha muy fuerte, punto rosado.' },
+  { name:'Presa iberica',          category:'carnes',    allergens:[], unit:'g',  season:'todo',    notes:'Pieza jugosa del cerdo iberico. Ideal al horno o a la plancha.' },
+  // Verduras (nuevas)
+  { name:'Champinones',            category:'verduras',  allergens:[], unit:'g',  season:'todo',    notes:'Limpiar con papel humedo, nunca sumergir en agua.' },
+  { name:'Setas variadas',         category:'verduras',  allergens:[], unit:'g',  season:'otono',   notes:'Boletus, rebozuelos, shiitake... Saltear en aceite muy caliente.' },
+  // Mariscos (nuevos)
+  { name:'Gambas peladas',         category:'mariscos',  allergens:['crustaceos'], unit:'g', season:'todo', notes:'Frescas o descongeladas. Cocinar vuelta y vuelta sin pasarse.' },
+  // Lacteos (nuevos)
+  { name:'Mantequilla',            category:'lacteos',   allergens:['lacteos'], unit:'g',  season:'todo', notes:'Para salsas y salteados. Usar sin sal para controlar el punto.' },
+  { name:'Leche de coco',          category:'conservas', allergens:[], unit:'ml', season:'todo',    notes:'En lata. Agitar bien antes de abrir. Sin azucar anadido.' },
+  { name:'Mahonesa',               category:'salsas',    allergens:['huevos'], unit:'g',   season:'todo', notes:'Casera o comercial. Para ensaladillas y rellenos frios.' },
+  // Frutos secos (nuevos)
+  { name:'Almendras crudas',       category:'frutos_secos', allergens:['frutos_secos'], unit:'g', season:'todo', notes:'Para el pollo en pepitoria: tostar y majar en mortero.' },
+  // Pan y harinas (nuevos)
+  { name:'Pan rallado',            category:'pan_bolleria', allergens:['gluten'], unit:'g', season:'todo', notes:'Para empanados. Mezclar con ajo y perejil para mas sabor.' },
+  // Conservas (nuevas)
+  { name:'Bacalao desalado',       category:'conservas', allergens:['pescado'], unit:'g',  season:'todo', notes:'Desalar 48h en nevera cambiando el agua cada 12h.' },
+  { name:'Pimiento del piquillo',  category:'conservas', allergens:[], unit:'g',  season:'todo',    notes:'En conserva. Muy dulce, ideal para acompañar carnes y rellenos.' },
+  // Condimentos (nuevos)
+  { name:'Azafran',                category:'condimentos', allergens:[], unit:'g', season:'todo',   notes:'Usar en hebras, infusionar en caldo caliente antes de añadir.' },
+  { name:'Caldo de pollo',         category:'condimentos', allergens:[], unit:'ml', season:'todo',  notes:'Casero o brick sin sal. Base de guisos y salsas de pollo.' },
+  { name:'Curry en polvo',         category:'condimentos', allergens:[], unit:'g', season:'todo',   notes:'Mezcla de especias. Sofreir brevemente en aceite antes de anadir liquidos.' },
+  { name:'Mostaza de Dijon',       category:'condimentos', allergens:['mostaza'], unit:'g', season:'todo', notes:'Alergeno: mostaza. Aporta acidez y untuosidad a salsas cremosas.' },
+  { name:'Vinagre de vino tinto',  category:'condimentos', allergens:['sulfitos'], unit:'ml', season:'todo', notes:'Para escabeches y salsas de vino tinto. Alergeno: sulfitos.' },
+  { name:'Pimienta de cayena',     category:'condimentos', allergens:[], unit:'g', season:'todo',   notes:'Usar con moderacion. Aporta calor sin alterar el sabor base.' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const log = document.getElementById('log');
+function print(msg, cls='') {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function onAuthReady(user) {
+  if (!user) {
+    print('Debes iniciar sesion primero. Ve a menu.html, inicia sesion y vuelve aqui.', 'err');
+    document.getElementById('btnRun').disabled = true;
+  } else {
+    print(`Sesion activa: ${user.email}`, 'ok');
+  }
+}
+
+async function runSeed() {
+  document.getElementById('btnRun').disabled = true;
+  log.innerHTML = '';
+
+  try {
+    print('── INGREDIENTES ─────────────────────────────', 'hd');
+    const ingRef = db.collection('users').doc(currentUser.uid).collection('ingredientes');
+    const existSnap = await ingRef.get();
+    const existNames = new Set(existSnap.docs.map(d => (d.data().name || '').toLowerCase().trim()));
+
+    let ingAdded = 0, ingSkipped = 0;
+    for (const ing of INGREDIENTES) {
+      const key = ing.name.toLowerCase().trim();
+      if (existNames.has(key)) {
+        print(`  · omitido (ya existe): ${ing.name}`, 'skip');
+        ingSkipped++;
+      } else {
+        await ingRef.add({ ...ing });
+        print(`  + añadido: ${ing.name}`, 'ok');
+        existNames.add(key);
+        ingAdded++;
+      }
+    }
+    print(`Ingredientes: ${ingAdded} añadidos, ${ingSkipped} ya existian.\n`, 'ok');
+
+    print('── PLATOS ───────────────────────────────────', 'hd');
+    const foodsRef = db.collection('users').doc(currentUser.uid)
+                       .collection('foods').doc('custom-foods');
+    const foodsSnap = await foodsRef.get();
+    const data = foodsSnap.exists ? foodsSnap.data() : {};
+    const customFoods = data.customFoods || {};
+
+    let platosAdded = 0, platosSkipped = 0;
+    for (const plato of PLATOS) {
+      const cat = plato.categoria;
+      if (!customFoods[cat]) customFoods[cat] = [];
+
+      const existsInCat = customFoods[cat].some(p => {
+        const n = typeof p === 'string' ? p : (p.name || '');
+        return n.toLowerCase().trim() === plato.name.toLowerCase().trim();
+      });
+
+      if (existsInCat) {
+        print(`  · omitido (ya existe en ${cat}): ${plato.name}`, 'skip');
+        platosSkipped++;
+      } else {
+        customFoods[cat].push({ name: plato.name, description: plato.description });
+        print(`  + añadido [${cat}]: ${plato.name}`, 'ok');
+        platosAdded++;
+      }
+    }
+
+    await foodsRef.set({ customFoods });
+    localStorage.removeItem('customFoods');
+    print(`Platos: ${platosAdded} añadidos, ${platosSkipped} ya existian.\n`, 'ok');
+    print('Seed completado. Puedes cerrar esta pagina.', 'ok');
+  } catch (err) {
+    print(`ERROR: ${err.message}`, 'err');
+    console.error(err);
+    document.getElementById('btnRun').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
