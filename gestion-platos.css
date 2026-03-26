@@ -54,12 +54,22 @@ input, textarea, select {
    ============================================ */
 
 .plates-list-header {
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
     gap: 12px;
 }
+
+.plates-count-summary {
+    width: 100%;
+    font-size: .8rem;
+    color: var(--gp-text-muted);
+    margin: -10px 0 4px;
+    line-height: 1.5;
+}
+.plates-count-summary strong { color: var(--gp-text); }
 
 .plates-list-header h2 {
     font-size: 1.5rem;

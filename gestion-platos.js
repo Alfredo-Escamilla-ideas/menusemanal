@@ -407,6 +407,26 @@ function renderPlates(customFoods) {
 
     if (!hasPlates) { container.innerHTML = '<div class="empty-message">No hay platos creados. Pulsa "+ Nuevo plato" para empezar.</div>'; return; }
     if (!hasVisiblePlates) { container.innerHTML = '<div class="empty-message">No hay resultados para esa búsqueda.</div>'; }
+    _renderPlatesCount(customFoods);
+}
+
+function _renderPlatesCount(customFoods) {
+    const el = document.getElementById('platesCountSummary');
+    if (!el) return;
+
+    // Total
+    let total = 0;
+    CATEGORY_GROUPS.forEach(({ cats }) => cats.forEach(({ key }) => {
+        total += (customFoods[key] || []).length;
+    }));
+
+    // Por grupo
+    const groups = CATEGORY_GROUPS.map(({ group, cats }) => {
+        const count = cats.reduce((s, { key }) => s + (customFoods[key] || []).length, 0);
+        return count > 0 ? `${group.replace(/^[^ ]+ /, '')}: <strong>${count}</strong>` : null;
+    }).filter(Boolean);
+
+    el.innerHTML = `<strong>${total}</strong> platos en total &nbsp;·&nbsp; ${groups.join(' &nbsp;·&nbsp; ')}`;
 }
 
 function initPlatesSearch() {
