@@ -381,6 +381,12 @@ function renderPlates(customFoods) {
             const parts = [meta.unit, seasonLabel].filter(Boolean);
             const metaHtml = parts.length ? `<div class="plate-meta2">${parts.join(' · ')}</div>` : '';
 
+            const meals = [
+                meta.useComida ? '<span class="meal-badge meal-comida">Comida</span>' : '',
+                meta.useCena   ? '<span class="meal-badge meal-cena">Cena</span>'   : '',
+            ].join('');
+            const mealHtml = meals ? `<div class="plate-meals">${meals}</div>` : '';
+
             const card = document.createElement('div');
             card.className = 'plate-card';
             card.innerHTML = `
@@ -392,7 +398,7 @@ function renderPlates(customFoods) {
                     </div>
                 </div>
                 <span class="plate-card-subcat">${subcatLabel}</span>
-                ${allergenHtml}${dietaryHtml}${metaHtml}`;
+                ${mealHtml}${allergenHtml}${dietaryHtml}${metaHtml}`;
             grid.appendChild(card);
         });
 

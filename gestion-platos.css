@@ -194,6 +194,14 @@ body.theme-dark .allergen-badge {
     color: #fb923c;
 }
 
+/* Meal badges (comida / cena) */
+.plate-meals { display: flex; flex-wrap: wrap; gap: 4px; }
+.meal-badge { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .69rem; font-weight: 700; letter-spacing: .02em; }
+.meal-comida { background: rgba(234,88,12,.1); border: 1px solid rgba(234,88,12,.3); color: #c2410c; }
+.meal-cena { background: rgba(99,102,241,.1); border: 1px solid rgba(99,102,241,.3); color: #4f46e5; }
+body.theme-dark .meal-comida { background: rgba(251,146,60,.12); border-color: rgba(251,146,60,.3); color: #fb923c; }
+body.theme-dark .meal-cena { background: rgba(165,180,252,.1); border-color: rgba(165,180,252,.3); color: #a5b4fc; }
+
 /* Dietary badges */
 .plate-dietary { display: flex; flex-wrap: wrap; gap: 4px; }
 .dietary-badge {
