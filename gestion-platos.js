@@ -365,7 +365,7 @@ function renderPlates(customFoods) {
             const allergenHtml = meta.allergens.length
                 ? `<div class="plate-allergens">${meta.allergens.map(id => {
                     const a = ALERGENOS_EU.find(x => x.id === id);
-                    return a ? `<span class="allergen-badge">${a.label}</span>` : '';
+                    return a ? `<span class="allergen-badge">⚠ ${a.label}</span>` : '';
                 }).join('')}</div>` : '';
 
             const dietary = [

@@ -179,19 +179,21 @@ body.theme-dark .plate-card:hover {
 /* Allergen badges */
 .plate-allergens { display: flex; flex-wrap: wrap; gap: 4px; }
 .allergen-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     padding: 1px 7px;
     border-radius: 99px;
-    background: rgba(194,65,12,.1);
-    border: 1px solid rgba(194,65,12,.25);
-    color: #c2410c;
+    background: rgba(220,38,38,.1);
+    border: 1px solid rgba(220,38,38,.35);
+    color: #dc2626;
     font-size: .69rem;
     font-weight: 600;
 }
 body.theme-dark .allergen-badge {
-    background: rgba(251,146,60,.12);
-    border-color: rgba(251,146,60,.3);
-    color: #fb923c;
+    background: rgba(248,113,113,.12);
+    border-color: rgba(248,113,113,.35);
+    color: #f87171;
 }
 
 /* Meal badges (comida / cena) */
@@ -661,7 +663,7 @@ body.theme-dark .field-group input:focus {
 .subcat-chip:hover { border-color: var(--gp-accent); background: var(--gp-surface-soft); }
 .subcat-chip.active {
     border-color: var(--gp-accent);
-    background: rgba(194,65,12,.1);
+    background: rgba(220,38,38,.1);
     color: #c2410c;
     font-weight: 700;
 }
