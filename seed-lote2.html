@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Seed — Lote 2: 20 primeros + 20 segundos + 10 postres</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="utils.js?v=3"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 20px; }
+  h2 { color: #c2410c; }
+  button { padding: 12px 28px; background: #c2410c; color: #fff; border: none; border-radius: 8px;
+           font-size: 1rem; cursor: pointer; }
+  button:hover { background: #9a3412; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  #log { margin-top: 20px; font-size: .82rem; font-family: monospace; white-space: pre-wrap;
+         background: #f3f4f6; padding: 16px; border-radius: 8px; max-height: 520px; overflow-y: auto; }
+  .ok  { color: #16a34a; }
+  .skip{ color: #6b7280; }
+  .err { color: #dc2626; }
+  .hd  { color: #1d4ed8; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>Seed — Lote 2: 20 primeros + 20 segundos + 10 postres</h2>
+<p>Añade <strong>50 platos</strong> y sus <strong>ingredientes</strong>. Los duplicados se omiten.</p>
+<button id="btnRun" onclick="runSeed()">Importar platos e ingredientes</button>
+<div id="log"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// PLATOS
+// ════════════════════════════════════════════════════════════════════════════
+const PLATOS = [
+
+  // ── PRIMEROS: Sopas ──────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_sopa',
+    name: 'Sopa de cebolla gratinada',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','lacteos'], comments:'Cebolla caramelizada, caldo y pan tostado cubierto de queso gruyere gratinado. Clasico frances.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Crema de esparragos',
+    description: JSON.stringify({
+      season:'primavera', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Crema suave de esparragos verdes con nata y caldo de verduras. Elegante y ligera.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Vichyssoise',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Crema fria de puerro y patata con nata. Se sirve muy fria con cebollino picado.',
+    }),
+  },
+  {
+    categoria: 'primeros_sopa',
+    name: 'Minestrone',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:false, sinLactosa:true,
+      allergens:['gluten'], comments:'Sopa italiana de verduras de temporada con pasta pequeña y tomate. Muy completa.',
+    }),
+  },
+
+  // ── PRIMEROS: Ensaladas ──────────────────────────────────────────────────
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada caprese',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Tomate, mozzarella fresca y albahaca con aceite de oliva. La simplicidad italiana.',
+    }),
+  },
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada de remolacha con queso de cabra',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Remolacha cocida con rucula, queso de cabra y nueces. Aliñada con vinagreta de miel.',
+    }),
+  },
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada nicoise',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado','huevos'], comments:'Ensalada francesa con atun, judias verdes, huevo duro, anchoas, patata y aceitunas negras.',
+    }),
+  },
+  {
+    categoria: 'primeros_ensalada',
+    name: 'Ensalada de espinacas con nueces y pasas',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:['frutos_secos'], comments:'Espinacas frescas con nueces, pasas y vinagreta de modena. Fresca y nutritiva.',
+    }),
+  },
+
+  // ── PRIMEROS: Pasta ──────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_pasta',
+    name: 'Pasta carbonara',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','huevos','lacteos'], comments:'Pasta con guanciale o panceta, huevo, parmesano y pimienta negra. Receta romana autentica sin nata.',
+    }),
+  },
+  {
+    categoria: 'primeros_pasta',
+    name: 'Linguine alle vongole',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten','moluscos','sulfitos'], comments:'Linguine con almejas, ajo, vino blanco y perejil. Plato icónico de la cocina italiana costena.',
+    }),
+  },
+  {
+    categoria: 'primeros_pasta',
+    name: 'Pasta a la boloñesa',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten'], comments:'Ragu de carne picada de ternera y cerdo con tomate, zanahoria y apio. Coccion lenta.',
+    }),
+  },
+  {
+    categoria: 'primeros_pasta',
+    name: 'Pasta con pesto rojo',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','frutos_secos','lacteos'], comments:'Pasta con pesto siciliano de tomate seco, almendras y parmesano. Muy sabrosa.',
+    }),
+  },
+
+  // ── PRIMEROS: Arroz ──────────────────────────────────────────────────────
+  {
+    categoria: 'primeros_arroz',
+    name: 'Arroz negro con sepia',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['moluscos'], comments:'Arroz bomba cocinado con tinta de calamar, sepia y sofrito de tomate. Con alioli para acompanar.',
+    }),
+  },
+  {
+    categoria: 'primeros_arroz',
+    name: 'Risotto de setas',
+    description: JSON.stringify({
+      season:'otono', useComida:true, useCena:false,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Arroz arborio cremoso con setas variadas, vino blanco y parmesano. Tecnica italiana de mover continuamente.',
+    }),
+  },
+  {
+    categoria: 'primeros_arroz',
+    name: 'Arroz a la cubana',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos'], comments:'Arroz blanco con salsa de tomate casera y huevo frito. Clasico familiar muy sencillo.',
+    }),
+  },
+
+  // ── PRIMEROS: Verduras ───────────────────────────────────────────────────
+  {
+    categoria: 'primeros_verduras',
+    name: 'Pimientos del piquillo rellenos de queso',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Pimientos del piquillo en conserva rellenos de queso crema con hierbas. Frios o templados.',
+    }),
+  },
+  {
+    categoria: 'primeros_verduras',
+    name: 'Calabacines rellenos de verduras',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Calabacines vaciados y rellenos de pisto de verduras. Hornear hasta que la piel este tierna.',
+    }),
+  },
+  {
+    categoria: 'primeros_verduras',
+    name: 'Graten de patatas',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Patatas en laminas con nata, ajo y queso gratinado al horno. Cremoso y contundente.',
+    }),
+  },
+
+  // ── PRIMEROS: Legumbres ──────────────────────────────────────────────────
+  {
+    categoria: 'primeros_legumbres',
+    name: 'Hummus casero',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:['sesamo'], comments:'Pure de garbanzos con tahini, limon, ajo y comino. Servir con aceite y pimenton. Con crudites.',
+    }),
+  },
+  {
+    categoria: 'primeros_legumbres',
+    name: 'Dal de lentejas rojas',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Crema de lentejas rojas con curry, curcuma, jengibre y leche de coco. Receta india sencilla y nutritiva.',
+    }),
+  },
+
+  // ── SEGUNDOS: Carne roja ─────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Hamburguesa de ternera casera',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','lacteos'], comments:'Hamburguesa de carne picada de ternera con lechuga, tomate y queso. En pan de brioche.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Chuleton a la brasa',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Chuleton de ternera o buey a la brasa. Sal gruesa en el momento. Punto medio al interior.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Solomillo de ternera con salsa de pimienta',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos','sulfitos'], comments:'Solomillo a la plancha con salsa cremosa de pimienta verde y brandy.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Libritos de ternera empanados',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','huevos','lacteos'], comments:'Filetes finos rellenos de jamon serrano y queso, empanados y fritos.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_roja',
+    name: 'Chuletas de cordero a la plancha',
+    description: JSON.stringify({
+      season:'primavera', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Chuletas de cordero lechal a la plancha con sal gruesa y un chorrito de limon. Sencillo y delicioso.',
+    }),
+  },
+
+  // ── SEGUNDOS: Pollo y otras aves ─────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pato a la naranja',
+    description: JSON.stringify({
+      season:'otono', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Pato asado con salsa agridulce de naranja y vino blanco. Clasico de la cocina francesa.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Conejo al ajillo',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['sulfitos'], comments:'Conejo troceado dorado con abundante ajo, vino blanco y romero. Muy popular en Espana.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_pollo',
+    name: 'Pollo a la cerveza',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten'], comments:'Pollo troceado estofado en cerveza rubia con cebolla y tomillo. La cerveza le da un sabor especial.',
+    }),
+  },
+
+  // ── SEGUNDOS: Cerdo ──────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Magro de cerdo con tomate',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Trozos de magro estofados en salsa de tomate casera con pimiento y cebolla. Clasico andaluz.',
+    }),
+  },
+  {
+    categoria: 'segundos_carne_cerdo',
+    name: 'Pincho moruno',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Trozos de carne de cerdo marinados en ras el hanout y comino. A la plancha o a la brasa en brochetas.',
+    }),
+  },
+
+  // ── SEGUNDOS: Pescado porcion ────────────────────────────────────────────
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Bacalao al pil-pil',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Lomos de bacalao desalado confitados en aceite de oliva con ajo. La gelatina del bacalao emulsiona la salsa.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Boquerones fritos',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['pescado','gluten'], comments:'Boquerones frescos enharinados y fritos en aceite de oliva bien caliente. Con limon.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Calamares a la romana',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['gluten','huevos','moluscos'], comments:'Anillas de calamar rebozadas en tempura ligera y fritas. Con alioli o limon.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Trucha a la navarra',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:false, sinLactosa:true,
+      allergens:['pescado','gluten'], comments:'Trucha abierta rellena de jamon serrano, enharinada y frita. Receta clasica navarra.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_porcion',
+    name: 'Gambas al ajillo',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['crustaceos'], comments:'Gambas salteadas en cazuelita de barro con aceite, ajo y guindilla. Servir hirviendo.',
+    }),
+  },
+
+  // ── SEGUNDOS: Pescado entero ─────────────────────────────────────────────
+  {
+    categoria: 'segundos_pescado_entero',
+    name: 'Besugo al horno',
+    description: JSON.stringify({
+      season:'invierno', useComida:true, useCena:false,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Besugo entero al horno con patatas, limon y aceite de oliva. Tradicional de Navidad.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_entero',
+    name: 'Sardinas a la plancha',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Sardinas enteras a la plancha con sal gruesa y limon. Muy nutritivas y sabrosas en verano.',
+    }),
+  },
+  {
+    categoria: 'segundos_pescado_entero',
+    name: 'Caballa al horno con limon y tomillo',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['pescado'], comments:'Caballa entera al horno con rodajas de limon, tomillo y aceite de oliva. Economica y sana.',
+    }),
+  },
+
+  // ── SEGUNDOS: Huevos ─────────────────────────────────────────────────────
+  {
+    categoria: 'segundos_huevos',
+    name: 'Huevos rotos con jamon serrano',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:false, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos'], comments:'Patatas fritas con huevos fritos rotos encima y virutas de jamon serrano. Clasico espanol.',
+    }),
+  },
+  {
+    categoria: 'segundos_huevos',
+    name: 'Tortilla de patata y pimientos',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:true,
+      allergens:['huevos'], comments:'Tortilla espanola clasica con pimiento verde asado. Muy jugosa y sabrosa.',
+    }),
+  },
+
+  // ── POSTRES: Lacteos ─────────────────────────────────────────────────────
+  {
+    categoria: 'postres_lacteo',
+    name: 'Flan casero',
+    description: JSON.stringify({
+      season:'todo', useComida:false, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['huevos','lacteos'], comments:'Flan de huevo con caramelo casero. Cocinado al bano maria en el horno.',
+    }),
+  },
+  {
+    categoria: 'postres_lacteo',
+    name: 'Natillas caseras',
+    description: JSON.stringify({
+      season:'todo', useComida:false, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['huevos','lacteos'], comments:'Natillas cremosas con canela y galleta. Receta tradicional espanola con leche y yemas.',
+    }),
+  },
+  {
+    categoria: 'postres_lacteo',
+    name: 'Arroz con leche',
+    description: JSON.stringify({
+      season:'invierno', useComida:false, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Arroz cocido en leche con azucar, canela y limon. Postre clasico espanol muy reconfortante.',
+    }),
+  },
+  {
+    categoria: 'postres_lacteo',
+    name: 'Panna cotta con frutos rojos',
+    description: JSON.stringify({
+      season:'verano', useComida:false, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Nata cuajada con gelatina y vainilla. Servir con coulis de frutos rojos frescos.',
+    }),
+  },
+  {
+    categoria: 'postres_lacteo',
+    name: 'Yogur con miel y nueces',
+    description: JSON.stringify({
+      season:'todo', useComida:false, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos','frutos_secos'], comments:'Yogur griego natural con miel de flores y nueces. Postre ligero y nutritivo.',
+    }),
+  },
+
+  // ── POSTRES: Fruta ───────────────────────────────────────────────────────
+  {
+    categoria: 'postres_fruta',
+    name: 'Macedonia de frutas',
+    description: JSON.stringify({
+      season:'verano', useComida:true, useCena:true,
+      vegetariano:true, vegano:true, sinGluten:true, sinLactosa:true,
+      allergens:[], comments:'Mezcla de frutas de temporada cortadas con zumo de naranja y menta. Fresca y colorida.',
+    }),
+  },
+  {
+    categoria: 'postres_fruta',
+    name: 'Fresas con nata',
+    description: JSON.stringify({
+      season:'primavera', useComida:true, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['lacteos'], comments:'Fresas maduras con nata montada azucarada. Postre de temporada clasico y delicioso.',
+    }),
+  },
+
+  // ── POSTRES: Reposteria ──────────────────────────────────────────────────
+  {
+    categoria: 'postres_reposteria',
+    name: 'Mousse de chocolate',
+    description: JSON.stringify({
+      season:'todo', useComida:false, useCena:true,
+      vegetariano:true, vegano:false, sinGluten:true, sinLactosa:false,
+      allergens:['huevos','lacteos'], comments:'Mousse aereo de chocolate negro con nata montada y claras a punto de nieve.',
+    }),
+  },
+  {
+    categoria: 'postres_reposteria',
+    name: 'Tarta de manzana',
+    description: JSON.stringify({
+      season:'otono', useComida:true, useCena:false,
+      vegetariano:true, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','huevos','lacteos'], comments:'Tarta casera con base de hojaldre o masa quebrada, rellena de manzana y canela.',
+    }),
+  },
+  {
+    categoria: 'postres_reposteria',
+    name: 'Bizcocho de limon',
+    description: JSON.stringify({
+      season:'todo', useComida:true, useCena:false,
+      vegetariano:true, vegano:false, sinGluten:false, sinLactosa:false,
+      allergens:['gluten','huevos','lacteos'], comments:'Bizcocho esponjoso con ralladura de limon y yogur. Perfecto para merendar o de postre.',
+    }),
+  },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+// INGREDIENTES
+// ════════════════════════════════════════════════════════════════════════════
+const INGREDIENTES = [
+  // Verduras nuevas
+  { name:'Rucula',                   category:'verduras',      allergens:[], unit:'g',  season:'todo',    notes:'Hoja de sabor picante. Usar fresca, no la cocines.' },
+  { name:'Remolacha cocida',         category:'verduras',      allergens:[], unit:'g',  season:'todo',    notes:'En conserva o cocida en casa. Tiñe todo lo que toca.' },
+  { name:'Cebollino',                category:'verduras',      allergens:[], unit:'g',  season:'todo',    notes:'Hierba aromática suave. Usar crudo picado fino como decoracion.' },
+  { name:'Apio',                     category:'verduras',      allergens:['apio'], unit:'g', season:'todo', notes:'Alergeno: apio. Aporta sabor al sofrito de la bolonesa y guisos.' },
+  { name:'Lechuga',                  category:'verduras',      allergens:[], unit:'g',  season:'todo',    notes:'Para ensaladas y hamburguesas. Mantener en nevera envuelta.' },
+  // Frutas nuevas
+  { name:'Naranja',                  category:'frutas',        allergens:[], unit:'g',  season:'invierno', notes:'Para zumo, ralladura y salsas agridulces como el pato a la naranja.' },
+  { name:'Manzana',                  category:'frutas',        allergens:[], unit:'g',  season:'otono',   notes:'Variedad Golden para tartas, Granny Smith para acidez.' },
+  { name:'Fresas',                   category:'frutas',        allergens:[], unit:'g',  season:'primavera', notes:'De temporada, marzo a junio. Lavar sin quitar el tallo para que no absorban agua.' },
+  { name:'Frutos rojos',             category:'frutas',        allergens:[], unit:'g',  season:'verano',  notes:'Frambuesas, arandanos, moras. Frescos o congelados para coulis.' },
+  { name:'Pera',                     category:'frutas',        allergens:[], unit:'g',  season:'otono',   notes:'Variedad Conferencia para postres. Madurar a temperatura ambiente.' },
+  { name:'Pasas',                    category:'frutas',        allergens:['sulfitos'], unit:'g', season:'todo', notes:'Uvas pasas. Alergeno: sulfitos. Hidratar 10 min en agua caliente.' },
+  // Lacteos nuevos
+  { name:'Queso gruyere',            category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'Queso suizo para gratinar. Fundir a temperatura media.' },
+  { name:'Queso de cabra',           category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'Rulo de cabra fresco. Para ensaladas templadas y rellenos.' },
+  { name:'Queso mozzarella fresca',  category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'En bola en agua. Escurrir bien antes de usar. Para caprese.' },
+  { name:'Queso crema',              category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'Para rellenos frios y salsas cremosas. Tipo Philadelphia.' },
+  { name:'Queso mascarpone',         category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'Queso italiano muy graso y cremoso. Para tiramisu y mousses.' },
+  { name:'Nata para montar',         category:'lacteos',       allergens:['lacteos'], unit:'ml', season:'todo', notes:'Minimo 35% de grasa para montar bien. Muy fria antes de montar.' },
+  { name:'Leche entera',             category:'lacteos',       allergens:['lacteos'], unit:'ml', season:'todo', notes:'Para flanes, natillas, arroz con leche y bizcochos.' },
+  { name:'Yogur griego',             category:'lacteos',       allergens:['lacteos'], unit:'g',  season:'todo', notes:'Natural sin azucar. Mas espeso y proteico que el yogur normal.' },
+  // Pescados nuevos
+  { name:'Boquerones frescos',       category:'pescados',      allergens:['pescado'], unit:'g',  season:'verano', notes:'Limpiar quitando cabeza y tripas. Freir en aceite muy caliente.' },
+  { name:'Calamares frescos',        category:'mariscos',      allergens:['moluscos'], unit:'g', season:'todo', notes:'Limpiar bien y secar antes de rebozar para que no salpique.' },
+  { name:'Trucha entera',            category:'pescados',      allergens:['pescado'], unit:'g',  season:'todo', notes:'Pedir limpia en la pescaderia. Rellenar con jamon antes de cocinar.' },
+  { name:'Besugo',                   category:'pescados',      allergens:['pescado'], unit:'g',  season:'invierno', notes:'Pez de temporada invernal. Pedir limpio y con escamas quitadas.' },
+  { name:'Sardinas frescas',         category:'pescados',      allergens:['pescado'], unit:'g',  season:'verano', notes:'Muy perecederas. Consumir el mismo dia de compra.' },
+  { name:'Caballa',                  category:'pescados',      allergens:['pescado'], unit:'g',  season:'verano', notes:'Pescado azul economico y muy nutritivo. Sabor intenso.' },
+  { name:'Sepia limpia',             category:'mariscos',      allergens:['moluscos'], unit:'g', season:'todo', notes:'Pedir limpia en la pescaderia. Marcar a la plancha muy caliente.' },
+  { name:'Pato troceado',            category:'carnes',        allergens:[], unit:'g',  season:'otono',  notes:'Carne grasa y sabrosa. Desgrasar el caldo durante la coccion.' },
+  { name:'Conejo troceado',          category:'carnes',        allergens:[], unit:'g',  season:'todo',   notes:'Carne magra y digestiva. Marinar en vino y hierbas para ablandar.' },
+  { name:'Solomillo de ternera',     category:'carnes',        allergens:[], unit:'g',  season:'todo',   notes:'El corte mas tierno de la ternera. No sobrepasar el punto rosado.' },
+  { name:'Chuleton de ternera',      category:'carnes',        allergens:[], unit:'g',  season:'todo',   notes:'Corte grueso con hueso. Minimo 3 cm para hacerlo correctamente.' },
+  { name:'Magro de cerdo',           category:'carnes',        allergens:[], unit:'g',  season:'todo',   notes:'Carne magra de la paleta del cerdo. Cortar en dados para guisar.' },
+  { name:'Jamon serrano',            category:'embutidos',     allergens:[], unit:'g',  season:'todo',   notes:'En loncha o en viruta. Para libritos, huevos rotos y guarniciones.' },
+  { name:'Panceta curada',           category:'embutidos',     allergens:[], unit:'g',  season:'todo',   notes:'Para la carbonara y guisos. Saltear primero para que suelte la grasa.' },
+  // Pan y harinas
+  { name:'Pan de baguette',          category:'pan_bolleria',  allergens:['gluten'], unit:'g', season:'todo', notes:'Para la sopa de cebolla gratinada. Cortar en rodajas y tostar.' },
+  { name:'Pan de hamburguesa',       category:'pan_bolleria',  allergens:['gluten','huevos','lacteos'], unit:'g', season:'todo', notes:'Brioche o pan de semillas. Tostar ligeramente antes de servir.' },
+  { name:'Harina de trigo',          category:'cereales',      allergens:['gluten'], unit:'g',  season:'todo', notes:'Para rebozados, bizcochos y masas. Tamizar antes de usar.' },
+  { name:'Masa de hojaldre',         category:'pan_bolleria',  allergens:['gluten','lacteos'], unit:'g', season:'todo', notes:'Refrigerada o congelada. Descongelar en nevera la noche anterior.' },
+  // Arroz especial
+  { name:'Arroz bomba',              category:'pasta_arroz',   allergens:[], unit:'g',  season:'todo',   notes:'Para paellas y arroces secos. Absorbe mucho caldo sin pasarse.' },
+  { name:'Arroz arborio',            category:'pasta_arroz',   allergens:[], unit:'g',  season:'todo',   notes:'Arroz italiano de grano redondo para risotto. Libera almidon cremoso.' },
+  { name:'Linguine',                 category:'pasta_arroz',   allergens:['gluten'], unit:'g', season:'todo', notes:'Pasta larga y plana. Ideal para salsas de mariscos y pesto.' },
+  // Conservas nuevas
+  { name:'Anchoas en aceite',        category:'conservas',     allergens:['pescado'], unit:'g', season:'todo', notes:'Filetes de anchoa en aceite de oliva. Alergeno: pescado. Aportan umami.' },
+  { name:'Tinta de calamar',         category:'conservas',     allergens:['moluscos'], unit:'g', season:'todo', notes:'En bolsitas. Para arroz negro y pastas. Usar con guantes.' },
+  { name:'Tomate seco',              category:'conservas',     allergens:[], unit:'g',  season:'todo',   notes:'En aceite de oliva. Para pesto rojo y ensaladas. Cortar en tiras.' },
+  { name:'Gelatina en hojas',        category:'reposteria',    allergens:[], unit:'g',  season:'todo',   notes:'Hidratar en agua fria 5 min antes de disolver en liquido caliente.' },
+  { name:'Galletas maria',           category:'reposteria',    allergens:['gluten','lacteos'], unit:'g', season:'todo', notes:'Para base de tartas y decoracion de natillas.' },
+  // Reposteria
+  { name:'Azucar',                   category:'reposteria',    allergens:[], unit:'g',  season:'todo',   notes:'Azucar blanca para reposteria y caramelos. Moreno para bizcochos mas humidos.' },
+  { name:'Harina de reposteria',     category:'reposteria',    allergens:['gluten'], unit:'g', season:'todo', notes:'Con levadura incorporada o sin ella segun la receta.' },
+  { name:'Levadura quimica',         category:'reposteria',    allergens:[], unit:'g',  season:'todo',   notes:'Royal o similar. Para bizcochos y magdalenas.' },
+  { name:'Chocolate negro',          category:'reposteria',    allergens:['lacteos'], unit:'g', season:'todo', notes:'Minimo 70% cacao para mousse y reposteria. Fundir al bano maria.' },
+  { name:'Cacao en polvo',           category:'reposteria',    allergens:[], unit:'g',  season:'todo',   notes:'Sin azucar para reposteria. Tamizar antes de anadir a la mezcla.' },
+  { name:'Vainilla',                 category:'condimentos',   allergens:[], unit:'g',  season:'todo',   notes:'En vaina o extracto. La vaina aporta mas sabor que el extracto.' },
+  { name:'Canela en rama',           category:'condimentos',   allergens:[], unit:'g',  season:'todo',   notes:'Para aromatizar leche en natillas y arroz con leche.' },
+  { name:'Canela en polvo',          category:'condimentos',   allergens:[], unit:'g',  season:'todo',   notes:'Para bizcochos, tartas y macedonias. Usar con moderacion.' },
+  { name:'Nueces',                   category:'frutos_secos',  allergens:['frutos_secos'], unit:'g', season:'todo', notes:'Para ensaladas, postres y salsas. Conservar en lugar fresco y oscuro.' },
+  { name:'Miel',                     category:'endulzantes',   allergens:[], unit:'g',  season:'todo',   notes:'Miel de flores para postres y aliños. La de romero va bien con quesos.' },
+  { name:'Tahini',                   category:'salsas',        allergens:['sesamo'], unit:'g', season:'todo', notes:'Pasta de semillas de sesamo tostadas. Alergeno: sesamo. Base del hummus.' },
+  { name:'Cerveza rubia',            category:'bebidas',       allergens:['gluten','sulfitos'], unit:'ml', season:'todo', notes:'Para estofados de pollo y carne. La cerveza aporta amargor y aroma.' },
+  { name:'Brandy',                   category:'bebidas',       allergens:['sulfitos'], unit:'ml', season:'todo', notes:'Para salsas de pimienta y flambear carnes. Usar con moderacion.' },
+  { name:'Ras el hanout',            category:'condimentos',   allergens:[], unit:'g',  season:'todo',   notes:'Mezcla de especias norteafricanas. Para pinchos morunos y tagines.' },
+  { name:'Tomillo seco',             category:'condimentos',   allergens:[], unit:'g',  season:'todo',   notes:'Para carnes al horno, guisos y caldos. El fresco es mas aromatico.' },
+  { name:'Pimienta negra en grano',  category:'condimentos',   allergens:[], unit:'g',  season:'todo',   notes:'Moler en el momento para mas aroma. Para salsas de pimienta verde usar en grano.' },
+  { name:'Guindilla seca',           category:'condimentos',   allergens:[], unit:'g',  season:'todo',   notes:'Para gambas al ajillo y platos picantes. Retirar antes de servir.' },
+  { name:'Vinagre de Modena',        category:'condimentos',   allergens:['sulfitos'], unit:'ml', season:'todo', notes:'Vinagre balsamico de Modena. Para ensaladas y reducciones. Alergeno: sulfitos.' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const log = document.getElementById('log');
+function print(msg, cls='') {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function onAuthReady(user) {
+  if (!user) {
+    print('Debes iniciar sesion primero. Ve a menu.html, inicia sesion y vuelve aqui.', 'err');
+    document.getElementById('btnRun').disabled = true;
+  } else {
+    print(`Sesion activa: ${user.email}`, 'ok');
+  }
+}
+
+async function runSeed() {
+  document.getElementById('btnRun').disabled = true;
+  log.innerHTML = '';
+
+  try {
+    // ── Ingredientes ──────────────────────────────────────────────────────
+    print('── INGREDIENTES ─────────────────────────────', 'hd');
+    const ingRef = db.collection('users').doc(currentUser.uid).collection('ingredientes');
+    const existSnap = await ingRef.get();
+    const existNames = new Set(existSnap.docs.map(d => (d.data().name || '').toLowerCase().trim()));
+
+    let ingAdded = 0, ingSkipped = 0;
+    for (const ing of INGREDIENTES) {
+      const key = ing.name.toLowerCase().trim();
+      if (existNames.has(key)) {
+        print(`  · omitido: ${ing.name}`, 'skip');
+        ingSkipped++;
+      } else {
+        await ingRef.add({ ...ing });
+        print(`  + añadido: ${ing.name}`, 'ok');
+        existNames.add(key);
+        ingAdded++;
+      }
+    }
+    print(`Ingredientes: ${ingAdded} añadidos, ${ingSkipped} ya existian.\n`, 'ok');
+
+    // ── Platos ────────────────────────────────────────────────────────────
+    print('── PLATOS ───────────────────────────────────', 'hd');
+    const foodsRef = db.collection('users').doc(currentUser.uid)
+                       .collection('foods').doc('custom-foods');
+    const foodsSnap = await foodsRef.get();
+    const data = foodsSnap.exists ? foodsSnap.data() : {};
+    const customFoods = data.customFoods || {};
+
+    let platosAdded = 0, platosSkipped = 0;
+    for (const plato of PLATOS) {
+      const cat = plato.categoria;
+      if (!customFoods[cat]) customFoods[cat] = [];
+      const exists = customFoods[cat].some(p => {
+        const n = typeof p === 'string' ? p : (p.name || '');
+        return n.toLowerCase().trim() === plato.name.toLowerCase().trim();
+      });
+      if (exists) {
+        print(`  · omitido [${cat}]: ${plato.name}`, 'skip');
+        platosSkipped++;
+      } else {
+        customFoods[cat].push({ name: plato.name, description: plato.description });
+        print(`  + añadido [${cat}]: ${plato.name}`, 'ok');
+        platosAdded++;
+      }
+    }
+
+    await foodsRef.set({ customFoods });
+    localStorage.removeItem('customFoods');
+    print(`Platos: ${platosAdded} añadidos, ${platosSkipped} ya existian.\n`, 'ok');
+    print('Seed completado. Puedes cerrar esta pagina.', 'ok');
+  } catch (err) {
+    print(`ERROR: ${err.message}`, 'err');
+    console.error(err);
+    document.getElementById('btnRun').disabled = false;
+  }
+}
+</script>
+</body>
+</html>
