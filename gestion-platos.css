@@ -481,7 +481,7 @@ body.theme-dark .btn-secondary:hover { background: #4b5563; }
    MODAL — Plate form
    ============================================ */
 
-.plate-form-modal { max-width: 540px; }
+.plate-form-modal { max-width: 720px; }
 
 .plate-modal-header {
     display: flex;
@@ -516,7 +516,7 @@ body.theme-dark .btn-secondary:hover { background: #4b5563; }
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-height: calc(90vh - 140px);
+    max-height: calc(90vh - 120px);
     overflow-y: auto;
 }
 
