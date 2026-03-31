@@ -4574,6 +4574,23 @@ function setRecetasTab(tab) {
     document.getElementById('recetasDayPicker').style.display = 'none';
 }
 
+const _COUNTS_CACHE_KEY = 'recetas_counts_v1';
+const _COUNTS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 h
+
+function _getCountsCache() {
+    try {
+        const raw = localStorage.getItem(_COUNTS_CACHE_KEY);
+        if (!raw) return null;
+        const { ts, counts } = JSON.parse(raw);
+        if (Date.now() - ts > _COUNTS_CACHE_TTL) return null;
+        return counts;
+    } catch { return null; }
+}
+
+function _setCountsCache(counts) {
+    try { localStorage.setItem(_COUNTS_CACHE_KEY, JSON.stringify({ ts: Date.now(), counts })); } catch {}
+}
+
 async function _cargarFiltrosRecetas() {
     try {
         const [catRes, areaRes] = await Promise.all([
@@ -4582,21 +4599,58 @@ async function _cargarFiltrosRecetas() {
         ]);
         const catData  = await catRes.json();
         const areaData = await areaRes.json();
+        const cats  = catData.categories  || [];
+        const areas = areaData.meals || [];
 
         document.getElementById('recetasCategoriaSelect').innerHTML =
             '<option value="">Selecciona una categoría...</option>' +
-            (catData.categories || []).map(c =>
-                `<option value="${c.strCategory}">${_CAT_ES[c.strCategory] || c.strCategory}</option>`
-            ).join('');
+            cats.map(c => `<option value="${c.strCategory}">${_CAT_ES[c.strCategory] || c.strCategory}</option>`).join('');
 
         document.getElementById('recetasPaisSelect').innerHTML =
             '<option value="">Selecciona un país...</option>' +
-            (areaData.meals || []).map(a =>
-                `<option value="${a.strArea}">${_AREA_ES[a.strArea] || a.strArea}</option>`
-            ).join('');
+            areas.map(a => `<option value="${a.strArea}">${_AREA_ES[a.strArea] || a.strArea}</option>`).join('');
+
+        // Load counts (from cache or API) and update options in background
+        _cargarContadoresRecetas(cats, areas);
     } catch(e) {
         console.warn('Error cargando filtros:', e);
     }
+}
+
+async function _cargarContadoresRecetas(cats, areas) {
+    const cached = _getCountsCache();
+    if (cached) { _aplicarContadores(cached); return; }
+
+    // Fetch all counts in parallel
+    const fetchCount = (url) =>
+        fetch(url).then(r => r.json()).then(d => (d.meals || []).length).catch(() => null);
+
+    const [catCounts, areaCounts] = await Promise.all([
+        Promise.all(cats.map(c  => fetchCount(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${encodeURIComponent(c.strCategory)}`))),
+        Promise.all(areas.map(a => fetchCount(`https://www.themealdb.com/api/json/v1/1/filter.php?a=${encodeURIComponent(a.strArea)}`)))
+    ]);
+
+    const counts = {};
+    cats.forEach((c, i)  => { if (catCounts[i]  !== null) counts[`c:${c.strCategory}`]  = catCounts[i]; });
+    areas.forEach((a, i) => { if (areaCounts[i] !== null) counts[`a:${a.strArea}`] = areaCounts[i]; });
+    _setCountsCache(counts);
+    _aplicarContadores(counts);
+}
+
+function _aplicarContadores(counts) {
+    const catSelect  = document.getElementById('recetasCategoriaSelect');
+    const paisSelect = document.getElementById('recetasPaisSelect');
+    if (!catSelect || !paisSelect) return;
+    catSelect.querySelectorAll('option[value]').forEach(opt => {
+        if (!opt.value) return;
+        const n = counts[`c:${opt.value}`];
+        if (n != null) opt.textContent = `${_CAT_ES[opt.value] || opt.value} (${n})`;
+    });
+    paisSelect.querySelectorAll('option[value]').forEach(opt => {
+        if (!opt.value) return;
+        const n = counts[`a:${opt.value}`];
+        if (n != null) opt.textContent = `${_AREA_ES[opt.value] || opt.value} (${n})`;
+    });
 }
 
 async function buscarRecetasPorCategoria() {
