@@ -1997,6 +1997,32 @@ function getSlotFoods(slot) {
 }
 
 // Eliminar etiqueta individual de comida
+// Limpia el slot2 (comida2/cena2) si está bloqueado por un plato único
+async function _clearPairedUnicoSlot(slot, date) {
+    const slotMeal = slot.dataset.meal;
+    if (slotMeal !== 'comida1' && slotMeal !== 'cena1') return;
+    const cal = slot.dataset.calendar;
+    const slot2Key = slotMeal === 'comida1' ? 'comida2' : 'cena2';
+    const slot2 = document.querySelector(
+        `.meal-slot[data-day="${slot.dataset.day}"][data-meal="${slot2Key}"]${cal ? `[data-calendar="${cal}"]` : ''}`
+    );
+    if (!slot2 || !slot2.classList.contains('slot-unico-blocked')) return;
+    slot2.classList.remove('slot-unico-blocked');
+    updateSlotWithArray(slot2, []);
+    const candidates2 = getMenuKeyCandidatesFromSlot(slot2);
+    if (isFirebaseConfigured) {
+        try {
+            const del = {};
+            candidates2.forEach(k => { del[k] = firebase.firestore.FieldValue.delete(); });
+            await db.collection('menus').doc(MENU_DOC_ID).update(del);
+        } catch (e) {
+            await saveMenu(slot.dataset.day, slot2Key, [], cal ? Number(cal) : null, date);
+        }
+    } else {
+        candidates2.forEach(k => localStorage.removeItem(k));
+    }
+}
+
 async function removeFoodTag(btn) {
     const slot = btn.closest('.meal-slot');
     if (slot.classList.contains('slot-disabled') || !currentUser) {
@@ -2059,18 +2085,8 @@ async function removeFoodTag(btn) {
     // Actualizar UI
     updateSlotWithArray(slot, foodsArray);
 
-    // Si era plato único en comida1/cena1 → también limpiar el segundo slot
-    const slotMeal = slot.dataset.meal;
-    if (findPlateCategory(foodName)?.startsWith('unico_') && (slotMeal === 'comida1' || slotMeal === 'cena1')) {
-        const cal = slot.dataset.calendar;
-        const slot2Key = slotMeal === 'comida1' ? 'comida2' : 'cena2';
-        const slot2 = document.querySelector(`.meal-slot[data-day="${slot.dataset.day}"][data-meal="${slot2Key}"]${cal ? `[data-calendar="${cal}"]` : ''}`);
-        if (slot2) {
-            slot2.classList.remove('slot-unico-blocked');
-            updateSlotWithArray(slot2, []);
-            await saveMenu(slot.dataset.day, slot2Key, [], cal ? Number(cal) : null, date);
-        }
-    }
+    // Si era comida1/cena1 con plato único → limpiar también el slot2 bloqueado
+    await _clearPairedUnicoSlot(slot, date);
 
     // Guardar
     await saveMenu(slot.dataset.day, slot.dataset.meal, foodsArray, null, date);
@@ -3977,6 +3993,9 @@ async function clearCurrentSlotFromModal() {
             await saveMenu(slot.dataset.day, slot.dataset.meal, [], null, date);
         }
     }
+
+    // Si era comida1/cena1 con plato único → limpiar también el slot2 bloqueado
+    await _clearPairedUnicoSlot(slot, date);
 
     closeFoodModal();
 }
