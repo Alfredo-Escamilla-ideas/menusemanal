@@ -1917,6 +1917,7 @@ function updateSlotWithArray(slot, foodsArray) {
     const meal = slot?.dataset?.meal;
     if (meal === 'comida2' || meal === 'cena2') {
         const isUnico = foodsArray.length > 0 && foodsArray.some(f => {
+            if (typeof f === 'object' && f?.category?.startsWith('unico_')) return true;
             const name = typeof f === 'string' ? f : f?.name;
             return findPlateCategory(name)?.startsWith('unico_');
         });
@@ -2006,7 +2007,17 @@ async function _clearPairedUnicoSlot(slot, date) {
     const slot2 = document.querySelector(
         `.meal-slot[data-day="${slot.dataset.day}"][data-meal="${slot2Key}"]${cal ? `[data-calendar="${cal}"]` : ''}`
     );
-    if (!slot2 || !slot2.classList.contains('slot-unico-blocked')) return;
+    if (!slot2) return;
+    // slot-unico-blocked may not be set if customFoodsGlobal wasn't ready during page load;
+    // fallback: check if slot2 actually contains a unico plate
+    if (!slot2.classList.contains('slot-unico-blocked')) {
+        const slot2Foods = getFoodsArrayFromSlot(slot2);
+        const hasUnico = slot2Foods.some(f => {
+            const name = typeof f === 'string' ? f : f?.name;
+            return findPlateCategory(name)?.startsWith('unico_');
+        });
+        if (!hasUnico) return;
+    }
     slot2.classList.remove('slot-unico-blocked');
     updateSlotWithArray(slot2, []);
     const candidates2 = getMenuKeyCandidatesFromSlot(slot2);
@@ -2384,8 +2395,8 @@ function findPlateByName(name) {
             return plateName === name;
         });
         if (plate) {
-            // Si es string, convertir a objeto
-            return typeof plate === 'string' ? { name: plate, description: '' } : plate;
+            // Si es string, convertir a objeto; incluir category para detección robusta de plato único
+            return typeof plate === 'string' ? { name: plate, description: '', category } : { ...plate, category };
         }
     }
     // Si no se encuentra, devolver objeto con solo el nombre
@@ -3844,7 +3855,9 @@ async function openFoodModal(slot, replaceFoodName = null) {
     }
 
     if (clearSlotBtn) {
-        clearSlotBtn.disabled = existingPlates.length === 0;
+        // Enable trash if Firebase/localStorage has data OR if slot DOM already shows food
+        const slotHasContent = slot.querySelectorAll('.meal-content').length > 0;
+        clearSlotBtn.disabled = existingPlates.length === 0 && !slotHasContent;
     }
 
     // Determinar grupos a mostrar según tipo de comida
